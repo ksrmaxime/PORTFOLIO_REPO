@@ -11,7 +11,7 @@ from lxml import etree
 class CleanConfig:
     keep_titles: bool = True
     drop_notes: bool = True
-    drop_remarks: bool = True
+    drop_editorial_structures: bool = True
     normalize_whitespace: bool = True
 
 
@@ -31,43 +31,49 @@ def clean_akoma_ntoso_xml_to_text(xml_path: str | Path, cfg: CleanConfig | None 
     if not raw.strip():
         raise ValueError(f"Empty XML file: {xml_path}")
 
-    # Détection très simple des cas où on a reçu du HTML au lieu du XML
     head = raw[:2000].lstrip().lower()
     if head.startswith(b"<!doctype html") or head.startswith(b"<html") or b"<html" in head[:200]:
         raise ValueError(f"Got HTML instead of XML (likely error page): {xml_path}")
 
     parser = etree.XMLParser(recover=True, huge_tree=True)
     try:
-        doc = etree.fromstring(raw, parser=parser)
+        root = etree.fromstring(raw, parser=parser)
     except Exception as e:
         raise ValueError(f"XML parse failed for {xml_path}: {e}") from e
 
-    root = doc
     if root is None:
         raise ValueError(f"Parsed document has no root element: {xml_path}")
 
-    # Namespace-agnostic XPath via local-name()
+    # ---- Drop notes / editorial blocks (structure-based, no keyword heuristics)
+    if cfg.drop_notes:
+        for n in root.xpath(
+            "//*[local-name()='note' or local-name()='authorialNote' or local-name()='editorialNote']"
+        ):
+            parent = n.getparent()
+            if parent is not None:
+                parent.remove(n)
+
+    if cfg.drop_editorial_structures:
+        for n in root.xpath(
+            "//*[local-name()='remark' or local-name()='mod' or local-name()='quotedStructure' or "
+            "local-name()='embeddedStructure' or local-name()='commentary']"
+        ):
+            parent = n.getparent()
+            if parent is not None:
+                parent.remove(n)
+
+    # ---- Extract structure + articles
     lines: List[str] = []
 
-    if cfg.drop_notes:
-        for n in root.xpath("//*[local-name()='note']"):
-            parent = n.getparent()
-            if parent is not None:
-                parent.remove(n)
+    # broader structural containers
+    containers_xpath = (
+        "//*[local-name()='book' or local-name()='title' or local-name()='part' or "
+        "local-name()='chapter' or local-name()='subchapter' or local-name()='section' or "
+        "local-name()='subsection' or local-name()='division' or local-name()='subdivision' or "
+        "local-name()='article']"
+    )
 
-    if cfg.drop_remarks:
-        for n in root.xpath("//*[local-name()='remark' or local-name()='mod' or local-name()='quotedStructure']"):
-            parent = n.getparent()
-            if parent is not None:
-                parent.remove(n)
-
-    for el in root.xpath(
-    "//*[local-name()='book' or local-name()='title' or local-name()='part' or "
-    "local-name()='chapter' or local-name()='subchapter' or local-name()='section' or "
-    "local-name()='subsection' or local-name()='division' or local-name()='subdivision' or "
-    "local-name()='article']"
-    ):
-
+    for el in root.xpath(containers_xpath):
         name = el.tag.split("}")[-1]
 
         num = el.xpath("./*[local-name()='num']")
@@ -79,13 +85,22 @@ def clean_akoma_ntoso_xml_to_text(xml_path: str | Path, cfg: CleanConfig | None 
         if name != "article":
             if cfg.keep_titles and (num_s or head_s):
                 t = " ".join([p for p in [num_s, head_s] if p])
-                lines.append(t)
+                if cfg.normalize_whitespace:
+                    t = _norm_ws(t)
+                if t:
+                    lines.append(t)
             continue
 
-        art_header = " ".join([p for p in [f"Art. {num_s}".strip() if num_s else "Art.", head_s] if p]).strip()
+        # Article header
+        art_num = num_s
+        art_head = head_s
+        art_header = " ".join([p for p in [f"Art. {art_num}".strip() if art_num else "Art.", art_head] if p]).strip()
+        if cfg.normalize_whitespace:
+            art_header = _norm_ws(art_header)
         if art_header:
             lines.append(art_header)
 
+        # Paragraphs / alinéas
         paras = el.xpath(".//*[local-name()='paragraph']")
         if paras:
             for p in paras:
