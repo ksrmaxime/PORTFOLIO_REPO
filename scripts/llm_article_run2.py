@@ -41,6 +41,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--out-targets-col", default="article_targets")
     p.add_argument("--out-justif-col", default="article_justification")
 
+    p.add_argument("--debug-prompt", action="store_true", help="Print the exact messages sent to the LLM.")
+    p.add_argument("--debug-raw", action="store_true", help="Print the raw LLM output.")
+    p.add_argument("--debug-max-chars", type=int, default=6000, help="Max chars printed for prompts/raw outputs.")
+
+
     # resume behavior
     p.add_argument("--no-skip", action="store_true", help="Recompute even if already classified.")
     return p.parse_args()
@@ -80,7 +85,11 @@ def main() -> int:
         out_targets_col=args.out_targets_col,
         out_justification_col=args.out_justif_col,
         skip_if_already_done=(not args.no_skip),
+        debug_prompt=args.debug_prompt,
+        debug_raw_response=args.debug_raw,
+        debug_max_chars=args.debug_max_chars,
     )
+
 
     df_out = classify_selected_articles(
         client=client,

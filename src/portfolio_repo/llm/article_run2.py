@@ -19,43 +19,43 @@ class Run2Config:
     # output columns
     out_selected_col: str = "run2_selected"
     out_ai_relevant_col: str = "article_ai_relevant"
-    out_targets_col: str = "article_targets"           # JSON string list
+    out_targets_col: str = "article_targets"  # JSON string list
     out_justification_col: str = "article_justification"
 
     # if True, skip already-classified articles (resume behavior)
     skip_if_already_done: bool = True
 
+    # NEW: debug
+    debug_prompt: bool = False
+    debug_raw_response: bool = False
+    debug_max_chars: int = 6000
+
 
 _SYSTEM_PROMPT = (
-    "Rôle: codeur juridique. Tu appliques une règle de codage, pas une opinion sur 'ce qui est de l'IA'.\n\n"
-
-    "Définition opérationnelle (domain-agnostic) d'un 'système automatisé/algorithmique':\n"
-    "- tout système, logiciel, procédé ou dispositif qui exécute des fonctions de manière automatisée (ex: 'automatisation', "
-    "'traitement automatisé', 'décision automatisée', 'profilage', 'algorithme', 'système informatique', 'logiciel', "
-    "'modèle', 'apprentissage', 'enregistreur/journal', 'interface', 'liaison de communication').\n\n"
-
-    "Règle d'interprétation obligatoire:\n"
-    "- Si un article régule un objet 'X équipé d'un système Y' (ou 'X utilisant Y'), alors l'article régule aussi le système Y "
-    "dès qu'il fixe des conditions d'utilisation/admission/surveillance/obligations/autorisation/essais relatives à X+Y.\n\n"
-
-    "Mapping targets (à appliquer):\n"
-    "- Development & Adoption: autorise/interdit/conditionne l'usage, le déploiement, l'admission, les essais, la supervision, "
-    "les rôles/responsabilités liés à un système automatisé.\n"
-    "- Data: encadre données destinées à être traitées/produites par un système automatisé (collecte, journalisation/logs, accès, "
-    "partage, effacement, exactitude/intégrité, réutilisation).\n"
-    "- Computing Infrastructure: exigences techniques de sécurité/accès/stockage/interface/communication (accès non autorisé, "
-    "protection, intégrité, disponibilité).\n"
-    "- Skills: formation/compétences/qualifications explicitement numériques/IA.\n\n"
-
-    "Décision:\n"
-    "- Si un système automatisé est présent ET l'article fixe des conditions/règles sur son usage/admission/surveillance/etc. "
-    "=> ai_relevant=true et targets inclut AU MOINS 'Development & Adoption'.\n"
-    "- Sinon => ai_relevant=false.\n\n"
-
-    "Sortie: UNIQUEMENT du JSON valide."
+    "Rôle: codeur juridique.\n\n"
+    "Définition de l'IA dans ce contexte:\n"
+    "- Tout système, logiciel, procédé ou dispositif exécutant des fonctions de manière automatisée "
+    "en se basant sur de grosses quantités de données ou exploitant de la prise de décision algorithmique peuvent être considérée ici comme de l'IA.\n\n"
+    "Règle d'imputation juridique (OBLIGATOIRE):\n"
+    "- Si un article régule un objet X équipé ou utilisant un système automatisé Y, "
+    "alors l'article régule aussi le système Y dès lors qu'il fixe des conditions "
+    "d'usage, d'admission, de surveillance, d'autorisation, d'essais ou d'obligations.\n\n"
+    "Targets possibles (définitions STRICTES):\n"
+    "- Development & Adoption: règles juridiques portant sur l'usage, l'admission, "
+    "le déploiement, les essais, la supervision ou la responsabilité d'un système automatisé.\n"
+    "- Data: règles juridiques portant sur des données destinées à être traitées, produites "
+    "ou générées par un système automatisé (collecte, accès, journalisation, transmission, effacement).\n"
+    "- Computing Infrastructure: exigences techniques de sécurité, d'accès, de stockage, "
+    "d'intégrité ou de communication applicables à un système informatique.\n"
+    "- Skills: Toutes règles juridiques ayant un impact sur le développement de compétences numériques / IA.\n\n"
+    "Règles de décision (STRICTES):\n"
+    "- Si AUCUN système automatisé n'est détecté → ai_relevant = false.\n"
+    "- Si un système automatisé est détecté ET que l'article fixe des règles sur son usage, "
+    "son admission ou sa supervision → ai_relevant = true ET targets NE PEUT PAS être vide.\n"
+    "- N'inclus une target QUE si elle est clairement justifiée par le texte.\n"
+    "- Il est tout a fait possible d'avoir plusieurs targets si nécessaire.\n\n"
+    "Sortie: UNIQUEMENT du JSON valide. Aucune explication hors JSON."
 )
-
-
 
 
 _USER_PROMPT_TEMPLATE = """Analyse UN article. Retour JSON strict uniquement.
@@ -65,33 +65,38 @@ IDs:
 - node_id: {node_id}
 - row_uid: {row_uid}
 
+Contexte (titre le plus proche au-dessus, si disponible):
+- context_title: {context_title}
+
 Texte:
 \"\"\"{article_text}\"\"\"
 
-Tâche (obligatoire, dans cet ordre):
-1) EXTRACTION: liste 1-5 'objets régulés' (mots du texte) + 1-5 'actions normatives' (autoriser, fixer, définir, exiger, interdire, surveiller, enregistrer, protéger, traiter, effacer, transmettre, etc.).
-2) DÉTECTION: est-ce qu'un système automatisé/algorithmique est présent (true/false) ? Si true, cite le terme déclencheur exact (string court).
-3) CLASSIFICATION: ai_relevant + targets + justification (1-3 phrases).
+Tâche (ordre OBLIGATOIRE):
+1) DÉTECTION:
+   - Un système automatisé/algorithmique est-il présent ? (true/false)
+   - Si true, cite le terme déclencheur EXACT du texte.
 
-Rappel: si le texte parle d'un objet 'équipé d'un système Y' et régule des conditions d'usage/admission/essais/surveillance, alors Y est régulé.
+2) CLASSIFICATION:
+   - ai_relevant (true/false)
+   - targets (liste parmi: Development & Adoption, Data, Computing Infrastructure, Skills)
+   - justification concise (1–2 phrases, fondée uniquement sur le texte)
 
-Format EXACT:
+Contraintes STRICTES:
+- Si ai_relevant = false → targets = []
+- Si ai_relevant = true → targets NE PEUT PAS être vide
+- N'inclus une target QUE si le texte la justifie explicitement
+- Tu peux inclure plusieurs targets si nécessaire
+
+Format EXACT (structure uniquement — NE PAS recopier les valeurs d’exemple):
 {{
   "row_uid": {row_uid},
-  "regulated_objects": [],
-  "normative_actions": [],
-  "automation_present": false,
-  "automation_trigger": "",
-  "ai_relevant": false,
-  "targets": [],
-  "justification": ""
+  "automation_present": <true|false>,
+  "automation_trigger": "<extrait exact ou vide>",
+  "ai_relevant": <true|false>,
+  "targets": ["<0..4 parmi: Development & Adoption, Data, Computing Infrastructure, Skills>"],
+  "justification": "<1–2 phrases>"
 }}
 """
-
-
-
-
-
 
 _JSON_BLOCK_RE = re.compile(r"\{.*\}", flags=re.DOTALL)
 _TRAILING_COMMA_RE = re.compile(r",\s*([}\]])")
@@ -151,7 +156,6 @@ def compute_run2_selection(
             lvl = int(df2.at[i, "level"])
             if lvl < 5:
                 val = df2.at[i, title_relevant_col]
-                # val should be True/False for lvl!=5
                 b = bool(val) if pd.notna(val) else False
                 active[lvl] = b
                 for d in range(lvl + 1, 5):
@@ -168,7 +172,6 @@ def _nearest_context_title(df_law: pd.DataFrame, row_pos: int) -> str:
     """
     Optional: find the most recent non-article label above this article, for context.
     """
-    # row_pos is positional index within df_law (already sorted)
     for j in range(row_pos - 1, -1, -1):
         if int(df_law.iloc[j]["level"]) != 5:
             label = str(df_law.iloc[j].get("label", "") or "").strip()
@@ -196,14 +199,12 @@ def classify_selected_articles(
         out_selected_col=cfg.out_selected_col,
     ).copy()
 
-    # init outputs
     for col in [cfg.out_ai_relevant_col, cfg.out_targets_col, cfg.out_justification_col]:
         if col not in df2.columns:
             df2[col] = pd.NA
 
     df2 = _stable_sort(df2)
 
-    # classify per law, per article
     for law_id, df_law in df2.groupby("law_id", sort=False):
         df_law = df_law.reset_index()  # keeps original index in df2 as "index"
 
@@ -224,7 +225,6 @@ def classify_selected_articles(
 
             article_text = str(row.get("text", "") or "").strip()
             if not article_text:
-                # empty article text -> mark as not relevant (conservative)
                 df2.at[original_idx, cfg.out_ai_relevant_col] = False
                 df2.at[original_idx, cfg.out_targets_col] = json.dumps([], ensure_ascii=False)
                 df2.at[original_idx, cfg.out_justification_col] = "Texte de l'article vide."
@@ -246,6 +246,20 @@ def classify_selected_articles(
                 },
             ]
 
+            if cfg.debug_prompt:
+                print("\n" + "=" * 90)
+                print(
+                    f"[RUN2 DEBUG] law_id={law_id} row_uid={int(row.get('row_uid'))} node_id={row.get('node_id')}"
+                )
+                print("-" * 90)
+                for m in messages:
+                    role = m.get("role", "")
+                    content = str(m.get("content", "") or "")
+                    if len(content) > cfg.debug_max_chars:
+                        content = content[: cfg.debug_max_chars] + "\n... [TRUNCATED]"
+                    print(f"\n[{role.upper()}]\n{content}")
+                print("=" * 90 + "\n")
+
             raw = client.chat(
                 messages=messages,
                 temperature=cfg.temperature,
@@ -253,13 +267,20 @@ def classify_selected_articles(
                 response_format={"type": "json_object"},
             )
 
+            if cfg.debug_raw_response:
+                preview = raw if len(raw) <= cfg.debug_max_chars else raw[: cfg.debug_max_chars] + "\n... [TRUNCATED]"
+                print("\n" + "-" * 90)
+                print("[RUN2 DEBUG] RAW MODEL OUTPUT")
+                print(preview)
+                print("-" * 90 + "\n")
+
             data = _safe_json_loads(raw)
 
             ai_rel = bool(data.get("ai_relevant", False))
             targets = data.get("targets", [])
             if not isinstance(targets, list):
                 targets = []
-            # normalize allowed targets
+
             allowed = {"Data", "Computing Infrastructure", "Development & Adoption", "Skills"}
             targets_norm = [t for t in targets if isinstance(t, str) and t in allowed]
             if not ai_rel:
