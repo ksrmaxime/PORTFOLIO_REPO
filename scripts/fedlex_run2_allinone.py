@@ -1,3 +1,4 @@
+# scripts/fedlex_run2_allinone.py
 from __future__ import annotations
 
 import argparse
@@ -6,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from portfolio_repo.llm.client import LLMConfig, LocalLLMClient
-from portfolio_repo.llm.article_run2 import Run2Config, classify_selected_articles
+from portfolio_repo.llm.article_run2_allinone import Run2AllInOneConfig, classify_selected_articles_allinone
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     )
     p.add_argument(
         "--output",
-        default="data/processed/fedlex/laws_structure_with_article_classification.parquet",
+        default="data/processed/fedlex/laws_structure_with_article_classification_allinone.parquet",
         help="Output parquet path.",
     )
 
@@ -39,15 +40,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--selected-col", default="run2_selected")
     p.add_argument("--out-ai-col", default="article_ai_relevant")
     p.add_argument("--out-targets-col", default="article_targets")
+    p.add_argument("--out-blocks-col", default="article_target_blocks")
     p.add_argument("--out-justif-col", default="article_justification")
 
-    p.add_argument("--debug-prompt", action="store_true", help="Print the exact messages sent to the LLM.")
-    p.add_argument("--debug-raw", action="store_true", help="Print the raw LLM output.")
-    p.add_argument("--debug-max-chars", type=int, default=6000, help="Max chars printed for prompts/raw outputs.")
+    p.add_argument("--debug-prompt", action="store_true")
+    p.add_argument("--debug-raw", action="store_true")
+    p.add_argument("--debug-max-chars", type=int, default=6000)
 
-
-    # resume behavior
-    p.add_argument("--no-skip", action="store_true", help="Recompute even if already classified.")
+    # resume
+    p.add_argument("--no-skip", action="store_true")
     return p.parse_args()
 
 
@@ -77,12 +78,13 @@ def main() -> int:
         )
     )
 
-    cfg = Run2Config(
+    cfg = Run2AllInOneConfig(
         temperature=args.temperature,
         max_tokens=args.max_tokens,
         out_selected_col=args.selected_col,
         out_ai_relevant_col=args.out_ai_col,
         out_targets_col=args.out_targets_col,
+        out_blocks_col=args.out_blocks_col,
         out_justification_col=args.out_justif_col,
         skip_if_already_done=(not args.no_skip),
         debug_prompt=args.debug_prompt,
@@ -90,8 +92,7 @@ def main() -> int:
         debug_max_chars=args.debug_max_chars,
     )
 
-
-    df_out = classify_selected_articles(
+    df_out = classify_selected_articles_allinone(
         client=client,
         df=df,
         cfg=cfg,
@@ -100,12 +101,11 @@ def main() -> int:
 
     # Optional: cap number of classified articles for testing (after selection)
     if args.max_selected_articles is not None:
-        # Keep dataset intact, but blank out results beyond N selected articles
         sel = (df_out["level"] == 5) & (df_out[cfg.out_selected_col] == True)  # noqa: E712
         sel_idx = df_out[sel].index.tolist()
         keep_idx = set(sel_idx[: args.max_selected_articles])
         drop_idx = [i for i in sel_idx if i not in keep_idx]
-        for col in [cfg.out_ai_relevant_col, cfg.out_targets_col, cfg.out_justification_col]:
+        for col in [cfg.out_ai_relevant_col, cfg.out_targets_col, cfg.out_blocks_col, cfg.out_justification_col]:
             df_out.loc[drop_idx, col] = pd.NA
 
     df_out.to_parquet(out_path, index=False)
