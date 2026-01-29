@@ -10,8 +10,8 @@ from portfolio_repo.llm.client import (
     LLMClient,
     OpenAIHTTPClient,
     OpenAIHTTPConfig,
-    VLLMClient,
-    VLLMConfig,
+    TransformersClient,
+    TransformersConfig,
 )
 from portfolio_repo.llm.title_triage import TriageConfig, triage_titles_dataset
 
@@ -22,23 +22,23 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--platform", choices=["local", "curnagl"], default="local")
 
     # paths
-    p.add_argument("--workdir", default=None, help="Base directory for repo on cluster (/work/...)")
-    p.add_argument("--scratchdir", default=None, help="Base scratch directory (/scratch/<user>/...)")
+    p.add_argument("--workdir", default=None)
+    p.add_argument("--scratchdir", default=None)
 
-    p.add_argument("--input", default=None, help="Input parquet path (absolute or relative to workdir)")
-    p.add_argument("--output", default=None, help="Output parquet path (absolute or relative to scratchdir/workdir)")
+    p.add_argument("--input", default=None)
+    p.add_argument("--output", default=None)
 
     # LLM
-    p.add_argument("--backend", choices=["openai_http", "vllm"], default=None)
+    p.add_argument("--backend", choices=["openai_http", "transformers"], default=None)
 
     # openai_http backend
     p.add_argument("--base-url", default="http://127.0.0.1:8080")
     p.add_argument("--model", default="apertus-local")
     p.add_argument("--timeout", type=int, default=120)
 
-    # vllm backend
-    p.add_argument("--model-path", default=None, help="HF model folder, e.g. /reference/LLM/.../...")
-    p.add_argument("--tp", type=int, default=1, help="tensor_parallel_size for vLLM")
+    # transformers backend
+    p.add_argument("--model-path", default=None, help="e.g. /reference/LLM/swiss-ai/Apertus-8B-Instruct-2509")
+    p.add_argument("--dtype", choices=["auto", "bf16", "fp16"], default="auto")
 
     # run params
     p.add_argument("--chunk-size", type=int, default=80)
@@ -55,8 +55,6 @@ def parse_args() -> argparse.Namespace:
 
 
 def _default_workdir() -> Path:
-    # You can hardcode your /work path here if you want.
-    # Otherwise use env var when launching jobs.
     env = os.environ.get("PORTFOLIO_WORKDIR")
     return Path(env) if env else Path.cwd()
 
@@ -76,7 +74,7 @@ def _resolve_path(p: str | None, base: Path) -> Path | None:
 def build_client(args: argparse.Namespace) -> LLMClient:
     backend = args.backend
     if backend is None:
-        backend = "vllm" if args.platform == "curnagl" else "openai_http"
+        backend = "transformers" if args.platform == "curnagl" else "openai_http"
 
     if backend == "openai_http":
         return OpenAIHTTPClient(
@@ -87,16 +85,15 @@ def build_client(args: argparse.Namespace) -> LLMClient:
             )
         )
 
-    if backend == "vllm":
+    if backend == "transformers":
         if not args.model_path:
-            raise SystemExit(
-                "Missing --model-path for vllm backend. "
-                "Example: --model-path /reference/LLM/<org>/<model>/"
-            )
-        return VLLMClient(
-            VLLMConfig(
+            raise SystemExit("Missing --model-path for transformers backend.")
+        return TransformersClient(
+            TransformersConfig(
                 model_path=args.model_path,
-                tensor_parallel_size=args.tp,
+                device="auto",
+                dtype=args.dtype,
+                trust_remote_code=True,
             )
         )
 
@@ -109,7 +106,6 @@ def main() -> int:
     workdir = Path(args.workdir) if args.workdir else _default_workdir()
     scratchdir = Path(args.scratchdir) if args.scratchdir else _default_scratchdir()
 
-    # defaults
     default_input = "data/processed/fedlex/laws_structure.parquet"
     default_output_local = "data/processed/fedlex/laws_structure_with_title_triage.parquet"
     default_output_curnagl = "portfolio/run1/laws_structure_with_title_triage.parquet"
@@ -117,14 +113,10 @@ def main() -> int:
     in_path = _resolve_path(args.input or default_input, workdir)
 
     if args.output:
-        # if relative, prefer scratch on curnagl, else workdir on local
         base = scratchdir if (args.platform == "curnagl") else workdir
         out_path = _resolve_path(args.output, base)
     else:
-        if args.platform == "curnagl":
-            out_path = _resolve_path(default_output_curnagl, scratchdir)
-        else:
-            out_path = _resolve_path(default_output_local, workdir)
+        out_path = _resolve_path(default_output_curnagl, scratchdir) if args.platform == "curnagl" else _resolve_path(default_output_local, workdir)
 
     assert in_path is not None and out_path is not None
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -135,7 +127,8 @@ def main() -> int:
         df = df[df["law_id"].isin(args.law_id)].copy()
 
     sort_cols = [c for c in ["law_id", "order_index", "level", "node_id"] if c in df.columns]
-    df = df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
+    if sort_cols:
+        df = df.sort_values(sort_cols, kind="stable").reset_index(drop=True)
 
     if args.max_laws is not None:
         keep = df["law_id"].drop_duplicates().head(args.max_laws).tolist()

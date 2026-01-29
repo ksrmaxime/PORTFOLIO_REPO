@@ -1,0 +1,10 @@
+pandas
+pyarrow
+requests
+tqdm
+python-dotenv
+
+tokenizers
+safetensors
+transformers==4.56.0
+accelerate>=0.30.0
