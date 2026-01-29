@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List, Tuple
 
 import pandas as pd
 
-from portfolio_repo.llm.client import LocalLLMClient
+from portfolio_repo.llm.client import LLMClient
 
 
 @dataclass(frozen=True)
@@ -123,10 +123,16 @@ def build_messages(law_id: str, chunk_rows: List[Tuple[int, str]]) -> List[Dict[
 
 
 def run_title_triage_for_law(
-    client: LocalLLMClient,
+    client: LLMClient,
     df_law_non_articles: pd.DataFrame,
     cfg: TriageConfig,
 ) -> Dict[int, bool]:
+
+def triage_titles_dataset(
+    client: LLMClient,
+    df: pd.DataFrame,
+    cfg: TriageConfig,
+) -> pd.DataFrame:
     """
     Input: df filtré à une seule loi, et level != 5.
     Output: mapping row_uid -> bool
