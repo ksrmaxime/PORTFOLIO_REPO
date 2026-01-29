@@ -34,40 +34,34 @@ class Run2AllInOneConfig:
 
 # Instrument taxonomy (short + discriminant)
 _ALLOWED_INSTRUMENTS = [
-    "REGLE_OBLIGATION_INTERDICTION",
-    "AUTORISATION_LICENCE_APPROBATION",
-    "SURVEILLANCE_AUDIT_CONTROLE",
-    "EVALUATION_RISQUES_SECURITE",
-    "TRANSPARENCE_INFORMATION_REPORTING",
-    "NORMES_CERTIFICATION_CONFORMITE",
-    "GOUVERNANCE_AUTORITE_RECOURS",
-    "INCITATIONS_MARCHE_MARCHES_PUBLICS",
-    "CAPACITE_FORMATION",
-    "EXPERIMENTATION_SANDBOX",
-    "NONE",
+    "Standard technique obligatoire",
+    "Mesure de gestion du risque",
+    "Mesure volontaire",
+    "Mesure concernant la responsabilité",
+    "Mesure de transparence",
+    "Mesure favorisant le Formation et compétence",
+    "Autorisation d'essai pilote",
+    "Taxe",
+    "Subvention",
 ]
 
 _ALLOWED_TARGETS = {"Data", "Computing Infrastructure", "Development & Adoption", "Skills"}
 
-
 _SYSTEM_PROMPT = (
-    "Tu es un codeur juridique strict.\n"
-    "Tâche: coder UN article.\n\n"
-    "1) Détecter si le texte mentionne un système automatisé/algorithmique (ex: traitement automatisé, "
-    "décision automatisée, profilage, algorithme, système informatique, logiciel, journalisation/log, "
-    "interface, liaison de communication, modèle/apprentissage).\n"
-    "2) Décider ai_relevant:\n"
-    "- si aucun système automatisé -> ai_relevant=false.\n"
-    "- sinon ai_relevant=true seulement si l'article fixe des conditions/obligations/autorisation/"
-    "contrôle/exigences techniques/transparence liées à ce système (directement ou via l'objet régulé).\n"
-    "3) Si ai_relevant=true: attribuer au moins une target parmi:\n"
-    "- Development & Adoption (usage/déploiement/supervision/responsabilité)\n"
-    "- Data (données: collecte, accès, logs, transmission, effacement)\n"
-    "- Computing Infrastructure (sécurité, accès, stockage, intégrité, communication)\n"
-    "- Skills (formation/qualification/ressources)\n"
-    "4) Pour chaque target: choisir exactement un instrument (liste fournie) + 1–3 indices textuels courts.\n\n"
-    "Sortie: JSON strict uniquement."
+  "Tu es un codeur juridique strict.\n"
+  "Tâche: coder UN article.\n"
+  "1) automation_present: true si le texte mentionne un système informatique/logiciel/traitement automatisé.\n"
+  "2) ai_relevant: true seulement si l'article fixe des règles (obligations/conditions/contrôle/responsabilité) sur ce système.\n"
+  "3) targets (si ai_relevant=true):\n"
+  "- Computing Infrastructure: système, composants, sécurité, accès, communication.\n"
+  "- Data: UNIQUEMENT si le texte règle une opération sur les données (collecte, accès, transmission, log, conservation, effacement, correction).\n"
+  "- Development & Adoption: règles d'usage/déploiement/supervision/exploitation d'un système automatisé.\n"
+  "- Skills: formation/qualification/ressources.\n"
+  "4) instrument par target (liste fournie).\n"
+  "RÈGLE PRIORITAIRE instrument: si dommage/responsabilité/action récursoire -> 'Mesure concernant la responsabilité'.\n"
+  "Sortie: JSON strict uniquement."
 )
+
 
 
 _USER_PROMPT_TEMPLATE = """Analyse cet article et retourne uniquement du JSON.
@@ -84,15 +78,12 @@ VALEURS AUTORISÉES:
 FORMAT JSON EXACT:
 {{
   "row_uid": {row_uid},
-  "automation_present": <true|false>,
-  "automation_trigger": "<extrait exact ou vide>",
+  "automation_present": <true|false>
   "ai_relevant": <true|false>,
   "blocks": [
     {{
       "target": "<une target autorisée>",
-      "instrument": "<une valeur autorisée>",
-      "evidence_terms": ["<1..3 extraits exacts courts>"],
-      "justification": "<1 phrase>"
+      "instrument": "<une valeur autorisée>"
     }}
   ],
   "global_justification": "<1-2 phrases>"
@@ -101,7 +92,6 @@ FORMAT JSON EXACT:
 CONTRAINTES:
 - Si ai_relevant=false -> blocks=[]
 - Si ai_relevant=true -> blocks longueur >= 1
-- evidence_terms: extraits courts (pas de longues citations)
 """
 
 
@@ -277,21 +267,11 @@ def classify_selected_articles_allinone(
                 if not isinstance(instrument, str) or instrument not in _ALLOWED_INSTRUMENTS:
                     instrument = "NONE"
 
-                ev = b.get("evidence_terms", [])
-                if not isinstance(ev, list):
-                    ev = []
-                ev = [str(x) for x in ev if isinstance(x, str) and str(x).strip()][:3]
-
-                just = str(b.get("justification", "") or "").strip()
-                if not just:
-                    just = "Aucune justification."
 
                 norm_blocks.append(
                     {
                         "target": target,
                         "instrument": instrument,
-                        "evidence_terms": ev,
-                        "justification": just,
                     }
                 )
 
@@ -305,8 +285,6 @@ def classify_selected_articles_allinone(
                         {
                             "target": "Development & Adoption",
                             "instrument": "NONE",
-                            "evidence_terms": [],
-                            "justification": "ai_relevant=true mais instrument/target non identifiés de manière fiable.",
                         }
                     ]
 
