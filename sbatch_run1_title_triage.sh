@@ -2,11 +2,14 @@
 #SBATCH --job-name=run1_title_triage
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=32G
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=24G
 #SBATCH --time=02:00:00
 #SBATCH --output=logs/run1_%j.out
 #SBATCH --error=logs/run1_%j.err
+#SBATCH --mail-user=maxime.kaiser@unil.ch
+#SBATCH --mail-type=END,FAIL
+
 
 # ---- safety ----
 set -euo pipefail
