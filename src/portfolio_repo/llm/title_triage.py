@@ -43,36 +43,38 @@ _KEYWORDS_BLOCK = (
 
 def _system_prompt() -> str:
     return (
-        "Tu analyses une liste de TITRES juridiques appartenant à UNE seule loi.\n\n"
-        "Tâche : sélectionner les titres en lien avec des systèmes automatisés/informatiques, "
-        "le traitement de données, des algorithmes, ou l’IA.\n\n"
-        "RÈGLE STRICTE (obligatoire) :\n"
-        "- Tu n’as le droit de sélectionner un titre QUE SI le libellé contient explicitement au moins un mot/fragment "
-        "de la LISTE DE MOTS-CLÉS fournie.\n"
-        "- Pour chaque titre sélectionné, la justification doit contenir le ou les fragments EXACTS copiés depuis le libellé "
-        "(entre guillemets). Pas de paraphrase.\n"
-        "- Si tu ne peux pas citer un fragment exact présent dans le libellé, NE SÉLECTIONNE PAS.\n\n"
-        "Retourne UNIQUEMENT du JSON strict.\n"
+        "Tu analyses des TITRES/INTITULÉS (pas le texte des articles). "
+        "Ta tâche: dire si le titre suggère un lien direct avec: systèmes automatisés/algorithmes, "
+        "traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), "
+        "ou intelligence artificielle.\n\n"
+        "Sois CONSERVATEUR: si ce n’est pas clair dans le titre, réponds FALSE.\n"
+        "Tu ne dois PAS déduire à partir du secteur (ex: santé, aviation) "
+        "si le titre ne mentionne rien d’automatisé/data/IT.\n\n"
+        "Retourne UNIQUEMENT du JSON valide, sans texte autour."
     )
 
 
-def _user_prompt(law_id: str, titles_block: str) -> str:
-    return (
-        f"Loi ID: {law_id}\n\n"
-        f"{_KEYWORDS_BLOCK}\n"
-        "TITRES (format: row_uid. libellé)\n"
-        f"{titles_block}\n\n"
-        "FORMAT EXACT DE RÉPONSE (JSON strict) :\n"
-        "{\n"
-        '  "selected": [\n'
-        "    {\n"
-        '      "row_uid": 123,\n'
-        '      "selected": true,\n'
-        '      "justification": "..." \n'
-        "    }\n"
-        "  ]\n"
-        "}\n"
-    )
+def _user_prompt(law_id: str, items_json: str) -> str:
+    return f"""Tu reçois une liste de lignes, toutes issues d'une seule loi (law_id={law_id}).
+Pour chaque ligne, réponds TRUE ou FALSE à la question:
+"Ce titre est-il en lien avec systèmes automatisés / algorithmes / traitement automatisé de données / infrastructures informatiques ou de calcul / intelligence artificielle ?"
+
+Règles:
+- Base-toi UNIQUEMENT sur le champ "label".
+- Si doute -> FALSE.
+- JSON strict uniquement.
+
+Entrée:
+{items_json}
+
+Format de sortie EXACT:
+{{
+  "items": [
+    {{"row_uid": 123, "ai_relevant": true}},
+    {{"row_uid": 124, "ai_relevant": false}}
+  ]
+}}
+"""
 
 
 def _safe_parse_selected_json(raw: str) -> List[Dict[str, Any]]:
@@ -133,10 +135,13 @@ def run_title_triage_for_law(
 
     for i in range(0, len(rows), cfg.chunk_size):
         chunk = rows[i : i + cfg.chunk_size]
-        titles_block = "\n".join([f"{uid}. {label}" for uid, label in chunk])
+        items = [{"row_uid": int(uid), "label": (label or "").strip()} for uid, label in chunk]
 
         sys_p = _system_prompt()
-        usr_p = _user_prompt(law_id=law_id, titles_block=titles_block)
+        usr_p = _user_prompt(
+            law_id=law_id,
+            items_json=json.dumps(items, ensure_ascii=False),
+)
 
         if cfg.debug_prompt:
             print("\n" + "=" * 90)
