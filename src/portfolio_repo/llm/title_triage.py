@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import pandas as pd
 
@@ -29,16 +29,6 @@ class TriageConfig:
     debug_prompt: bool = False
     debug_raw_response: bool = False
     debug_max_chars: int = 4000
-
-
-_KEYWORDS_BLOCK = (
-    "LISTE DE MOTS-CLÉS (match simple dans le libellé ; casse/accents peuvent varier) :\n"
-    "- automatis\n"
-    "- traitement automatis\n"
-    "- système automatis\n"
-    "- algorith\n"
-    "- intelligence artific\n"
-)
 
 
 def _system_prompt() -> str:
@@ -77,32 +67,45 @@ Format de sortie EXACT:
 """
 
 
-def _safe_parse_selected_json(raw: str) -> List[Dict[str, Any]]:
+def _extract_first_json_object(raw: str) -> Dict[str, Any]:
     """
-    Extract expected JSON:
-      {"selected": [{"row_uid":..., "selected":..., "justification":...}, ...]}
-    Tries strict json first, then finds first {...} block.
+    Try strict json.loads(raw). If that fails, extract the first {...} block and load it.
+    Returns {} on failure.
     """
     raw = (raw or "").strip()
+    if not raw:
+        return {}
 
     # strict
     try:
         obj = json.loads(raw)
-        if isinstance(obj, dict) and isinstance(obj.get("selected"), list):
-            return obj["selected"]
+        return obj if isinstance(obj, dict) else {}
     except Exception:
         pass
 
-    # try to find JSON block
+    # fallback: find first JSON object block
     m = re.search(r"\{.*\}", raw, flags=re.DOTALL)
-    if m:
-        try:
-            obj = json.loads(m.group(0))
-            if isinstance(obj, dict) and isinstance(obj.get("selected"), list):
-                return obj["selected"]
-        except Exception:
-            pass
+    if not m:
+        return {}
 
+    try:
+        obj = json.loads(m.group(0))
+        return obj if isinstance(obj, dict) else {}
+    except Exception:
+        return {}
+
+
+def _safe_parse_items(raw: str) -> List[Dict[str, Any]]:
+    """
+    Extract expected JSON:
+      {"items": [{"row_uid":..., "ai_relevant":...}, ...]}
+
+    NOTE: This matches exactly what _user_prompt() asks for.
+    """
+    obj = _extract_first_json_object(raw)
+    items = obj.get("items")
+    if isinstance(items, list):
+        return items
     return []
 
 
@@ -141,7 +144,7 @@ def run_title_triage_for_law(
         usr_p = _user_prompt(
             law_id=law_id,
             items_json=json.dumps(items, ensure_ascii=False),
-)
+        )
 
         if cfg.debug_prompt:
             print("\n" + "=" * 90)
@@ -154,14 +157,29 @@ def run_title_triage_for_law(
                 print("... (truncated)")
             print("=" * 90 + "\n")
 
-        raw = client.chat(
-            messages=[
-                {"role": "system", "content": sys_p},
-                {"role": "user", "content": usr_p},
-            ],
-            temperature=cfg.temperature,
-            max_tokens=cfg.max_tokens,
-        )
+        # IMPORTANT:
+        # If your backend supports JSON mode, you can pass response_format={"type":"json_object"}.
+        # If it doesn't, remove that argument (or adapt to your client implementation).
+        try:
+            raw = client.chat(
+                messages=[
+                    {"role": "system", "content": sys_p},
+                    {"role": "user", "content": usr_p},
+                ],
+                temperature=cfg.temperature,
+                max_tokens=cfg.max_tokens,
+                response_format={"type": "json_object"},
+            )
+        except TypeError:
+            # fallback if client.chat doesn't accept response_format
+            raw = client.chat(
+                messages=[
+                    {"role": "system", "content": sys_p},
+                    {"role": "user", "content": usr_p},
+                ],
+                temperature=cfg.temperature,
+                max_tokens=cfg.max_tokens,
+            )
 
         if cfg.debug_raw_response:
             print("\n" + "-" * 90)
@@ -170,20 +188,23 @@ def run_title_triage_for_law(
                 print("... (truncated)")
             print("-" * 90 + "\n")
 
-        parsed = _safe_parse_selected_json(raw)
+        parsed_items = _safe_parse_items(raw)
 
         # default False for all chunk items
         chunk_uids = {uid for uid, _ in chunk}
         for uid in chunk_uids:
             selected[uid] = False
 
-        for item in parsed:
+        # fill from parsed JSON
+        for item in parsed_items:
+            if not isinstance(item, dict):
+                continue
             try:
                 uid = int(item.get("row_uid"))
             except Exception:
                 continue
             if uid in chunk_uids:
-                selected[uid] = bool(item.get("selected", False))
+                selected[uid] = bool(item.get("ai_relevant", False))
 
     return selected
 
@@ -239,3 +260,4 @@ def triage_titles_dataset(
         )
 
     return df_out
+
