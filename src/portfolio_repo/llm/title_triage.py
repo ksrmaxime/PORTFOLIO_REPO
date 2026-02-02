@@ -26,8 +26,8 @@ class TriageConfig:
     skip_if_already_done: bool = True
 
     # debug
-    debug_prompt: bool = False
-    debug_raw_response: bool = False
+    debug_prompt: bool = True
+    debug_raw_response: bool = True
     debug_max_chars: int = 4000
 
     # NEW: to avoid silent "all False" when parsing fails

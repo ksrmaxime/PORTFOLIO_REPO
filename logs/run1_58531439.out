@@ -1,0 +1,10 @@
+Job started on dnagpu002
+SLURM_JOB_ID=58531439
+torch: 2.10.0+cu128
+transformers: 4.56.0
+cuda available: True
+Input : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/fedlex/laws_structure.parquet
+Saved : /scratch/mkaiser3/portfolio/run1/laws_structure_with_title_triage.parquet
+Non-articles classified: TRUE=0, FALSE=4730, total=4730
+Articles (level=5) left empty: 22264
+Job finished
