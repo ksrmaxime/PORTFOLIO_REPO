@@ -88,18 +88,11 @@ def _extract_first_json_candidate(raw: str) -> Optional[str]:
 
 
 def _repair_json_text(s: str) -> str:
-    """
-    Best-effort repairs for common LLM JSON issues:
-    - Python booleans/None -> JSON booleans/null
-    - trailing commas
-    - smart quotes
-    - conservative single-quote conversion for keys/simple string values
-    """
     s = (s or "").strip()
     if not s:
         return s
 
-    # smart quotes -> normal quotes
+    # smart quotes
     s = s.replace("“", '"').replace("”", '"').replace("’", "'").replace("‘", "'")
 
     # Python literals -> JSON literals
@@ -107,89 +100,92 @@ def _repair_json_text(s: str) -> str:
     s = re.sub(r"\bFalse\b", "false", s)
     s = re.sub(r"\bNone\b", "null", s)
 
-    # trailing commas before } or ]
+    # trailing commas
     s = re.sub(r",\s*([}\]])", r"\1", s)
 
-    # Conservative single-quote conversion:
-    # keys: {'items': ...} -> {"items": ...}
+    # conservative single quote fixes (keys + simple string values)
     s = re.sub(r"(?P<prefix>[{,\s])'(?P<key>[A-Za-z0-9_]+)'\s*:", r'\g<prefix>"\g<key>":', s)
-    # simple string values: "justification": 'abc' -> "justification": "abc"
     s = re.sub(r":\s*'(?P<val>[^'\n\r]*)'\s*(?P<suffix>[,}\]])", r': "\g<val>"\g<suffix>', s)
 
     return s
 
 
-def _safe_json_loads(raw: str) -> Dict[str, Any]:
+def _safe_json_loads_last_items_obj(raw: str) -> Dict[str, Any]:
     """
-    Parse a JSON dict with multiple fallbacks + repairs.
-    Returns {} if it can't parse a dict.
+    Extract the *last* JSON object in the text that:
+      - parses as a dict
+      - contains {"items": [ ... ]}
+    This handles outputs where the model echoes prompt + example JSON + final JSON.
     """
-    cand = _extract_first_json_candidate(raw)
-    if not cand:
+    raw = (raw or "").strip()
+    if not raw:
         return {}
 
-    # Attempt 1: direct
-    try:
-        obj = json.loads(cand)
-        return obj if isinstance(obj, dict) else {}
-    except Exception:
-        pass
+    # Find many small-ish JSON object candidates (NON-greedy).
+    # We'll try them all and keep the last valid one with 'items'.
+    candidates = re.findall(r"\{[\s\S]*?\}", raw)
 
-    # Attempt 2: repaired
-    repaired = _repair_json_text(cand)
-    try:
-        obj = json.loads(repaired)
-        return obj if isinstance(obj, dict) else {}
-    except Exception:
-        return {}
+    best: Dict[str, Any] = {}
+    for cand in candidates:
+        # try direct
+        obj = None
+        try:
+            obj = json.loads(cand)
+        except Exception:
+            # try repaired
+            try:
+                obj = json.loads(_repair_json_text(cand))
+            except Exception:
+                obj = None
+
+        if isinstance(obj, dict) and isinstance(obj.get("items"), list):
+            best = obj  # keep last one
+
+    return best
+
 
 
 def _fallback_pairs_from_regex(raw: str) -> Dict[int, bool]:
     """
-    Ultra-robust fallback: extract (row_uid, ai_relevant) pairs even if JSON is broken.
-    Accepts patterns like:
-      row_uid: 123 ... ai_relevant: true/false
-    in any order, across the text.
+    Very robust fallback: match quoted or unquoted keys:
+      "row_uid": 1, "ai_relevant": false
+      row_uid: 1, ai_relevant: true
     """
     text = (raw or "")
     if not text:
         return {}
 
-    # normalize python booleans to json booleans for matching
+    # normalize python booleans
     text = re.sub(r"\bTrue\b", "true", text)
     text = re.sub(r"\bFalse\b", "false", text)
 
+    # Accept optional quotes around keys
+    row_pat = re.compile(r'"?row_uid"?\s*[:=]\s*(\d+)', flags=re.IGNORECASE)
+    rel_pat = re.compile(r'"?ai_relevant"?\s*[:=]\s*(true|false)', flags=re.IGNORECASE)
+
     pairs: Dict[int, bool] = {}
 
-    # First try to extract per-item blocks like { ... } (most precise)
-    blocks = re.findall(r"\{[^{}]*\}", text, flags=re.DOTALL)
-    if not blocks:
-        blocks = text.splitlines()
-
-    row_pat = re.compile(r"row_uid\s*[:=]\s*(\d+)")
-    rel_pat = re.compile(r"ai_relevant\s*[:=]\s*(true|false)")
-
+    blocks = re.findall(r"\{[^{}]*\}", text, flags=re.DOTALL) or text.splitlines()
     for b in blocks:
         m_uid = row_pat.search(b)
         m_rel = rel_pat.search(b)
         if m_uid and m_rel:
             try:
                 uid = int(m_uid.group(1))
-                val = (m_rel.group(1) == "true")
+                val = (m_rel.group(1).lower() == "true")
                 pairs[uid] = val
             except Exception:
                 continue
 
-    # If still empty, do a broader scan across the full text (less strict)
     if not pairs:
         broad = re.findall(
-            r"row_uid\s*[:=]\s*(\d+).*?ai_relevant\s*[:=]\s*(true|false)",
+            r'"?row_uid"?\s*[:=]\s*(\d+)[\s\S]*?"?ai_relevant"?\s*[:=]\s*(true|false)',
             text,
-            flags=re.DOTALL,
+            flags=re.IGNORECASE,
         )
         for uid_s, val_s in broad:
             try:
-                pairs[int(uid_s)] = (val_s == "true")
+                pairs[int(uid_s)] = (val_s.lower() == "true")
             except Exception:
                 continue
 
@@ -198,12 +194,10 @@ def _fallback_pairs_from_regex(raw: str) -> Dict[int, bool]:
 
 def _safe_parse_items_mapping(raw: str) -> Dict[int, bool]:
     """
-    Preferred parse path:
-      {"items": [{"row_uid": 123, "ai_relevant": true}, ...]}
-    Fallback:
-      regex extraction of row_uid + ai_relevant from semi-structured output.
+    1) parse last valid {"items":[...]} object from the raw text
+    2) fallback to regex pairs
     """
-    obj = _safe_json_loads(raw)
+    obj = _safe_json_loads_last_items_obj(raw)
     mapping: Dict[int, bool] = {}
 
     items = obj.get("items")
