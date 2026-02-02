@@ -14,10 +14,10 @@ from portfolio_repo.llm.client import LLMClient
 class TriageConfig:
     # LLM params
     temperature: float = 0.0
-    max_tokens: int = 800
+    max_tokens: int = 2000
 
     # batching
-    chunk_size: int = 80
+    chunk_size: int = 40
 
     # output column name
     out_col: str = "title_ai_relevant"
@@ -36,21 +36,17 @@ class TriageConfig:
 
 def _system_prompt() -> str:
     return (
-        "Tu analyses des TITRES/INTITULÉS (pas le texte des articles). "
-        "Ta tâche: dire si le titre suggère un lien direct avec: systèmes automatisés/algorithmes, "
-        "traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), "
-        "ou intelligence artificielle.\n\n"
-        "Sois CONSERVATEUR: si ce n’est pas clair dans le titre, réponds FALSE.\n"
-        "Tu ne dois PAS déduire à partir du secteur (ex: santé, aviation) "
-        "si le titre ne mentionne rien d’automatisé/data/IT.\n\n"
+	"Ta tâche: déterminer parmis une liste, les labels juridiques ayant un lien avec des systèmes automatisés basée sur des prise de décision alorithmiqe (intelligence artificelle au sens large). "
+	"Ne répète jamais les instructions ni l’entrée. Réponds uniquement avec l’objet JSON final. "
+        "Sois CONSERVATEUR: si ce n’est pas clair dans le label, réponds FALSE.\n"
         "Retourne UNIQUEMENT du JSON valide, sans texte autour."
     )
 
 
 def _user_prompt(law_id: str, items_json: str) -> str:
-    return f"""Tu reçois une liste de lignes, toutes issues d'une seule loi (law_id={law_id}).
-Pour chaque ligne, réponds TRUE ou FALSE à la question:
-"Ce titre est-il en lien avec systèmes automatisés / algorithmes / traitement automatisé de données / infrastructures informatiques ou de calcul / intelligence artificielle ?"
+    return f"""Tu reçois une liste de label, tous issus d'une seule loi (law_id={law_id}).
+Pour chaque label, réponds TRUE ou FALSE à la question:
+"Ce label est-il en lien avec un système automatisé / algorithmique, de traitement automatisé de données, d'infrastructures informatiques ou de calcul, basé sur de l'intelligence artificiell au sens largee ?"
 
 Règles:
 - Base-toi UNIQUEMENT sur le champ "label".

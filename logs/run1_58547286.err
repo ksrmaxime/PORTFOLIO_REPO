@@ -1,0 +1,48 @@
+CUDA-fused xIELU not available (No module named 'xielu') – falling back to a Python version.
+For CUDA xIELU (experimental), `pip install git+https://github.com/nickjbrowning/XIELU`
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:02,  1.03it/s]Loading checkpoint shards:  50%|█████     | 2/4 [00:02<00:02,  1.28s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:03<00:01,  1.39s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.12it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:04<00:00,  1.03s/it]
+Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Traceback (most recent call last):
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/llm_title_triage_run1.py", line 164, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/llm_title_triage_run1.py", line 149, in main
+    df_out = triage_titles_dataset(client=client, df=df, cfg=cfg)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/src/portfolio_repo/llm/title_triage.py", line 355, in triage_titles_dataset
+    mapping = run_title_triage_for_law(client=client, df_law_non_articles=df_law, cfg=cfg)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/src/portfolio_repo/llm/title_triage.py", line 311, in run_title_triage_for_law
+    raise ValueError(
+ValueError: LLM response unparseable (no row_uid/ai_relevant pairs recovered). Set debug_raw_response=True to inspect.
+RAW PREVIEW:
+Tu analyses des TITRES/INTITULÉS (pas le texte des articles). Ta tâche: dire si le titre suggère un lien direct avec: systèmes automatisés/algorithmes, traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), ou intelligence artificielle.
+
+Sois CONSERVATEUR: si ce n’est pas clair dans le titre, réponds FALSE.
+Tu ne dois PAS déduire à partir du secteur (ex: santé, aviation) si le titre ne mentionne rien d’automatisé/data/IT.
+
+Retourne UNIQUEMENT du JSON valide, sans texte autour.Deliberation: disabled
+Tool Capabilities: disabledTu reçois une liste de lignes, toutes issues d'une seule loi (law_id=https://fedlex.data.admin.ch/eli/cc/1/598_557_598).
+Pour chaque ligne, réponds TRUE ou FALSE à la question:
+"Ce titre est-il en lien avec systèmes automatisés / algorithmes / traitement automatisé de données / infrastructures informatiques ou de calcul / intelligence artificielle ?"
+
+Règles:
+- Base-toi UNIQUEMENT sur le champ "label".
+- Si doute -> FALSE.
+- JSON strict uniquement.
+
+Entrée:
+[{"row_uid": 1, "label": "Arrêté fédéral concernant les prestations de la ville de Berne pour le siège fédéral"}]
+
+Format de sortie EXACT:
+{
+  "items": [
+    {"row_uid": 123, "ai_relevant": true},
+    {"row_uid": 124, "ai_relevant": false}
+  ]
+}
+{
+  "items": [
+    {"row_uid": 1, "ai_relevant": false}
+  ]
+}
