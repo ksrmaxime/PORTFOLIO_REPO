@@ -30,9 +30,9 @@ class Run1Config:
 
 
 _SYSTEM_PROMPT = (
-    "Tâche: déterminer si un libellé juridique est en lien direct avec des systèmes automatisés/algorithmique "
-    "(y compris traitement automatisé de données, décision automatisée, profilage, logiciels, systèmes informatiques, "
-    "infrastructures de calcul, modèles/apprentissage, etc.).\n"
+    "Tâche: déterminer si un titre juridique pourrait contenir des dispositions en lien avec des systèmes automatisés/algorithmique (communément appelé IA) "
+    "(y compris leurs potentielles composantes, système automatisé, données, processus de décision automatisé, logiciels, systèmes informatiques, "
+    "infrastructures de calcul).\n"
     "Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour."
 )
 
@@ -40,10 +40,7 @@ _SYSTEM_PROMPT = (
 def _make_user_prompt(rows: List[Tuple[int, str]]) -> str:
     lines = "\n".join(f"{uid}\t{label.strip()}" for uid, label in rows)
     return (
-        "Décide si chaque libellé implique DIRECTEMENT un système automatisé/algorithmique "
-        "(traitement automatisé, décision automatisée, profilage, algorithmes, logiciels/systèmes informatiques, "
-        "modèles/apprentissage, infrastructures de calcul). "
-        "Sois conservateur.\n"
+        "Décide si chaque libellé peut impliquer une composante d'un système automatisé/algorithmique selon la définition ci-dessus "
         "Réponds UNIQUEMENT avec ce JSON strict:\n"
         '{"true_row_uids":[]}\n'
         "en remplaçant [] par les row_uid jugés pertinents.\n"
