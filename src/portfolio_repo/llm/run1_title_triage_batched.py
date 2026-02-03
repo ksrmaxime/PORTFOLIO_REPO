@@ -33,7 +33,6 @@ _SYSTEM_PROMPT = (
     "Tâche: déterminer si un libellé juridique est en lien direct avec des systèmes automatisés/algorithmique "
     "(y compris traitement automatisé de données, décision automatisée, profilage, logiciels, systèmes informatiques, "
     "infrastructures de calcul, modèles/apprentissage, etc.).\n"
-    "Sois CONSERVATEUR: si ce n'est pas clairement impliqué par le libellé, considère que ce n'est PAS pertinent.\n"
     "Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour."
 )
 
