@@ -21,3 +21,5 @@ __pycache__/
 # Project outputs
 output/
 data/
+
+notebooks/
