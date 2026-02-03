@@ -39,15 +39,15 @@ _SYSTEM_PROMPT = (
 
 
 def _make_user_prompt(rows: List[Tuple[int, str]]) -> str:
-    # Only: instructions + row_uid + label (nothing else)
-    # Output is minimal to reduce tokens and parsing failures.
     lines = "\n".join(f"{uid}\t{label.strip()}" for uid, label in rows)
-
     return (
-        "Pour chaque ligne ci-dessous, décide si le libellé est AI/automatisation pertinent.\n"
-        "Retourne UNIQUEMENT un JSON de la forme:\n"
-        '{"true_row_uids":[1,2,3]}\n'
-        "où true_row_uids contient uniquement les row_uid jugés pertinents.\n"
+        "Décide si chaque libellé implique DIRECTEMENT un système automatisé/algorithmique "
+        "(traitement automatisé, décision automatisée, profilage, algorithmes, logiciels/systèmes informatiques, "
+        "modèles/apprentissage, infrastructures de calcul). "
+        "Sois conservateur.\n"
+        "Réponds UNIQUEMENT avec ce JSON strict:\n"
+        '{"true_row_uids":[]}\n'
+        "en remplaçant [] par les row_uid jugés pertinents.\n"
         "Données (row_uid<TAB>label):\n"
         f"{lines}"
     )
@@ -139,6 +139,9 @@ def run1_title_triage_batched(
 
         for raw, uids in zip(raws, batch_uids):
             true_uids = set(_parse_true_uids(raw))
+            allowed = set(uids)
+            true_uids = true_uids & allowed
+
             # Default false for all uids in this prompt
             for uid in uids:
                 selected_map[uid] = (uid in true_uids)
