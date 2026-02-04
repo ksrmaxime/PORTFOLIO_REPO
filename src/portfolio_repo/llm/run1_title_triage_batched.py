@@ -30,9 +30,12 @@ class Run1Config:
 
 
 _SYSTEM_PROMPT = (
-    "Tâche: déterminer si un titre juridique contient des dispositions en lien avec des systèmes automatisés/algorithmique (communément appelé IA) "
-    "(y compris leurs potentielles composantes, système automatisé, données, processus de décision automatisé, logiciels, systèmes informatiques, "
-    "infrastructures de calcul, registre automatisé).\n"
+    "Tu analyses des TITRES/INTITULÉS (pas le texte des articles). "
+    "Ta tâche: dire si le titre suggère un lien direct avec: systèmes automatisés/algorithmes, "
+    "traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), "
+    "ou intelligence artificielle.\n\n"
+    "Sois CONSERVATEUR: si ce n’est pas clair dans le titre, ce n'est pas pertinent.\n"
+    "Tu ne dois PAS déduire à partir du secteur (ex: santé, aviation) si le titre ne mentionne rien d’automatisé/data/IT.\n\n"
     "Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour."
 )
 
@@ -40,7 +43,8 @@ _SYSTEM_PROMPT = (
 def _make_user_prompt(rows: List[Tuple[int, str]]) -> str:
     lines = "\n".join(f"{uid}\t{label.strip()}" for uid, label in rows)
     return (
-        "Décide si chaque libellé peut impliquer une composante d'un système automatisé/algorithmique selon la définition ci-dessus "
+        "Tu reçois une liste de lignes, toutes sont des TITRES/INTITULÉS provenant de texte jurdique.\n"
+        "Décide si chaque titres est en lien avec systèmes automatisés / algorithmes / traitement automatisé de données / infrastructures informatiques ou de calcul / intelligence artificielle.\n"
         "Sois conservateur dans le choix: Si le libellé ne contient pas explicitement une composante d'un système automatisé/algorithmique, ne le considère pas comme pertinent.\n"
         "Réponds UNIQUEMENT avec ce JSON strict:\n"
         '{"true_row_uids":[]}\n'
