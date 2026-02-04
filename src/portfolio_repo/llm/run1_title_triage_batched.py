@@ -125,12 +125,12 @@ def run1_title_triage_batched(
     for j in range(0, len(prompts), cfg.prompts_per_batch):
         batch_prompts = prompts[j : j + cfg.prompts_per_batch]
         batch_uids = prompt_chunks[j : j + cfg.prompts_per_batch]
-    
-    if j == 0:
-        print("\n=== SYSTEM PROMPT ===")
-        print(_SYSTEM_PROMPT)
-        print("\n=== USER PROMPT (first batch, first prompt) ===")
-        print(batch_prompts[0][:3000])  # limite pour éviter logs énormes
+
+        if j == 0:
+            print("\n=== SYSTEM PROMPT ===")
+            print(_SYSTEM_PROMPT)
+            print("\n=== USER PROMPT (first batch, first prompt) ===")
+            print(batch_prompts[0][:3000])
 
         raws = client.chat_many(
             system_prompt=_SYSTEM_PROMPT,
@@ -139,9 +139,9 @@ def run1_title_triage_batched(
             max_tokens=cfg.max_tokens,
         )
 
-    if j == 0:
-        print("\n=== RAW LLM RESPONSE (first batch, first prompt) ===")
-        print(raws[0][:3000])
+        if j == 0:
+            print("\n=== RAW LLM RESPONSE (first batch, first prompt) ===")
+            print((raws[0] or "")[:3000])
 
         for raw, uids in zip(raws, batch_uids):
             true_uids = set(_parse_true_uids(raw))
@@ -152,12 +152,13 @@ def run1_title_triage_batched(
             for uid in uids:
                 selected_map[uid] = (uid in true_uids)
 
-            # Hard fail if model returns nothing parseable at all (protect against silent all-false)
+            # Optionnel: garde-fou contre sorties totalement non parseables
             if len(true_uids) == 0 and ("true_row_uids" not in (raw or "")):
                 raise ValueError(
-                    "Unparseable LLM response (missing true_row_uids). "
-                    "Raw preview:\n" + (raw or "")[:800]
+                    "Unparseable LLM response (missing true_row_uids). Raw preview:\n"
+                    + (raw or "")[:800]
                 )
+
 
     # Write results back
     mask = (df_out["level"] != 5)
