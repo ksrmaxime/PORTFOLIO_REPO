@@ -22,6 +22,24 @@ SCRATCHDIR=/scratch/mkaiser3
 cd "$WORKDIR"
 source .venv/bin/activate
 
+echo "=== SLURM ==="
+echo "JOBID=$SLURM_JOB_ID HOST=$(hostname) PARTITION=$SLURM_JOB_PARTITION"
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
+
+echo "=== NVIDIA-SMI ==="
+which nvidia-smi || true
+nvidia-smi || true
+
+echo "=== PYTORCH CUDA ==="
+python - <<'PY'
+import torch
+print("torch version:", torch.__version__)
+print("cuda available:", torch.cuda.is_available())
+print("cuda device count:", torch.cuda.device_count())
+print("cuda visible devices env:", __import__("os").environ.get("CUDA_VISIBLE_DEVICES"))
+PY
+
+
 mkdir -p logs "$SCRATCHDIR/portfolio/run1"
 
 # GPU utilization logging (post-mortem)

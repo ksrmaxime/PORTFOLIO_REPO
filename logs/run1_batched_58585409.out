@@ -1,0 +1,34 @@
+=== SLURM ===
+JOBID=58585409 HOST=dnagpu002 PARTITION=gpu
+CUDA_VISIBLE_DEVICES=0
+=== NVIDIA-SMI ===
+/usr/bin/nvidia-smi
+Wed Feb  4 10:59:05 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.82.07              Driver Version: 580.82.07      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:E2:00.0 Off |                    0 |
+| N/A   29C    P0             52W /  250W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+=== PYTORCH CUDA ===
+torch version: 2.10.0+cu128
+cuda available: True
+cuda device count: 1
+cuda visible devices env: 0
+Input : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/fedlex/laws_structure.parquet
+Saved : /scratch/mkaiser3/portfolio/run1/laws_structure_with_title_triage.parquet
+Non-articles classified: TRUE=0, FALSE=4730, total=4730
+Done.
