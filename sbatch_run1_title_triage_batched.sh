@@ -22,30 +22,56 @@ SCRATCHDIR=/scratch/mkaiser3
 cd "$WORKDIR"
 source .venv/bin/activate
 
-echo "=== SLURM ==="
-echo "JOBID=$SLURM_JOB_ID HOST=$(hostname) PARTITION=$SLURM_JOB_PARTITION"
-echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
+mkdir -p logs "$SCRATCHDIR/portfolio/run1"
 
-echo "=== NVIDIA-SMI ==="
-which nvidia-smi || true
-nvidia-smi || true
+echo "=== SLURM ==="
+echo "JOBID=${SLURM_JOB_ID:-<unset>} HOST=$(hostname) PARTITION=${SLURM_JOB_PARTITION:-<unset>}"
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
+echo "DATE=$(date -Is)"
+
+echo "=== GPU (start) ==="
+nvidia-smi -L || true
+nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu,utilization.memory,power.draw \
+  --format=csv,noheader || true
 
 echo "=== PYTORCH CUDA ==="
 python - <<'PY'
-import torch
-print("torch version:", torch.__version__)
-print("cuda available:", torch.cuda.is_available())
-print("cuda device count:", torch.cuda.device_count())
-print("cuda visible devices env:", __import__("os").environ.get("CUDA_VISIBLE_DEVICES"))
+import os, torch
+print("torch:", torch.__version__)
+print("cuda_available:", torch.cuda.is_available())
+print("cuda_count:", torch.cuda.device_count())
+print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
+if torch.cuda.is_available():
+    print("device_name:", torch.cuda.get_device_name(0))
+    props = torch.cuda.get_device_properties(0)
+    print("total_vram_GB:", round(props.total_memory / (1024**3), 2))
 PY
 
+# --- GPU monitoring (VRAM + util), every 30s, written to logs/ ---
+GPU_CSV="logs/gpu_${SLURM_JOB_ID}.csv"
 
-mkdir -p logs "$SCRATCHDIR/portfolio/run1"
+cleanup() {
+  if [[ -n "${NSMI_PID:-}" ]]; then
+    kill "${NSMI_PID}" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
 
-# GPU utilization logging (post-mortem)
-nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.total \
-  --format=csv -l 30 > "logs/gpu_${SLURM_JOB_ID}.csv" &
+echo "=== GPU monitor ==="
+echo "Writing: ${GPU_CSV}"
+(
+  echo "timestamp,util.gpu,util.mem,mem.used,mem.total,power.draw"
+  while true; do
+    nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw \
+      --format=csv,noheader
+    sleep 30
+  done
+) > "${GPU_CSV}" &
 NSMI_PID=$!
+
+echo "=== RUN ==="
+echo "WORKDIR=${WORKDIR}"
+echo "SCRATCHDIR=${SCRATCHDIR}"
 
 python scripts/run1_title_triage_batched.py \
   --workdir "$WORKDIR" \
@@ -57,5 +83,9 @@ python scripts/run1_title_triage_batched.py \
   --max-tokens 160 \
   --temperature 0.0
 
-kill "$NSMI_PID" || true
+echo "=== GPU (end) ==="
+nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu,utilization.memory,power.draw \
+  --format=csv,noheader || true
+
 echo "Done."
+
