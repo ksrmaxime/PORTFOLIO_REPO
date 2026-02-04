@@ -54,11 +54,10 @@ def _parse_true_uids(raw: str) -> List[int]:
     if not raw:
         return []
 
-    # Prefer JSON object extraction
-    m = re.search(r"\{[\s\S]*\}", raw)
-    cand = m.group(0) if m else raw
+    # 1) Trouver tous les objets JSON qui contiennent "true_row_uids" et prendre le dernier
+    candidates = re.findall(r"\{[\s\S]*?\"true_row_uids\"[\s\S]*?\}", raw)
+    cand = candidates[-1] if candidates else raw
 
-    # Normalize common non-JSON booleans/quotes issues (light touch)
     cand = cand.replace("“", '"').replace("”", '"')
     cand = re.sub(r",\s*([}\]])", r"\1", cand)
 
@@ -75,12 +74,13 @@ def _parse_true_uids(raw: str) -> List[int]:
             return out
         return []
     except Exception:
-        # Regex fallback: capture integers inside true_row_uids [...]
-        m2 = re.search(r"true_row_uids\s*[:=]\s*\[([^\]]*)\]", raw, flags=re.IGNORECASE)
-        if not m2:
+        # fallback regex: prendre la dernière occurrence de true_row_uids [...]
+        m2_all = re.findall(r"true_row_uids\s*[:=]\s*\[([^\]]*)\]", raw, flags=re.IGNORECASE)
+        if not m2_all:
             return []
-        nums = re.findall(r"\d+", m2.group(1))
+        nums = re.findall(r"\d+", m2_all[-1])
         return [int(n) for n in nums]
+
 
 
 def run1_title_triage_batched(
