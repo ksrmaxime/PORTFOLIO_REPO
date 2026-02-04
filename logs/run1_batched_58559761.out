@@ -1,0 +1,4 @@
+Input : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/fedlex/laws_structure.parquet
+Saved : /scratch/mkaiser3/portfolio/run1/laws_structure_with_title_triage.parquet
+Non-articles classified: TRUE=3, FALSE=4727, total=4730
+Done.
