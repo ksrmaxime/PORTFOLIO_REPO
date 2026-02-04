@@ -1,0 +1,132 @@
+=== SLURM ===
+JOBID=58585491 HOST=dnagpu007 PARTITION=gpu
+CUDA_VISIBLE_DEVICES=0
+=== NVIDIA-SMI ===
+/usr/bin/nvidia-smi
+Wed Feb  4 13:50:12 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.82.07              Driver Version: 580.82.07      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:21:00.0 Off |                    0 |
+| N/A   30C    P0             34W /  250W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+=== PYTORCH CUDA ===
+torch version: 2.10.0+cu128
+cuda available: True
+cuda device count: 1
+cuda visible devices env: 0
+
+=== SYSTEM PROMPT ===
+Tâche: déterminer si un titre juridique pourrait contenir des dispositions en lien avec des systèmes automatisés/algorithmique (communément appelé IA) (y compris leurs potentielles composantes, système automatisé, données, processus de décision automatisé, logiciels, systèmes informatiques, infrastructures de calcul).
+Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour.
+
+=== USER PROMPT (first batch, first prompt) ===
+Décide si chaque libellé peut impliquer une composante d'un système automatisé/algorithmique selon la définition ci-dessus Réponds UNIQUEMENT avec ce JSON strict:
+{"true_row_uids":[]}
+en remplaçant [] par les row_uid jugés pertinents.
+Données (row_uid<TAB>label):
+1	Arrêté fédéral concernant les prestations de la ville de Berne pour le siège fédéral
+2	Loi fédéralesur la poursuite pour dettes et la faillite
+3	Titre premier: Dispositions générales
+48	Titre deuxième: De la poursuite pour dettes
+112	Titre troisième: De la poursuite par voie de saisie
+181	Titre quatrième: De la poursuite en réalisation du gage
+191	Titre cinquième: De la poursuite par voie de faillite
+232	Titre sixième: Des effets juridiques de la faillite
+258	Titre septième: De la liquidation de la faillite
+316	Titre huitième: Du séquestre
+328	Titre neuvième: Dispositions particulières sur les loyers et fermages
+333	Titre neuvièmebis: Dispositions particulières sur les relations de trust
+336	Titre dixième: Révocation
+346	Titre onzième: Procédure concordataire
+403	Titre douzième: Sursis extraordinaire
+419	Titre treizième: Dispositions finales
+426	Loi fédérale concernant les installations électriques à faible et à fort courant
+521	Loi fédéralesur la procédure civile fédérale
+522	Titre premier: Champ d’application de la loi et compétence
+525	Titre deuxième: Principes généraux de procédure
+532	Titre troisième: Délais, citations et communications, défaut et restitution
+538	Titre quatrième: Parties et participation de tiers au procès
+544	Titre cinquième: Échange des écritures
+561	Titre sixième: Procédure préparatoire
+564	Titre septième: Preuve
+596	Titre huitième: Débats principaux
+603	Titre neuvième: Fin du procès sans jugement
+606	Titre dixième: Exécution
+612	Titre onzième: Mesures provisionnelles
+620	Titre douzième: Dispositions finales et transitoires
+623	Loi fédéraleréglant la poursuite pour dettescontre les communes et autres collectivitésde droit public cantonal
+671	Loi fédérale concernant l’Office fédéral de conciliation en matière de conflits collectifs du travail
+679	Loi fédérale concernant la protection des ouvrages militaires
+690	Loi fédéralesur l’aviation
+691	Première partie: Fondements de l’aviation
+692	Titre premier: Espace aérien et surface terrestre
+693	Chapitre I: La souveraineté sur l’espace aérien et ses effets
+712	Chapitre II: Usage de l’espace aérien et mesures de sûreté
+751	Chapitre III: L’infrastructure
+810	Titre deuxième: Aéronefs et personnel aéronautique
+
+=== RAW LLM RESPONSE (first batch, first prompt) ===
+Tâche: déterminer si un titre juridique pourrait contenir des dispositions en lien avec des systèmes automatisés/algorithmique (communément appelé IA) (y compris leurs potentielles composantes, système automatisé, données, processus de décision automatisé, logiciels, systèmes informatiques, infrastructures de calcul).
+Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour.Deliberation: disabled
+Tool Capabilities: disabledDécide si chaque libellé peut impliquer une composante d'un système automatisé/algorithmique selon la définition ci-dessus Réponds UNIQUEMENT avec ce JSON strict:
+{"true_row_uids":[]}
+en remplaçant [] par les row_uid jugés pertinents.
+Données (row_uid<TAB>label):
+1	Arrêté fédéral concernant les prestations de la ville de Berne pour le siège fédéral
+2	Loi fédéralesur la poursuite pour dettes et la faillite
+3	Titre premier: Dispositions générales
+48	Titre deuxième: De la poursuite pour dettes
+112	Titre troisième: De la poursuite par voie de saisie
+181	Titre quatrième: De la poursuite en réalisation du gage
+191	Titre cinquième: De la poursuite par voie de faillite
+232	Titre sixième: Des effets juridiques de la faillite
+258	Titre septième: De la liquidation de la faillite
+316	Titre huitième: Du séquestre
+328	Titre neuvième: Dispositions particulières sur les loyers et fermages
+333	Titre neuvièmebis: Dispositions particulières sur les relations de trust
+336	Titre dixième: Révocation
+346	Titre onzième: Procédure concordataire
+403	Titre douzième: Sursis extraordinaire
+419	Titre treizième: Dispositions finales
+426	Loi fédérale concernant les installations électriques à faible et à fort courant
+521	Loi fédéralesur la procédure civile fédérale
+522	Titre premier: Champ d’application de la loi et compétence
+525	Titre deuxième: Principes généraux de procédure
+532	Titre troisième: Délais, citations et communications, défaut et restitution
+538	Titre quatrième: Parties et participation de tiers au procès
+544	Titre cinquième: Échange des écritures
+561	Titre sixième: Procédure préparatoire
+564	Titre septième: Preuve
+596	Titre huitième: Débats principaux
+603	Titre neuvième: Fin du procès sans jugement
+606	Titre dixième: Exécution
+612	Titre onzième: Mesures provisionnelles
+620	Titre douzième: Dispositions finales et transitoires
+623	Loi fédéraleréglant la poursuite pour dettescontre les communes et autres collectivitésde droit public cantonal
+671	Loi fédérale concernant l’Office fédéral de conciliation en matière de conflits collectifs du travail
+679	Loi fédérale concernant la protection des ouvrages militaires
+690	Loi fédéralesur l’aviation
+691	Première partie: Fondements de l’aviation
+692	Titre premier: Espace aérien et surface terrestre
+693	Chapitre I: La souveraineté sur l’espace aérien et ses effets
+712	Chapitre II: Usage de l’espace aérien et mesures de sûreté
+751	Chapitre III: L’infrastructure
+810	Titre deuxième: Aéronefs et personnel aéronautique{"true_row_uids": ["521", "522", "525", "532", "538", "544", "561", "564", "596", "6
+Input : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/fedlex/laws_structure.parquet
+Saved : /scratch/mkaiser3/portfolio/run1/laws_structure_with_title_triage.parquet
+Non-articles classified: TRUE=0, FALSE=4730, total=4730
+Done.
