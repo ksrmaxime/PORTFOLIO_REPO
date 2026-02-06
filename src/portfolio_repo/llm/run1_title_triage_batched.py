@@ -30,12 +30,16 @@ class Run1Config:
 
 
 _SYSTEM_PROMPT = (
-    "Tu analyses des TITRES/INTITULÉS (pas le texte des articles). "
-    "Ta tâche: dire si le titre suggère un lien direct avec: systèmes automatisés/algorithmes, "
-    "traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), "
-    "ou intelligence artificielle.\n\n"
-    "Sois CONSERVATEUR: si ce n’est pas clair dans le titre, ce n'est pas pertinent.\n"
-    "Tu ne dois PAS déduire à partir du secteur (ex: santé, aviation) si le titre ne mentionne rien d’automatisé/data/IT.\n\n"
+    "Tu reçois ci-dessous une liste des titres, sous-titres, chapitres etc... représentant la structure des textes de lois suisses.\n"
+    "Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles qui composent leur section.\n\n"
+    "Ton rôle est de déterminer si certains de ces titres pourraient être à la tête d'une section qui contient des articles étant en lien avec de l'intelligence artificielle.\n"
+    "Nous définissions l'intelligence artificielle de manière large : cela inclut les systèmes automatisés/algorithmes, le traitement automatisé de données, les infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'intelligence artificielle au sens strict.\n"
+    "Afin de savoir si un titre est pertinent, il faut se demander si les articles qui suivront pourraient légiférer sur le développement, l'utilisation, la régulation ou les implications de tels systèmes.\n\n"
+    "A ce stade de l'analyse, l'onjectif est de pouvoir élimner les sections qui ne sont clairemnt pas en lien avec ce type de système afin de pouvoir afiner l'analyse sur les articles dans un deuxième temps.\n"
+    "Il est donc prévisible qu'une grosse partie des titres ne soient pas en lien.\n\n"
+    "Réponds UNIQUEMENT avec ce JSON strict:\n"
+    '{"true_row_uids":[]}\n'
+    "en remplaçant [] par les row_uid jugés pertinents.\n"
     "Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour."
 )
 
@@ -43,12 +47,6 @@ _SYSTEM_PROMPT = (
 def _make_user_prompt(rows: List[Tuple[int, str]]) -> str:
     lines = "\n".join(f"{uid}\t{label.strip()}" for uid, label in rows)
     return (
-        "Tu reçois une liste de lignes, toutes sont des TITRES/INTITULÉS provenant de texte jurdique.\n"
-        "Décide si chaque titres est en lien avec systèmes automatisés / algorithmes / traitement automatisé de données / infrastructures informatiques ou de calcul / intelligence artificielle.\n"
-        "Sois conservateur dans le choix: Si le libellé ne contient pas explicitement une composante d'un système automatisé/algorithmique, ne le considère pas comme pertinent.\n"
-        "Réponds UNIQUEMENT avec ce JSON strict:\n"
-        '{"true_row_uids":[]}\n'
-        "en remplaçant [] par les row_uid jugés pertinents.\n"
         "Données (row_uid<TAB>label):\n"
         f"{lines}"
     )
