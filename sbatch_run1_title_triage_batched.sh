@@ -18,11 +18,12 @@ module load python/3.12.1
 
 WORKDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO
 SCRATCHDIR=/scratch/mkaiser3
+OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/SWISSDOX_REPO/data/processed/swissdox
 
 cd "$WORKDIR"
 source .venv/bin/activate
 
-mkdir -p logs "$SCRATCHDIR/portfolio/run1"
+mkdir -p logs "$SCRATCHDIR/portfolio/run1" "$OUTDIR"
 
 echo "=== SLURM ==="
 echo "JOBID=${SLURM_JOB_ID:-<unset>} HOST=$(hostname) PARTITION=${SLURM_JOB_PARTITION:-<unset>}"
@@ -31,61 +32,19 @@ echo "DATE=$(date -Is)"
 
 echo "=== GPU (start) ==="
 nvidia-smi -L || true
-nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu,utilization.memory,power.draw \
-  --format=csv,noheader || true
-
-echo "=== PYTORCH CUDA ==="
-python - <<'PY'
-import os, torch
-print("torch:", torch.__version__)
-print("cuda_available:", torch.cuda.is_available())
-print("cuda_count:", torch.cuda.device_count())
-print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-if torch.cuda.is_available():
-    print("device_name:", torch.cuda.get_device_name(0))
-    props = torch.cuda.get_device_properties(0)
-    print("total_vram_GB:", round(props.total_memory / (1024**3), 2))
-PY
-
-# --- GPU monitoring (VRAM + util), every 30s, written to logs/ ---
-GPU_CSV="logs/gpu_${SLURM_JOB_ID}.csv"
-
-cleanup() {
-  if [[ -n "${NSMI_PID:-}" ]]; then
-    kill "${NSMI_PID}" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT INT TERM
-
-echo "=== GPU monitor ==="
-echo "Writing: ${GPU_CSV}"
-(
-  echo "timestamp,util.gpu,util.mem,mem.used,mem.total,power.draw"
-  while true; do
-    nvidia-smi --query-gpu=timestamp,utilization.gpu,utilization.memory,memory.used,memory.total,power.draw \
-      --format=csv,noheader
-    sleep 30
-  done
-) > "${GPU_CSV}" &
-NSMI_PID=$!
 
 echo "=== RUN ==="
-echo "WORKDIR=${WORKDIR}"
-echo "SCRATCHDIR=${SCRATCHDIR}"
-
 python scripts/run1_title_triage_batched.py \
   --workdir "$WORKDIR" \
   --scratchdir "$SCRATCHDIR" \
+  --input "data/processed/fedlex/laws_structure.parquet" \
+  --outdir "$OUTDIR" \
+  --outname "laws_structure_with_title_triage" \
   --model-path /reference/LLM/swiss-ai/Apertus-8B-Instruct-2509 \
   --dtype bf16 \
   --items-per-prompt 40 \
   --prompts-per-batch 8 \
-  --max-tokens 160 \
+  --max-tokens 220 \
   --temperature 0.0
 
-echo "=== GPU (end) ==="
-nvidia-smi --query-gpu=memory.used,memory.total,utilization.gpu,utilization.memory,power.draw \
-  --format=csv,noheader || true
-
 echo "Done."
-
