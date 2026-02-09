@@ -161,7 +161,12 @@ def run1_title_triage_batched(client: TransformersClient, df: pd.DataFrame, cfg:
             tset = set(tuids) & allowed
             for u in uids:
                 sel[u] = (u in tset)
-                jus[u] = (tjust.get(u) if u in tset else pd.NA) or pd.NA
+                if u in tset:
+                    jtxt = tjust.get(u)
+                    jus[u] = jtxt.strip() if isinstance(jtxt, str) and jtxt.strip() else pd.NA
+                else:
+                    jus[u] = pd.NA
+
 
     mask = out["level"].isin([1, 2, 3, 4])
     if cfg.skip_if_already_done:
