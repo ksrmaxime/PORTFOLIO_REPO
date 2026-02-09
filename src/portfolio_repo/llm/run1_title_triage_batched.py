@@ -32,12 +32,7 @@ class Run1Config:
 _SYSTEM_PROMPT = (
     "Tu reçois ci-dessous une liste des titres, sous-titres, chapitres etc... représentant la structure des textes de lois suisses.\n"
     "Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles qui composent leur section.\n\n"
-    "Ton rôle est de déterminer si certains de ces titres sont à la tête d'une section qui contient des articles étant en lien avec de l'intelligence artificielle.\n"
-    "Nous définissions l'intelligence artificielle de manière large : cela inclut les systèmes automatisés/algorithmes, le traitement automatisé de données, les infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'intelligence artificielle au sens strict.\n"
-    "Afin de savoir si un titre est pertinent, il faut se demander si les articles qui suivront légifèrent sur le développement, l'utilisation, la régulation ou les implications de tels systèmes.\n\n"
-    "A ce stade de l'analyse, l'onjectif est de pouvoir élimner les sections qui ne sont pas en lien avec ce type de système.\n"
-    "Il est donc important de ne conserver que les titres qui font explicitement référence à notre définition. Base toi sur les mots du titre et n'essaye pas d'intrepréter.\n\n"
-    "Il est donc prévisible qu'une grosse partie des titres ne soient pas en lien.\n\n"
+    "Ton rôle est de déterminer si ces titres sont à la tête d'une section qui pourrait contenir des articles étant en lien avec de l'intelligence artificielle.\n"
     "Réponds UNIQUEMENT avec ce JSON strict:\n"
     '{"true_row_uids":[]}\n'
     "en remplaçant [] par les row_uid jugés pertinents.\n"
