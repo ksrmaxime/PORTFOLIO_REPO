@@ -10,7 +10,7 @@ from portfolio_repo.llm.curnagl_client import TransformersClient, TransformersCo
 from portfolio_repo.llm.run1_title_triage_batched import Run1Config, run1_title_triage_batched
 
 
-DEFAULT_OUTDIR = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/SWISSDOX_REPO/data/processed/swissdox"
+DEFAULT_OUTDIR = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/"
 
 
 def parse_args() -> argparse.Namespace:

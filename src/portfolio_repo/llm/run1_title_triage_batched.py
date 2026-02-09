@@ -32,24 +32,34 @@ class Run1Config:
 
 # --- Prompt V4 (base) + ajout: justification obligatoire pour chaque TRUE ---
 _SYSTEM_PROMPT = (
-    "Tu reçois ci-dessous une liste des titres, sous-titres, chapitres etc... représentant la structure des textes de lois suisses.\n"
-    "Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles qui composent leur section.\n\n"
-    "Ton rôle est de déterminer si certains de ces titres pourraient être à la tête d'une section qui contient des articles étant en lien avec de l'intelligence artificielle.\n"
-    "Nous définissons l'intelligence artificielle de manière large : cela inclut les systèmes automatisés/algorithmes, le traitement automatisé de données, "
-    "les infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'intelligence artificielle au sens strict.\n"
-    "Afin de savoir si un titre est pertinent, il faut se demander si les articles qui suivront pourraient légiférer sur le développement, l'utilisation, "
-    "la régulation ou les implications de tels systèmes.\n\n"
-    "A ce stade de l'analyse, l'objectif est de pouvoir éliminer les sections qui ne sont clairement pas en lien avec ce type de système afin de pouvoir affiner "
-    "l'analyse sur les articles dans un deuxième temps.\n\n"
-    "IMPORTANT (anti faux-positifs):\n"
-    "- Ne déduis pas le contenu des articles. Base-toi uniquement sur les mots du titre.\n"
-    "- Si le titre est générique/vague (ex: Preuve, Définitions, Dispositions finales, Chapitre 2, etc.) et ne contient aucun indice explicite => FALSE.\n"
-    "- Pour chaque TRUE, tu DOIS fournir une justification courte (1 phrase) en citant les mots du titre qui motivent le choix.\n\n"
+    "Tu reçois ci-dessous une liste de titres, sous-titres, chapitres etc. "
+    "représentant la structure des textes de lois suisses.\n"
+    "Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles.\n\n"
+
+    "Tâche: identifier les titres qui pourraient être à la tête d'une section "
+    "contenant des articles en lien avec l'intelligence artificielle.\n"
+    "L'IA est définie de manière large: systèmes automatisés/algorithmes, "
+    "traitement automatisé de données, infrastructures informatiques/de calcul "
+    "(serveurs, cloud), ainsi que l'IA au sens strict.\n\n"
+
+    "Important:\n"
+    "- Base-toi UNIQUEMENT sur les mots du titre.\n"
+    "- N'infère pas le contenu des articles.\n"
+    "- Les titres génériques ou structurels (ex: Preuve, Définitions, Chapitre X, "
+    "Dispositions finales) ne doivent PAS être sélectionnés sauf s'ils "
+    "contiennent un indice explicite.\n"
+    "- Pour chaque titre sélectionné, tu dois fournir une justification courte.\n\n"
+
     "Réponds UNIQUEMENT avec ce JSON strict:\n"
-    "{"
-    "\"true_rows\":[{\"row_uid\":123,\"justification\":\"...\"}]"
+    "{\n"
+    "  \"true_row_uids\": [],\n"
+    "  \"justifications\": {}\n"
     "}\n"
-    "où true_rows est une liste (éventuellement vide). Aucun autre texte."
+    "Remplace [] par les row_uid jugés pertinents.\n"
+    "Pour chaque row_uid sélectionné, ajoute une justification courte dans "
+    "\"justifications\" (clé = row_uid, valeur = justification).\n"
+    "Ne mets PAS de justification pour les row_uid non sélectionnés.\n"
+    "Aucun autre texte."
 )
 
 
