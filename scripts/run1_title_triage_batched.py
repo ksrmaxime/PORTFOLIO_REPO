@@ -66,7 +66,7 @@ def main() -> int:
     df_out = run1_title_triage_batched(client=client, df=df, cfg=cfg)
     df_out.to_parquet(out_path, index=False)
 
-    non_articles = df_out[df_out["level"] != 5]
+    non_articles = df_out[df_out["level"].isin([1, 2, 3, 4])]
     n_true = int((non_articles[cfg.out_col] == True).sum())    # noqa: E712
     n_false = int((non_articles[cfg.out_col] == False).sum())  # noqa: E712
 

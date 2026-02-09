@@ -32,13 +32,19 @@ class Run1Config:
 _SYSTEM_PROMPT = (
     "Tu reçois ci-dessous une liste des titres, sous-titres, chapitres etc... représentant la structure des textes de lois suisses.\n"
     "Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles qui composent leur section.\n\n"
-    "Ton rôle est de déterminer si certains de ces titres pourraient être à la tête d'une section qui contient des articles étant en lien avec de l'intelligence artificielle.\n"
-    "Nous définissions l'intelligence artificielle de manière large : cela inclut les systèmes automatisés/algorithmes, le traitement automatisé de données, les infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'intelligence artificielle au sens strict.\n"
-    "Afin de savoir si un titre est pertinent, il faut se demander si les articles qui suivront pourraient légiférer sur le développement, l'utilisation, la régulation ou les implications de tels systèmes.\n"
-    "Souvent le titre commencera par un mot générique comme (Titre, Loi, Chapitre, section etc...) suivit par un chiffre. Ceci n'est pas à prendre en compte dans ton raissonnement. \n"
-    "Lorsque le titre n'est composé que d'un mot ou qu'il est volontairement très vague, il est peu probable qu'il contienne des dispositions en lien avec l'intelligence artificielle, dès lors tu peux l'ignorer si il n'est pas clairement en lien avec des composantes de l'intelligence artificielle ou des systèmes automatisés.\n\n"
-    "A ce stade de l'analyse, l'onjectif est de pouvoir élimner les sections qui ne sont clairemnt pas en lien avec ce type de système afin de pouvoir afiner l'analyse sur les articles dans un deuxième temps.\n"
-    "Il est donc prévisible qu'une grosse partie des titres ne soient pas en lien.\n\n"
+    "Tâche: identifier les titres qui contiennent un INDICE EXPLICITE (dans les mots du titre) "
+    "qu'une section traite de systèmes automatisés/algorithmiques, traitement automatisé/électronique de données, "
+    "systèmes informatiques (logiciels, plateformes, SI), décision automatisée/profilage, modèles/apprentissage, "
+    "infrastructures de calcul (serveurs, cloud).\n\n"
+    "Règle anti-faux-positifs (obligatoire):\n"
+    "- Tu n'as pas le droit d'inférer ou d'imaginer le contenu des articles.\n"
+    "- Marque TRUE uniquement si le titre fournit un signal lexical clair et direct.\n"
+    "- Si le titre est vague/générique/ambigu ou s'il manque un indice explicite => FALSE.\n"
+    "- Ne te base pas sur le contexte supposé d'une loi; base-toi uniquement sur les mots présents.\n\n"
+    "Exemples d'indices explicites (non exhaustif): "
+    "algorithme, automatisé, automatisation, décision automatisée, profilage, traitement automatisé, "
+    "traitement électronique, système informatique, système d'information, logiciel, plateforme, modèle, apprentissage, "
+    "données (si clairement en contexte de traitement/électronique), registre électronique, identification électronique, cloud, serveur.\n\n"
     "Réponds UNIQUEMENT avec ce JSON strict:\n"
     '{"true_row_uids":[]}\n'
     "en remplaçant [] par les row_uid jugés pertinents.\n"
@@ -104,7 +110,7 @@ def run1_title_triage_batched(
         df_out[cfg.out_col] = pd.NA
 
     # We only classify non-articles (same behavior as before: level==5 left untouched)
-    df_non = df_out[df_out["level"] != 5].copy()
+    df_non = df_out[df_out["level"].isin([1, 2, 3, 4])].copy()
     if cfg.skip_if_already_done:
         df_non = df_non[df_non[cfg.out_col].isna()].copy()
 
@@ -166,7 +172,7 @@ def run1_title_triage_batched(
 
 
     # Write results back
-    mask = (df_out["level"] != 5)
+    mask = df_out["level"].isin([1, 2, 3, 4])
     if cfg.skip_if_already_done:
         mask = mask & df_out[cfg.out_col].isna()
 
