@@ -1,0 +1,132 @@
+=== SLURM ===
+JOBID=58655505 HOST=dnagpu007 PARTITION=gpu
+CUDA_VISIBLE_DEVICES=0
+DATE=2026-02-06T23:56:10+01:00
+=== GPU (start) ===
+GPU 0: NVIDIA A100-PCIE-40GB (UUID: GPU-b11ae00b-430f-7874-da96-cbe9dbe3ed32)
+NVIDIA A100-PCIE-40GB, 580.82.07, 40960 MiB, 0 MiB, 0 %, 0 %, 35.13 W
+=== PYTORCH CUDA ===
+torch: 2.10.0+cu128
+cuda_available: True
+cuda_count: 1
+CUDA_VISIBLE_DEVICES: 0
+device_name: NVIDIA A100-PCIE-40GB
+total_vram_GB: 39.49
+=== GPU monitor ===
+Writing: logs/gpu_58655505.csv
+=== RUN ===
+WORKDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO
+SCRATCHDIR=/scratch/mkaiser3
+
+=== SYSTEM PROMPT ===
+Tu reçois ci-dessous une liste des titres, sous-titres, chapitres etc... représentant la structure des textes de lois suisses.
+Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles qui composent leur section.
+
+Ton rôle est de déterminer si certains de ces titres pourraient être à la tête d'une section qui contient des articles étant en lien avec de l'intelligence artificielle.
+Nous définissions l'intelligence artificielle de manière large : cela inclut les systèmes automatisés/algorithmes, le traitement automatisé de données, les infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'intelligence artificielle au sens strict.
+Afin de savoir si un titre est pertinent, il faut se demander si les articles qui suivront pourraient légiférer sur le développement, l'utilisation, la régulation ou les implications de tels systèmes.
+
+A ce stade de l'analyse, l'onjectif est de pouvoir élimner les sections qui ne sont clairemnt pas en lien avec ce type de système afin de pouvoir afiner l'analyse sur les articles dans un deuxième temps.
+Il est donc prévisible qu'une grosse partie des titres ne soient pas en lien.
+
+Réponds UNIQUEMENT avec ce JSON strict:
+{"true_row_uids":[]}
+en remplaçant [] par les row_uid jugés pertinents.
+Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour.
+
+=== USER PROMPT (first batch, first prompt) ===
+Données (row_uid<TAB>label):
+1	Arrêté fédéral concernant les prestations de la ville de Berne pour le siège fédéral
+2	Loi fédéralesur la poursuite pour dettes et la faillite
+3	Titre premier: Dispositions générales
+48	Titre deuxième: De la poursuite pour dettes
+112	Titre troisième: De la poursuite par voie de saisie
+181	Titre quatrième: De la poursuite en réalisation du gage
+191	Titre cinquième: De la poursuite par voie de faillite
+232	Titre sixième: Des effets juridiques de la faillite
+258	Titre septième: De la liquidation de la faillite
+316	Titre huitième: Du séquestre
+328	Titre neuvième: Dispositions particulières sur les loyers et fermages
+333	Titre neuvièmebis: Dispositions particulières sur les relations de trust
+336	Titre dixième: Révocation
+346	Titre onzième: Procédure concordataire
+403	Titre douzième: Sursis extraordinaire
+419	Titre treizième: Dispositions finales
+426	Loi fédérale concernant les installations électriques à faible et à fort courant
+521	Loi fédéralesur la procédure civile fédérale
+522	Titre premier: Champ d’application de la loi et compétence
+525	Titre deuxième: Principes généraux de procédure
+532	Titre troisième: Délais, citations et communications, défaut et restitution
+538	Titre quatrième: Parties et participation de tiers au procès
+544	Titre cinquième: Échange des écritures
+561	Titre sixième: Procédure préparatoire
+564	Titre septième: Preuve
+596	Titre huitième: Débats principaux
+603	Titre neuvième: Fin du procès sans jugement
+606	Titre dixième: Exécution
+612	Titre onzième: Mesures provisionnelles
+620	Titre douzième: Dispositions finales et transitoires
+623	Loi fédéraleréglant la poursuite pour dettescontre les communes et autres collectivitésde droit public cantonal
+671	Loi fédérale concernant l’Office fédéral de conciliation en matière de conflits collectifs du travail
+679	Loi fédérale concernant la protection des ouvrages militaires
+690	Loi fédéralesur l’aviation
+691	Première partie: Fondements de l’aviation
+692	Titre premier: Espace aérien et surface terrestre
+693	Chapitre I: La souveraineté sur l’espace aérien et ses effets
+712	Chapitre II: Usage de l’espace aérien et mesures de sûreté
+751	Chapitre III: L’infrastructure
+810	Titre deuxième: Aéronefs et personnel aéronautique
+
+=== RAW LLM RESPONSE (first batch, first prompt) ===
+Tu reçois ci-dessous une liste des titres, sous-titres, chapitres etc... représentant la structure des textes de lois suisses.
+Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles qui composent leur section.
+
+Ton rôle est de déterminer si certains de ces titres pourraient être à la tête d'une section qui contient des articles étant en lien avec de l'intelligence artificielle.
+Nous définissions l'intelligence artificielle de manière large : cela inclut les systèmes automatisés/algorithmes, le traitement automatisé de données, les infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'intelligence artificielle au sens strict.
+Afin de savoir si un titre est pertinent, il faut se demander si les articles qui suivront pourraient légiférer sur le développement, l'utilisation, la régulation ou les implications de tels systèmes.
+
+A ce stade de l'analyse, l'onjectif est de pouvoir élimner les sections qui ne sont clairemnt pas en lien avec ce type de système afin de pouvoir afiner l'analyse sur les articles dans un deuxième temps.
+Il est donc prévisible qu'une grosse partie des titres ne soient pas en lien.
+
+Réponds UNIQUEMENT avec ce JSON strict:
+{"true_row_uids":[]}
+en remplaçant [] par les row_uid jugés pertinents.
+Tu ne dois répondre qu'avec du JSON strict, sans aucun texte autour.Deliberation: disabled
+Tool Capabilities: disabledDonnées (row_uid<TAB>label):
+1	Arrêté fédéral concernant les prestations de la ville de Berne pour le siège fédéral
+2	Loi fédéralesur la poursuite pour dettes et la faillite
+3	Titre premier: Dispositions générales
+48	Titre deuxième: De la poursuite pour dettes
+112	Titre troisième: De la poursuite par voie de saisie
+181	Titre quatrième: De la poursuite en réalisation du gage
+191	Titre cinquième: De la poursuite par voie de faillite
+232	Titre sixième: Des effets juridiques de la faillite
+258	Titre septième: De la liquidation de la faillite
+316	Titre huitième: Du séquestre
+328	Titre neuvième: Dispositions particulières sur les loyers et fermages
+333	Titre neuvièmebis: Dispositions particulières sur les relations de trust
+336	Titre dixième: Révocation
+346	Titre onzième: Procédure concordataire
+403	Titre douzième: Sursis extraordinaire
+419	Titre treizième: Dispositions finales
+426	Loi fédérale concernant les installations électriques à faible et à fort courant
+521	Loi fédéralesur la procédure civile fédérale
+522	Titre premier: Champ d’application de la loi et compétence
+525	Titre deuxième: Principes généraux de procédure
+532	Titre troisième: Délais, citations et communications, défaut et restitution
+538	Titre quatrième: Parties et participation de tiers au procès
+544	Titre cinquième: Échange des écritures
+561	Titre sixième: Procédure préparatoire
+564	Titre septième: Preuve
+596	Titre huitième: Débats principaux
+603	Titre neuvième: Fin du procès sans jugement
+606	Titre dixième: Exécution
+612	Titre onzième: Mesures provisionnelles
+620	Titre douzième: Dispositions finales et transitoires
+623	Loi fédéralerég
+Input : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/fedlex/laws_structure.parquet
+Saved : /scratch/mkaiser3/portfolio/run1/laws_structure_with_title_triage.parquet
+Non-articles classified: TRUE=583, FALSE=4147, total=4730
+=== GPU (end) ===
+0 MiB, 40960 MiB, 1 %, 0 %, 42.96 W
+Done.
