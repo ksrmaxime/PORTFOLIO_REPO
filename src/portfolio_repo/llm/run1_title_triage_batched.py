@@ -55,11 +55,11 @@ _SYSTEM_PROMPT = (
     "  \"true_row_uids\": [],\n"
     "  \"justifications\": {}\n"
     "}\n"
-    "Remplace [] par les row_uid jugés pertinents.\n"
-    "Pour chaque row_uid sélectionné, ajoute une justification courte dans "
-    "\"justifications\" (clé = row_uid, valeur = justification).\n"
-    "Ne mets PAS de justification pour les row_uid non sélectionnés.\n"
+    "en remplaçant [] par les row_uid jugés pertinents.\n"
+    "Pour chaque row_uid sélectionné, ajoute une justification courte dans \"justifications\" "
+    "(clé = row_uid, valeur = justification).\n"
     "Aucun autre texte."
+
 )
 
 
@@ -68,48 +68,72 @@ def _make_user_prompt(rows: List[Tuple[int, str]]) -> str:
     return "Données (row_uid<TAB>label):\n" + lines
 
 
-def _parse_true_rows(raw: str) -> List[Tuple[int, str]]:
+def _extract_last_json_object(text: str) -> Optional[str]:
     """
-    Parse expected JSON:
-      {"true_rows":[{"row_uid":123,"justification":"..."}]}
-    Returns list of (row_uid, justification).
+    Extract the last top-level JSON object {...} from a string, even if surrounded by text.
     """
+    if not text:
+        return None
+
+    s = text.strip().replace("“", '"').replace("”", '"')
+    # common trailing comma cleanup inside JSON (best-effort)
+    s = re.sub(r",\s*([}\]])", r"\1", s)
+
+    # scan for balanced braces and keep the last complete object
+    last_obj = None
+    depth = 0
+    start = None
+    for i, ch in enumerate(s):
+        if ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start is not None:
+                    last_obj = s[start : i + 1]
+                    start = None
+    return last_obj
+
+
+def _parse_uid_and_justifications(raw: str) -> tuple[list[int], dict[int, str]]:
     raw = (raw or "").strip()
     if not raw:
-        return []
+        return [], {}
 
-    # take last json object containing "true_rows"
-    candidates = re.findall(r"\{[\s\S]*?\"true_rows\"[\s\S]*?\}", raw)
-    cand = candidates[-1] if candidates else raw
-
-    cand = cand.replace("“", '"').replace("”", '"')
-    cand = re.sub(r",\s*([}\]])", r"\1", cand)
+    jtxt = _extract_last_json_object(raw)
+    if not jtxt:
+        return [], {}
 
     try:
-        obj = json.loads(cand)
+        obj = json.loads(jtxt)
     except Exception:
-        # fallback: try to locate true_rows array as text (weak fallback)
-        return []
+        return [], {}
 
-    rows = obj.get("true_rows", [])
-    out: List[Tuple[int, str]] = []
-    if not isinstance(rows, list):
-        return out
+    uids: list[int] = []
+    justs: dict[int, str] = {}
 
-    for r in rows:
-        if not isinstance(r, dict):
-            continue
-        uid = r.get("row_uid", None)
-        just = r.get("justification", "")
+    # uids
+    for uid in obj.get("true_row_uids", []):
         try:
-            uid_i = int(uid)
+            uids.append(int(uid))
         except Exception:
             continue
-        if not isinstance(just, str):
-            just = ""
-        just = just.strip()
-        out.append((uid_i, just))
-    return out
+
+    # justifications
+    jmap = obj.get("justifications", {})
+    if isinstance(jmap, dict):
+        for k, v in jmap.items():
+            try:
+                uid = int(k)
+            except Exception:
+                continue
+            if isinstance(v, str) and v.strip():
+                justs[uid] = v.strip()
+
+    return uids, justs
+
 
 
 def run1_title_triage_batched(
@@ -182,26 +206,37 @@ def run1_title_triage_batched(
             uids = [uid for uid, _ in chunk]
             allowed = set(uids)
 
-            parsed = _parse_true_rows(raw)
+            true_uids, justs = _parse_uid_and_justifications(raw)
 
-            # defaults
+            # retry once if totally unparseable (often prompt-echo)
+            if not true_uids and not justs:
+                retry_system = _SYSTEM_PROMPT + "\n\nRAPPEL CRITIQUE: réponds uniquement avec le JSON, sans répéter le prompt."
+                retry_raw = client.chat_many(
+                    system_prompt=retry_system,
+                    user_prompts=[_make_user_prompt(chunk)],
+                    temperature=0.0,
+                    max_tokens=cfg.max_tokens,
+                )[0]
+                true_uids, justs = _parse_uid_and_justifications(retry_raw)
+
+            # default values
             for uid in uids:
                 selected_map[uid] = False
                 just_map[uid] = pd.NA
 
-            # assign truths with justifications
-            got_any_key = "true_rows" in (raw or "")
-            for uid, just in parsed:
+            # assign
+            for uid in true_uids:
                 if uid not in allowed:
                     continue
                 selected_map[uid] = True
-                just_map[uid] = just if just else pd.NA
+                j = justs.get(uid, "")
+                just_map[uid] = j if j else pd.NA
 
-            # guardrail: if totally unparseable (and doesn't even mention the key), fail fast
-            if not got_any_key:
-                raise ValueError(
-                    "Unparseable LLM response (missing true_rows). Raw preview:\n" + (raw or "")[:800]
-                )
+            # log if still unparseable after retry
+            if (not true_uids and not justs) and cfg.debug_raw_response:
+                print("[RUN1 WARN] Unparseable response; chunk forced FALSE. Raw preview:")
+                print((raw or "")[:800])
+
 
     # Write results back (only levels 1..4)
     mask = df_out["level"].isin([1, 2, 3, 4])
