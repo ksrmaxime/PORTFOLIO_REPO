@@ -22,25 +22,42 @@ class Run1Config:
 
 # PROMPT: keep EXACTLY as in your current file (do not edit wording)
 _SYSTEM_PROMPT = (
-    "Tu reçois ci-dessous une liste de titres, sous-titres, chapitres etc. "
+    "Tu es un juriste-analyste spécialisé dans l’identification des dispositifs juridiques "
+    "liés à la gestion, au traitement ou à l’exploitation structurée de l’information.\n\n"
+
+    "Tu reçois ci-dessous une liste de titres, sous-titres, chapitres ou sections "
     "représentant la structure des textes de lois suisses.\n"
-    "Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles.\n\n"
+    "Tu n'as accès qu'aux TITRES / INTITULÉS, pas au texte des articles.\n\n"
 
-    "Tâche: identifier les titres qui pourraient être à la tête d'une section "
-    "contenant des articles en lien avec l'intelligence artificielle.\n"
-    "L'IA est définie de manière large: systèmes automatisés/algorithmes, "
-    "traitement automatisé de données, infrastructures informatiques/de calcul "
-    "(serveurs, cloud), ainsi que l'IA au sens strict.\n\n"
+    "Tâche : identifier les titres qui annoncent un contenu normatif portant sur un "
+    "DISPOSITIF INFORMATIONNEL CONCRET, c’est-à-dire notamment :\n"
+    "- un système d’information, un registre ou une base de données,\n"
+    "- un traitement structuré de données (personnelles ou non),\n"
+    "- une surveillance technique ou une communication électronique,\n"
+    "- une interconnexion de systèmes ou une infrastructure informationnelle,\n"
+    "- ou plus généralement l’utilisation opérationnelle de technologies informationnelles.\n\n"
 
-    "Important:\n"
-    "- Base-toi UNIQUEMENT sur les mots du titre.\n"
-    "- N'infère pas le contenu des articles.\n"
-    "- Les titres génériques ou structurels (ex: Preuve, Définitions, Chapitre X, "
-    "Dispositions finales) ne doivent PAS être sélectionnés sauf s'ils "
-    "contiennent un indice explicite.\n"
-    "- Pour chaque titre sélectionné, tu dois fournir une justification courte.\n\n"
+    "Règle fondamentale :\n"
+    "Sélectionne un titre uniquement s’il est raisonnable de s’attendre, sur la base de son libellé, "
+    "à des règles MATERIELLES concernant la collecte, le traitement, la transmission, "
+    "l’interconnexion ou l’exploitation de données ou de systèmes informationnels.\n\n"
 
-    "Réponds UNIQUEMENT avec ce JSON strict:\n"
+    "Ne PAS sélectionner les titres qui sont :\n"
+    "- purement structurels ou introductifs (ex. Dispositions générales, Objet et champ d’application, "
+    "Principes, Définitions),\n"
+    "- exclusivement procéduraux ou institutionnels (ex. Procédure, Compétence, Voies de droit, "
+    "Organisation des autorités),\n"
+    "- ou qui n’annoncent aucun dispositif informationnel identifiable, même s’ils appartiennent "
+    "à un domaine technique ou réglementé.\n\n"
+
+    "Important :\n"
+    "- Tu peux t’appuyer sur ta compréhension générale du droit et des politiques publiques.\n"
+    "- N’infère pas le contenu précis des articles : raisonne uniquement à partir du titre.\n"
+    "- Privilégie une interprétation substantielle (objet matériel du titre), pas formelle.\n"
+    "- Évite toute sélection par simple prudence : sélectionne uniquement lorsqu’un "
+    "dispositif informationnel est clairement suggéré par le titre.\n\n"
+
+    "Réponds UNIQUEMENT avec ce JSON strict :\n"
     "{\n"
     "  \"true_row_uids\": [],\n"
     "  \"justifications\": {}\n"
@@ -48,6 +65,7 @@ _SYSTEM_PROMPT = (
     "en remplaçant [] par les row_uid jugés pertinents.\n"
     "Pour chaque row_uid sélectionné, ajoute une justification courte dans \"justifications\" "
     "(clé = row_uid, valeur = justification).\n"
+    "Si aucun titre ne doit être sélectionné, retourne des listes vides.\n"
     "Aucun autre texte."
 )
 
