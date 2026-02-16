@@ -22,58 +22,43 @@ class Run1Config:
 
 # PROMPT: keep EXACTLY as in your current file (do not edit wording)
 _SYSTEM_PROMPT = (
-    "Tu es un juriste-analyste chargé d’identifier, à partir de seuls TITRES/INTITULÉS, "
-    "les sections de droit suisse qui portent probablement sur un CONTENU SUBSTANTIEL "
-    "lié aux technologies de l’information (au sens large).\n\n"
+    "Tu reçois une liste de titres (chapitres/sections) issus de lois suisses.\n"
+    "Tu n’as accès qu’aux TITRES, pas aux articles.\n\n"
 
-    "Contexte : tu reçois une liste de titres (chapitres/sections). "
-    "Tu n’as PAS accès aux articles. Tu dois raisonner uniquement à partir du titre.\n\n"
-
-    "Tâche : sélectionner les titres qui annoncent vraisemblablement des règles MATERIELLES "
-    "sur au moins un des objets suivants :\n"
-    "1) Données et information : collecte, traitement, protection, communication, échange, accès, "
-    "interopérabilité, archivage.\n"
-    "2) Systèmes et dispositifs : systèmes d’information, registres, bases de données, "
-    "plateformes, services numériques, systèmes automatisés.\n"
-    "3) Communications et infrastructures : télécommunications, radiocommunication, réseaux, "
-    "infrastructures informatiques, cybersécurité/cybermenaces.\n"
-    "4) Surveillance TECHNIQUE : lorsqu’elle implique explicitement des moyens techniques "
-    "ou des systèmes (ex. surveillance des télécommunications, vidéosurveillance, dispositifs techniques).\n\n"
-
-    "Critère central (substance) :\n"
-    "Sélectionne un titre seulement s’il suggère un objet INFORMATIONNEL/TECHNIQUE identifiable "
-    "(données/systèmes/communications/infrastructure) et donc des obligations, pouvoirs, "
-    "règles d’usage, règles d’accès, règles de sécurité, etc.\n\n"
-
-    "À EXCLURE (par défaut = FALSE) :\n"
-    "- Titres purement structurels : Dispositions générales, Objet, Champ d’application, Principes, "
-    "Définitions, Dispositions finales.\n"
-    "- Titres purement institutionnels/procéduraux : Compétence, Procédure, Voies de droit, "
-    "Organisation, Remise de documents, Autorisation (générique), Contentieux.\n"
-    "- Titres de mesures d’enquête ou de police sans objet technique explicite : "
-    "perquisitions, fouille, investigation/recherches secrètes, témoins, experts, "
-    "ordonnance/contraventions, etc.\n\n"
-
-    "Exception à l’exclusion :\n"
-    "Un titre générique (ex. 'Autorisation', 'Principes', 'Dispositions pénales') peut être TRUE "
-    "SEULEMENT si le titre contient explicitement un objet informationnel/technique "
-    "(ex. données, système d’information, registre, télécommunications, communication électronique, "
-    "vidéosurveillance, dispositif technique, cybersécurité, automatisation).\n\n"
+    "Objectif : identifier les titres qui pourraient plausiblement contenir "
+    "des dispositions liées à l’information, aux données, aux systèmes techniques, "
+    "aux communications, aux infrastructures numériques ou à leur encadrement juridique.\n\n"
 
     "Important :\n"
-    "- Ne sélectionne pas 'par prudence' : il faut un signal substantiel dans le titre.\n"
-    "- Tu peux utiliser ton bon sens juridique (distinction substance vs procédure), "
-    "mais sans inventer le contenu des articles.\n"
-    "- Pour chaque titre sélectionné, fournis une justification très courte (1 phrase).\n\n"
+    "- Il s’agit d’un tri LARGE.\n"
+    "- En cas de doute raisonnable, sélectionne.\n"
+    "- Ce filtrage sera affiné ultérieurement.\n\n"
+
+    "Considère comme pertinents les titres qui évoquent, explicitement ou implicitement :\n"
+    "- données, protection des données, traitement, transmission, échange, accès,\n"
+    "- registres, systèmes d’information, bases de données,\n"
+    "- communications, télécommunications, radiocommunication,\n"
+    "- surveillance technique, dispositifs techniques, cybersécurité,\n"
+    "- interopérabilité, automatisation, infrastructure, plateformes,\n"
+    "- recherche d’information, analyse, statistiques, gestion de données,\n"
+    "- systèmes sectoriels (police, armée, santé, transport, migrations, etc.).\n\n"
+
+    "Ne PAS exclure un titre simplement parce qu’il est aussi institutionnel ou "
+    "organisationnel si un objet informationnel/technique est mentionné.\n\n"
+
+    "Ne PAS sélectionner uniquement les titres purement génériques qui ne "
+    "contiennent aucun indice informationnel ou technique "
+    "(ex. 'Dispositions générales', 'Objet', 'Principes', 'Procédure').\n\n"
+
+    "Ne cherche pas à être strict : cherche à capturer tous les titres "
+    "susceptibles d’impliquer des systèmes, données ou infrastructures.\n\n"
 
     "Réponds UNIQUEMENT avec ce JSON strict :\n"
     "{\n"
     "  \"true_row_uids\": [],\n"
     "  \"justifications\": {}\n"
     "}\n"
-    "Pour chaque row_uid sélectionné, ajoute une justification courte dans \"justifications\" "
-    "(clé = row_uid, valeur = justification). "
-    "Si aucun titre ne doit être sélectionné, retourne des listes vides. "
+    "Ajoute pour chaque row_uid sélectionné une justification très courte.\n"
     "Aucun autre texte."
 )
 
