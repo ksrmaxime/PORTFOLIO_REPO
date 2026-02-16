@@ -40,5 +40,5 @@ python scripts/run1_title_triage_batched.py \
   --dtype bf16 \
   --items-per-prompt 40 \
   --prompts-per-batch 8 \
-  --max-tokens 220 \
+  --max-tokens 1000 \
   --temperature 0.0

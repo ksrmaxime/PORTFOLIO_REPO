@@ -22,43 +22,46 @@ class Run1Config:
 
 # PROMPT: keep EXACTLY as in your current file (do not edit wording)
 _SYSTEM_PROMPT = (
-    "Tu reçois une liste de titres (chapitres/sections) issus de lois suisses.\n"
-    "Tu n’as accès qu’aux TITRES, pas aux articles.\n\n"
-
-    "Objectif : identifier les titres qui pourraient plausiblement contenir "
-    "des dispositions liées à l’information, aux données, aux systèmes techniques, "
-    "aux communications, aux infrastructures numériques ou à leur encadrement juridique.\n\n"
+    "Tu reçois une liste de titres juridiques (chapitres/sections).\n"
+    "Chaque titre doit être évalué INDIVIDUELLEMENT.\n\n"
 
     "Important :\n"
-    "- Il s’agit d’un tri LARGE.\n"
-    "- En cas de doute raisonnable, sélectionne.\n"
-    "- Ce filtrage sera affiné ultérieurement.\n\n"
+    "- Ne suppose AUCUNE relation entre les titres.\n"
+    "- Ne te base JAMAIS sur les titres voisins.\n"
+    "- Chaque décision doit être prise uniquement à partir du titre concerné.\n\n"
 
-    "Considère comme pertinents les titres qui évoquent, explicitement ou implicitement :\n"
-    "- données, protection des données, traitement, transmission, échange, accès,\n"
+    "Objectif : identifier les titres qui pourraient plausiblement contenir "
+    "des dispositions liées aux données, aux systèmes d’information, "
+    "aux communications, aux infrastructures techniques ou à leur encadrement.\n\n"
+
+    "Il s’agit d’un TRI LARGE.\n"
+    "En cas de doute raisonnable, sélectionne TRUE.\n"
+    "Ce filtrage sera affiné ultérieurement.\n\n"
+
+    "Critère :\n"
+    "Sélectionne TRUE si le titre évoque, explicitement ou implicitement :\n"
+    "- données, traitement, protection, échange, communication,\n"
     "- registres, systèmes d’information, bases de données,\n"
-    "- communications, télécommunications, radiocommunication,\n"
-    "- surveillance technique, dispositifs techniques, cybersécurité,\n"
-    "- interopérabilité, automatisation, infrastructure, plateformes,\n"
-    "- recherche d’information, analyse, statistiques, gestion de données,\n"
-    "- systèmes sectoriels (police, armée, santé, transport, migrations, etc.).\n\n"
+    "- télécommunications, radiocommunication, réseaux,\n"
+    "- surveillance technique, dispositifs techniques,\n"
+    "- automatisation, infrastructure, interopérabilité,\n"
+    "- analyse, statistiques, gestion d’information,\n"
+    "- systèmes sectoriels impliquant des données.\n\n"
 
-    "Ne PAS exclure un titre simplement parce qu’il est aussi institutionnel ou "
-    "organisationnel si un objet informationnel/technique est mentionné.\n\n"
+    "Ne sélectionne FALSE que si le titre est purement générique, "
+    "procédural ou sans aucun indice informationnel ou technique.\n\n"
 
-    "Ne PAS sélectionner uniquement les titres purement génériques qui ne "
-    "contiennent aucun indice informationnel ou technique "
-    "(ex. 'Dispositions générales', 'Objet', 'Principes', 'Procédure').\n\n"
-
-    "Ne cherche pas à être strict : cherche à capturer tous les titres "
-    "susceptibles d’impliquer des systèmes, données ou infrastructures.\n\n"
+    "Pour CHAQUE titre, fournis une décision et une justification courte.\n\n"
 
     "Réponds UNIQUEMENT avec ce JSON strict :\n"
     "{\n"
-    "  \"true_row_uids\": [],\n"
-    "  \"justifications\": {}\n"
+    "  \"decisions\": {\n"
+    "    \"row_uid\": {\n"
+    "      \"decision\": \"TRUE ou FALSE\",\n"
+    "      \"justification\": \"explication courte\"\n"
+    "    }\n"
+    "  }\n"
     "}\n"
-    "Ajoute pour chaque row_uid sélectionné une justification très courte.\n"
     "Aucun autre texte."
 )
 
@@ -88,34 +91,64 @@ def _last_json_obj(s: str) -> Optional[str]:
     return last
 
 
-def _parse(raw: str) -> Tuple[List[int], Dict[int, str]]:
+def _parse(raw: str) -> Tuple[Dict[int, bool], Dict[int, str]]:
+    """
+    Returns:
+      decisions: {uid: bool}
+      justs: {uid: str}  (peut contenir aussi les FALSE si fourni)
+    Compatible avec:
+      - nouveau format: {"decisions": {"123": {"decision":"TRUE/FALSE","justification":"..."}, ...}}
+      - ancien format: {"true_row_uids":[...], "justifications": {...}}
+    """
     j = _last_json_obj(raw or "")
     if not j:
-        return [], {}
+        return {}, {}
     try:
         obj = json.loads(j)
     except Exception:
-        return [], {}
+        return {}, {}
 
-    uids: List[int] = []
+    decisions: Dict[int, bool] = {}
+    justs: Dict[int, str] = {}
+
+    # Nouveau format
+    dmap = obj.get("decisions")
+    if isinstance(dmap, dict):
+        for k, v in dmap.items():
+            try:
+                uid = int(k)
+            except Exception:
+                continue
+            if not isinstance(v, dict):
+                continue
+            dec = str(v.get("decision", "")).strip().upper()
+            decisions[uid] = (dec == "TRUE")
+            jtxt = v.get("justification", "")
+            if isinstance(jtxt, str) and jtxt.strip():
+                justs[uid] = jtxt.strip()
+        return decisions, justs
+
+    # Ancien format (fallback)
+    tuids = set()
     for x in obj.get("true_row_uids", []):
         try:
-            uids.append(int(x))
+            tuids.add(int(x))
         except Exception:
             pass
+    for uid in tuids:
+        decisions[uid] = True
 
-    justs: Dict[int, str] = {}
     jmap = obj.get("justifications", {})
     if isinstance(jmap, dict):
         for k, v in jmap.items():
             try:
-                kk = int(k)
+                uid = int(k)
             except Exception:
                 continue
             if isinstance(v, str) and v.strip():
-                justs[kk] = v.strip()
+                justs[uid] = v.strip()
 
-    return uids, justs
+    return decisions, justs
 
 
 def run1_title_triage_batched(client: TransformersClient, df: pd.DataFrame, cfg: Run1Config) -> pd.DataFrame:
@@ -155,28 +188,26 @@ def run1_title_triage_batched(client: TransformersClient, df: pd.DataFrame, cfg:
             uids = [u for u, _ in ch]
             allowed = set(uids)
 
-            tuids, tjust = _parse(raw)
-            if not tuids and not tjust:
-                # retry once (prompt echo / garbage)
+            tdec, tjust = _parse(raw)
+            if not tdec and not tjust:
                 raw2 = client.chat_many(
                     _SYSTEM_PROMPT + "\n\nRAPPEL CRITIQUE: réponds uniquement avec le JSON, sans répéter le prompt.",
                     [_make_user_prompt(ch)],
                     temperature=0.0,
                     max_tokens=cfg.max_tokens,
                 )[0]
-                tuids, tjust = _parse(raw2)
+                tdec, tjust = _parse(raw2)
 
-            if not tuids and not tjust:
+            if not tdec and not tjust:
                 bad += 1
 
-            tset = set(tuids) & allowed
             for u in uids:
-                sel[u] = (u in tset)
-                if u in tset:
-                    jtxt = tjust.get(u)
-                    jus[u] = jtxt.strip() if isinstance(jtxt, str) and jtxt.strip() else pd.NA
-                else:
-                    jus[u] = pd.NA
+                # défaut = FALSE si absent du JSON
+                sel[u] = bool(tdec.get(u, False))
+                # justification pour TRUE ET FALSE (si le modèle la donne)
+                jtxt = tjust.get(u)
+                jus[u] = jtxt if isinstance(jtxt, str) and jtxt.strip() else pd.NA
+
 
 
     mask = out["level"].isin([1, 2, 3, 4])
