@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
@@ -13,6 +14,9 @@ class CleanConfig:
     drop_notes: bool = True
     drop_editorial_structures: bool = True
     normalize_whitespace: bool = True
+
+
+_ART_PREFIX_RE = re.compile(r"^\s*Art\.?\s*", re.IGNORECASE)
 
 
 def _norm_ws(s: str) -> str:
@@ -44,7 +48,7 @@ def clean_akoma_ntoso_xml_to_text(xml_path: str | Path, cfg: CleanConfig | None 
     if root is None:
         raise ValueError(f"Parsed document has no root element: {xml_path}")
 
-    # ---- Drop notes / editorial blocks (structure-based, no keyword heuristics)
+    # Drop notes / editorial blocks (structure-based)
     if cfg.drop_notes:
         for n in root.xpath(
             "//*[local-name()='note' or local-name()='authorialNote' or local-name()='editorialNote']"
@@ -62,14 +66,14 @@ def clean_akoma_ntoso_xml_to_text(xml_path: str | Path, cfg: CleanConfig | None 
             if parent is not None:
                 parent.remove(n)
 
-    # ---- Extract structure + articles
     lines: List[str] = []
 
-    # broader structural containers
+    # IMPORTANT: include <level> (fedlex:role="marginal") to keep A./B./I./II. headings.
     containers_xpath = (
         "//*[local-name()='book' or local-name()='title' or local-name()='part' or "
         "local-name()='chapter' or local-name()='subchapter' or local-name()='section' or "
         "local-name()='subsection' or local-name()='division' or local-name()='subdivision' or "
+        "local-name()='level' or "
         "local-name()='article']"
     )
 
@@ -82,9 +86,10 @@ def clean_akoma_ntoso_xml_to_text(xml_path: str | Path, cfg: CleanConfig | None 
         num_s = _text_content(num[0]).strip() if num else ""
         head_s = _text_content(heading[0]).strip() if heading else ""
 
+        # Non-articles: output structural line if we have num/heading
         if name != "article":
             if cfg.keep_titles and (num_s or head_s):
-                t = " ".join([p for p in [num_s, head_s] if p])
+                t = " ".join([p for p in [num_s, head_s] if p]).strip()
                 if cfg.normalize_whitespace:
                     t = _norm_ws(t)
                 if t:
@@ -92,40 +97,31 @@ def clean_akoma_ntoso_xml_to_text(xml_path: str | Path, cfg: CleanConfig | None 
             continue
 
         # Article header
-        art_num = num_s
-        art_head = head_s
-        art_header = " ".join([p for p in [f"Art. {art_num}".strip() if art_num else "Art.", art_head] if p]).strip()
+        # Fedlex often already includes "Art. 26" inside <num>, so normalize:
+        art_num_clean = _ART_PREFIX_RE.sub("", num_s).strip()
+        art_head = head_s.strip()
+
+        art_header = " ".join(
+            [p for p in [f"Art. {art_num_clean}".strip() if art_num_clean else "Art.", art_head] if p]
+        ).strip()
         if cfg.normalize_whitespace:
             art_header = _norm_ws(art_header)
         if art_header:
             lines.append(art_header)
 
         # Paragraphs / alinéas
-        paras = el.xpath(".//*[local-name()='paragraph']")
-        if paras:
-            for p in paras:
-                pnum = p.xpath("./*[local-name()='num']")
-                pnum_s = _text_content(pnum[0]).strip() if pnum else ""
-                ptext = _text_content(p).strip()
-                if cfg.normalize_whitespace:
-                    ptext = _norm_ws(ptext)
-                if not ptext:
-                    continue
-                if pnum_s and not ptext.startswith(pnum_s):
-                    lines.append(f"{pnum_s} {ptext}")
-                else:
-                    lines.append(ptext)
-        else:
-            t = _text_content(el).strip()
+        paras = el.xpath("./*[local-name()='paragraph']")
+        for p in paras:
+            pnum = p.xpath("./*[local-name()='num']")
+            pnum_s = _text_content(pnum[0]).strip() if pnum else ""
+            ptext = _text_content(p).strip()
             if cfg.normalize_whitespace:
-                t = _norm_ws(t)
-            if t:
-                lines.append(t)
+                ptext = _norm_ws(ptext)
+            if not ptext:
+                continue
+            if pnum_s and not ptext.startswith(pnum_s):
+                lines.append(f"{pnum_s} {ptext}")
+            else:
+                lines.append(ptext)
 
-        lines.append("")
-
-    out = "\n".join(lines)
-    if cfg.normalize_whitespace:
-        while "\n\n\n" in out:
-            out = out.replace("\n\n\n", "\n\n")
-    return out.strip() + "\n"
+    return "\n".join(lines).strip() + "\n"
