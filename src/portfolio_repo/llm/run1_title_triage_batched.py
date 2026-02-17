@@ -8,6 +8,28 @@ import pandas as pd
 
 from portfolio_repo.llm.curnagl_client import TransformersClient
 
+from pathlib import Path
+import json
+
+_RAW_DIR = Path("logs/run1_raw_responses")
+_RAW_DIR.mkdir(parents=True, exist_ok=True)
+
+def _dump_raw(prompt_index: int, uids: list[int], raw: str, tag: str = "main") -> None:
+    """
+    Écrit la réponse brute du LLM + les uids associés pour debug.
+    """
+    rec = {
+        "prompt_index": prompt_index,
+        "tag": tag,
+        "uids": uids,
+        "raw": raw,
+    }
+    (_RAW_DIR / f"raw_{prompt_index:05d}_{tag}.json").write_text(
+        json.dumps(rec, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+
 
 @dataclass(frozen=True)
 class Run1Config:
@@ -22,43 +44,37 @@ class Run1Config:
 
 # PROMPT: keep EXACTLY as in your current file (do not edit wording)
 _SYSTEM_PROMPT = (
-    "Tu reçois une liste de titres juridiques (chapitres/sections).\n"
-    "Chaque titre doit être évalué INDIVIDUELLEMENT.\n\n"
+    "Tu reçois une liste de titres juridiques (chapitres/sections) issus de textes de lois.\n"
+    "Tu n’as accès qu’aux TITRES, pas aux articles.\n\n"
 
-    "Important :\n"
+    "IMPORTANT : chaque titre doit être évalué INDIVIDUELLEMENT.\n"
     "- Ne suppose AUCUNE relation entre les titres.\n"
     "- Ne te base JAMAIS sur les titres voisins.\n"
-    "- Chaque décision doit être prise uniquement à partir du titre concerné.\n\n"
+    "- La décision doit dépendre uniquement du titre concerné.\n\n"
 
-    "Objectif : identifier les titres qui pourraient plausiblement contenir "
-    "des dispositions liées aux données, aux systèmes d’information, "
-    "aux communications, aux infrastructures techniques ou à leur encadrement.\n\n"
+    "Objectif : TRI LARGE (haute sensibilité).\n"
+    "Marque TRUE si le titre pourrait plausiblement contenir des dispositions liées à :\n"
+    "- données/information (collecte, traitement, protection, accès, échange, transmission),\n"
+    "- systèmes d’information / registres / bases de données,\n"
+    "- communication électronique / télécommunications / radiocommunication / réseaux,\n"
+    "- cybersécurité / cybermenaces / sécurité informatique,\n"
+    "- automatisation / interopérabilité / infrastructures numériques,\n"
+    "- surveillance TECHNIQUE (vidéosurveillance, surveillance des télécoms, dispositifs techniques).\n\n"
 
-    "Il s’agit d’un TRI LARGE.\n"
-    "En cas de doute raisonnable, sélectionne TRUE.\n"
-    "Ce filtrage sera affiné ultérieurement.\n\n"
+    "En cas de doute raisonnable, sélectionne TRUE (ce filtrage sera affiné ensuite).\n\n"
 
-    "Critère :\n"
-    "Sélectionne TRUE si le titre évoque, explicitement ou implicitement :\n"
-    "- données, traitement, protection, échange, communication,\n"
-    "- registres, systèmes d’information, bases de données,\n"
-    "- télécommunications, radiocommunication, réseaux,\n"
-    "- surveillance technique, dispositifs techniques,\n"
-    "- automatisation, infrastructure, interopérabilité,\n"
-    "- analyse, statistiques, gestion d’information,\n"
-    "- systèmes sectoriels impliquant des données.\n\n"
+    "Contraintes strictes :\n"
+    "- Le JSON DOIT contenir une entrée dans \"decisions\" pour CHAQUE row_uid fourni.\n"
+    "- \"justification\" ne doit JAMAIS être vide.\n"
+    "- Si decision = \"FALSE\", la justification doit expliquer brièvement l’absence d’indice "
+    "(ex. \"Aucun indice informationnel/technique explicite dans le titre\").\n\n"
 
-    "Ne sélectionne FALSE que si le titre est purement générique, "
-    "procédural ou sans aucun indice informationnel ou technique.\n\n"
-
-    "Pour CHAQUE titre, fournis une décision et une justification courte.\n\n"
-
-    "Réponds UNIQUEMENT avec ce JSON strict :\n"
+    "Réponds UNIQUEMENT avec ce JSON strict (une décision et une justification pour CHAQUE row_uid) :\n"
     "{\n"
     "  \"decisions\": {\n"
     "    \"row_uid\": {\n"
-    "      \"decision\": \"TRUE ou FALSE\",\n"
-    "      \"justification\": \"explication courte\"\n"
+    "      \"decision\": \"TRUE\" ,\n"
+    "      \"justification\": \"...\"\n"
     "    }\n"
     "  }\n"
     "}\n"
@@ -91,14 +107,16 @@ def _last_json_obj(s: str) -> Optional[str]:
     return last
 
 
+from typing import Dict, Tuple
+
 def _parse(raw: str) -> Tuple[Dict[int, bool], Dict[int, str]]:
     """
-    Returns:
-      decisions: {uid: bool}
-      justs: {uid: str}  (peut contenir aussi les FALSE si fourni)
-    Compatible avec:
-      - nouveau format: {"decisions": {"123": {"decision":"TRUE/FALSE","justification":"..."}, ...}}
-      - ancien format: {"true_row_uids":[...], "justifications": {...}}
+    Retourne:
+      - decisions: {uid: bool}
+      - justs: {uid: str}
+    Supporte:
+      - Nouveau format: {"decisions": {"123": {"decision":"TRUE/FALSE","justification":"..."}, ...}}
+      - Ancien format: {"true_row_uids":[...], "justifications": {...}}
     """
     j = _last_json_obj(raw or "")
     if not j:
@@ -124,8 +142,10 @@ def _parse(raw: str) -> Tuple[Dict[int, bool], Dict[int, str]]:
             dec = str(v.get("decision", "")).strip().upper()
             decisions[uid] = (dec == "TRUE")
             jtxt = v.get("justification", "")
-            if isinstance(jtxt, str) and jtxt.strip():
-                justs[uid] = jtxt.strip()
+            if isinstance(jtxt, str):
+                jtxt = jtxt.strip()
+                if jtxt:
+                    justs[uid] = jtxt
         return decisions, justs
 
     # Ancien format (fallback)
@@ -135,6 +155,7 @@ def _parse(raw: str) -> Tuple[Dict[int, bool], Dict[int, str]]:
             tuids.add(int(x))
         except Exception:
             pass
+
     for uid in tuids:
         decisions[uid] = True
 
@@ -145,10 +166,13 @@ def _parse(raw: str) -> Tuple[Dict[int, bool], Dict[int, str]]:
                 uid = int(k)
             except Exception:
                 continue
-            if isinstance(v, str) and v.strip():
-                justs[uid] = v.strip()
+            if isinstance(v, str):
+                v = v.strip()
+                if v:
+                    justs[uid] = v
 
     return decisions, justs
+
 
 
 def run1_title_triage_batched(client: TransformersClient, df: pd.DataFrame, cfg: Run1Config) -> pd.DataFrame:
@@ -182,31 +206,50 @@ def run1_title_triage_batched(client: TransformersClient, df: pd.DataFrame, cfg:
         bprompts = prompts[j : j + cfg.prompts_per_batch]
         bchunks = chunks[j : j + cfg.prompts_per_batch]
 
-        raws = client.chat_many(_SYSTEM_PROMPT, bprompts, temperature=cfg.temperature, max_tokens=cfg.max_tokens)
+        # Exemple: tu es déjà dans un loop sur des chunks/batches
+# et tu as uids = list[int] correspondant aux titres du chunk,
+# plus raw = réponse LLM.
 
-        for raw, ch in zip(raws, bchunks):
-            uids = [u for u, _ in ch]
-            allowed = set(uids)
+raw = client.chat_many(
+    _SYSTEM_PROMPT,
+    [_make_user_prompt(ch)],
+    temperature=0.0,
+    max_tokens=cfg.max_tokens,
+)[0]
 
-            tdec, tjust = _parse(raw)
-            if not tdec and not tjust:
-                raw2 = client.chat_many(
-                    _SYSTEM_PROMPT + "\n\nRAPPEL CRITIQUE: réponds uniquement avec le JSON, sans répéter le prompt.",
-                    [_make_user_prompt(ch)],
-                    temperature=0.0,
-                    max_tokens=cfg.max_tokens,
-                )[0]
-                tdec, tjust = _parse(raw2)
+_dump_raw(prompt_index=i, uids=[int(x) for x in uids], raw=raw, tag="main")
 
-            if not tdec and not tjust:
-                bad += 1
+tdec, tjust = _parse(raw)
 
-            for u in uids:
-                # défaut = FALSE si absent du JSON
-                sel[u] = bool(tdec.get(u, False))
-                # justification pour TRUE ET FALSE (si le modèle la donne)
-                jtxt = tjust.get(u)
-                jus[u] = jtxt if isinstance(jtxt, str) and jtxt.strip() else pd.NA
+# Retry si parsing vide (JSON cassé / tronqué)
+if not tdec and not tjust:
+    raw2 = client.chat_many(
+        _SYSTEM_PROMPT + "\n\nRAPPEL CRITIQUE: réponds uniquement avec le JSON, sans répétition.",
+        [_make_user_prompt(ch)],
+        temperature=0.0,
+        max_tokens=cfg.max_tokens,
+    )[0]
+    _dump_raw(prompt_index=i, uids=[int(x) for x in uids], raw=raw2, tag="retry")
+    tdec, tjust = _parse(raw2)
+
+# Remplissage final (garantit une justification non vide pour chaque uid)
+for u in uids:
+    decision = bool(tdec.get(u, False))  # défaut FALSE si absent
+    sel[u] = decision
+
+    jtxt = tjust.get(u)
+    if isinstance(jtxt, str):
+        jtxt = jtxt.strip()
+
+    if not jtxt:
+        # Justification par défaut (utile si le modèle omet les FALSE)
+        if decision:
+            jtxt = "Indication plausible d’un enjeu informationnel/technique dans le titre."
+        else:
+            jtxt = "Aucun indice informationnel/technique explicite dans le titre."
+
+    jus[u] = jtxt
+
 
 
 
