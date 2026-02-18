@@ -428,6 +428,7 @@ def _struct_label(el: etree._Element) -> str:
 
 
 def _article_label(article: etree._Element) -> str:
+    # label = "Art. 27" (sans le heading)
     num_el = article.xpath("./*[local-name()='num'][1]")
     num = _txt(num_el[0]) if num_el else ""
     token = _clean_art_token(num)
@@ -456,18 +457,22 @@ def _article_body_text(article: etree._Element) -> str:
 
 
 def iter_structure_nodes_from_xml(law_id: str, law_title: str, xml_path: Path) -> Iterator[StructNode]:
+    """
+    Structure fidèle XML + amélioration:
+    - Si un <article> a un <heading>, on crée un noeud "section" niveau 5 juste avant l'article,
+      label = heading, comme un titre marginal (synthetic level).
+    - Puis l'article sort avec label = "Art. X" uniquement.
+    """
     parser = etree.XMLParser(recover=True, huge_tree=True)
     tree = etree.parse(str(xml_path), parser)
     root = tree.getroot()
     _drop_notes_inplace(root)
 
-    # find body namespace-agnostically
     body_list = root.xpath("//*[local-name()='body'][1]")
     if not body_list:
         return
     body = body_list[0]
 
-    # Tag mapping (keep your schema)
     tag_map: Dict[str, Tuple[str, int]] = {
         "part": ("partie", 1),
         "title": ("titre", 2),
@@ -504,7 +509,6 @@ def iter_structure_nodes_from_xml(law_id: str, law_title: str, xml_path: Path) -
                 yield ch
                 yield from walk(ch)
             else:
-                # still walk inside (Fedlex sometimes nests structures under wrappers)
                 yield from walk(ch)
 
     for el in walk(body):
@@ -514,35 +518,92 @@ def iter_structure_nodes_from_xml(law_id: str, law_title: str, xml_path: Path) -
 
         node_type, lvl = tag_map[local]
 
-        if local == "article":
-            label = _article_label(el)
-            text = _article_body_text(el)
-        else:
+        # ------------ NON-ARTICLE NODES ------------
+        if local != "article":
             label = _struct_label(el)
             if not label:
                 continue
             text = ""
 
+            # find parent from stack
+            while stack and stack[-1][0] >= lvl:
+                stack.pop()
+            parent_id = stack[-1][1] if stack else root_id
+
+            node_id = _stable_id(law_id, node_type, str(order), label)
+            yield StructNode(
+                law_id=law_id,
+                node_id=node_id,
+                parent_node_id=parent_id,
+                node_type=node_type,
+                level=lvl,
+                order_index=order,
+                label=label,
+                text=text,
+            )
+            order += 1
+
+            # push to stack (non-article)
+            stack.append((lvl, node_id))
+            continue
+
+        # ------------ ARTICLE NODES ------------
+        # parent for article is computed from lvl=6
         while stack and stack[-1][0] >= lvl:
             stack.pop()
         parent_id = stack[-1][1] if stack else root_id
 
-        node_id = _stable_id(law_id, node_type, str(order), label)
+        # article heading (marginal title) -> create synthetic section (lvl 5) just before article
+        heading_el = el.xpath("./*[local-name()='heading'][1]")
+        heading = _txt(heading_el[0]) if heading_el else ""
+        heading = _norm_ws(heading)
 
+        synthetic_id: Optional[str] = None
+
+        if heading:
+            # Synthetic node behaves like a level 5 title right before the article
+            synth_lvl = 5
+            synth_type = "section"
+            synth_label = heading
+
+            # parent for lvl=5 is the nearest stack level <5
+            # (use a temp computation so we don't destroy stack for the article)
+            tmp_stack = stack.copy()
+            while tmp_stack and tmp_stack[-1][0] >= synth_lvl:
+                tmp_stack.pop()
+            synth_parent_id = tmp_stack[-1][1] if tmp_stack else root_id
+
+            synthetic_id = _stable_id(law_id, "synthetic_article_heading", str(order), synth_label)
+            yield StructNode(
+                law_id=law_id,
+                node_id=synthetic_id,
+                parent_node_id=synth_parent_id,
+                node_type=synth_type,
+                level=synth_lvl,
+                order_index=order,
+                label=synth_label,
+                text="",
+            )
+            order += 1
+
+        # Now the real article row
+        art_label = _article_label(el)
+        art_text = _article_body_text(el)
+
+        art_parent = synthetic_id if synthetic_id else parent_id
+
+        art_id = _stable_id(law_id, "article", str(order), art_label)
         yield StructNode(
             law_id=law_id,
-            node_id=node_id,
-            parent_node_id=parent_id,
-            node_type=node_type,
-            level=lvl,
+            node_id=art_id,
+            parent_node_id=art_parent,
+            node_type="article",
+            level=6,
             order_index=order,
-            label=label,
-            text=text,
+            label=art_label,
+            text=art_text,
         )
         order += 1
-
-        if node_type != "article":
-            stack.append((lvl, node_id))
 
 
 # ============================================================
