@@ -15,7 +15,7 @@ SYSTEM_PROMPT_FR = (
 
 USER_TEMPLATE_FR = """Décide si cet article fixe des règles/obligations/procédures/responsabilités/exigences
 qui influence l’implémentation, le développement, la sécurité, l’usage ou la responsabilité
-d’une intelligence artificielle (au sens large) : système de décisions ou de traitements automatisés, y compris leurs formes appliquées dans des domaines spécifiques.
+d’une intelligence artificielle (au sens large) : système qui utilise des algorithmes et des données pour analyser, prédire et automatiser des tâches ou des décisions.
 
 Important:
 - TRUE seulement s’il y a un effet normatif concret lié à ces systèmes (conditions, exigences, surveillance, obligations, responsabilités, procédure, autorisations, etc.).
