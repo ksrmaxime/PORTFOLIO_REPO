@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import List
 
 import os
 
@@ -60,18 +60,31 @@ class TransformersClient:
         """
         True GPU batching: one generate() for many prompts.
         Returns one string per prompt (assistant completion only).
+        Robustly removes the prompt by slicing generated token ids (not string prefix matching).
         """
         if not user_prompts:
             return []
 
         prompts: List[str] = []
         for up in user_prompts:
-            msgs = [{"role": "system", "content": system_prompt}, {"role": "user", "content": up}]
+            msgs = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": up},
+            ]
             prompts.append(
-                self.tokenizer.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+                self.tokenizer.apply_chat_template(
+                    msgs,
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
             )
 
-        inputs = self.tokenizer(prompts, return_tensors="pt", padding=True, truncation=True)
+        inputs = self.tokenizer(
+            prompts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        )
         inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
 
         do_sample = float(temperature) > 0.0
@@ -84,13 +97,20 @@ class TransformersClient:
                 temperature=float(temperature) if do_sample else None,
             )
 
-        decoded = self.tokenizer.batch_decode(out, skip_special_tokens=True)
+        # Compute per-row input lengths (excluding padding)
+        # attention_mask is 1 for tokens, 0 for padding
+        attn = inputs.get("attention_mask", None)
+        if attn is None:
+            # Fallback (should not happen with HF tokenizers)
+            input_lens = [inputs["input_ids"].shape[1]] * out.shape[0]
+        else:
+            input_lens = attn.sum(dim=1).tolist()
 
-        # Strip each decoded text from its corresponding prompt prefix
         completions: List[str] = []
-        for full, pref in zip(decoded, prompts):
-            if full.startswith(pref):
-                completions.append(full[len(pref):].lstrip())
-            else:
-                completions.append(full)
+        for i in range(out.shape[0]):
+            in_len = int(input_lens[i])
+            gen_ids = out[i, in_len:]
+            txt = self.tokenizer.decode(gen_ids, skip_special_tokens=True)
+            completions.append(txt.strip())
+
         return completions

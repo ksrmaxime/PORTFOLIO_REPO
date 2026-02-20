@@ -24,13 +24,14 @@ LEVEL_COL = "level"
 RELEVANCE_COL = None  # auto-detect RELEVANT_AI or AI_RELEVANT
 
 NEW_COL = "RELEVANT_ART"
+JUSTIF_COL = "RELEVANT_ART_JUSTIF"
 RAW_COL = "RELEVANT_ART_RAW"
 PARSEOK_COL = "RELEVANT_ART_PARSE_OK"
 
 # LLM config
 DTYPE = "bf16"
 TEMPERATURE = 0.0
-MAX_TOKENS = 16  # plus bas suffit, réduit le blabla
+MAX_TOKENS = 160
 
 # Batching
 BATCH_SIZE = 40
@@ -40,8 +41,14 @@ CHECKPOINT_EVERY_BATCHES = 25
 WRITE_CSV = True
 
 
-def _to_csv_friendly_bool(x):
+def _csv_bool(x):
     return "" if pd.isna(x) else bool(x)
+
+
+def atomic_to_parquet(df: pd.DataFrame, out_path: Path) -> None:
+    tmp = out_path.with_suffix(out_path.suffix + f".tmp.{os.getpid()}")
+    df.to_parquet(tmp, index=False)
+    tmp.replace(out_path)
 
 
 def main() -> int:
@@ -71,11 +78,16 @@ def main() -> int:
 
     send_mask = build_articles_to_send_mask(df, level_col=LEVEL_COL, relevance_col=RELEVANCE_COL)
 
-    # Ensure columns exist with correct dtypes
+    # Ensure columns exist
     if NEW_COL not in df.columns:
         df[NEW_COL] = pd.Series(pd.NA, index=df.index, dtype="boolean")
     else:
         df[NEW_COL] = df[NEW_COL].astype("boolean")
+
+    if JUSTIF_COL not in df.columns:
+        df[JUSTIF_COL] = pd.Series(pd.NA, index=df.index, dtype="string")
+    else:
+        df[JUSTIF_COL] = df[JUSTIF_COL].astype("string")
 
     if RAW_COL not in df.columns:
         df[RAW_COL] = pd.Series(pd.NA, index=df.index, dtype="string")
@@ -106,11 +118,11 @@ def main() -> int:
         )
     )
 
-    failures = []  # collect parse failures rows (small)
+    failures = []
     batches_done = 0
 
     for start in tqdm(range(0, len(todo_idx), BATCH_SIZE), desc="Batches", unit="batch"):
-        batch_idx = todo_idx[start : start + BATCH_SIZE]
+        batch_idx = todo_idx[start: start + BATCH_SIZE]
 
         batch_texts = []
         for idx in batch_idx:
@@ -118,53 +130,54 @@ def main() -> int:
             t = "" if pd.isna(t) else str(t)
             batch_texts.append(t)
 
-        preds, raws = clf.classify_batch_raw(batch_texts)
+        relevants, justifs, raws, oks = clf.classify_batch_raw(batch_texts)
 
-        for idx, pred, raw, txt in zip(batch_idx, preds, raws, batch_texts):
+        for idx, rel, jus, raw, ok, txt in zip(batch_idx, relevants, justifs, raws, oks, batch_texts):
             if not txt.strip():
-                # deterministic: empty text => False
                 df.at[idx, NEW_COL] = False
+                df.at[idx, JUSTIF_COL] = "Texte vide (aucun contenu à analyser)."
                 df.at[idx, PARSEOK_COL] = True
                 df.at[idx, RAW_COL] = ""
                 continue
 
             df.at[idx, RAW_COL] = raw
 
-            if pred is None:
-                # strict parse failed => leave NA so we can debug + rerun
+            if not ok:
+                # No silent fallback: leave NA so you can audit & rerun
                 df.at[idx, NEW_COL] = pd.NA
+                df.at[idx, JUSTIF_COL] = pd.NA
                 df.at[idx, PARSEOK_COL] = False
                 failures.append(
                     {
-                        "row_index": int(idx) if isinstance(idx, (int,)) else str(idx),
+                        "row_index": int(idx) if isinstance(idx, int) else str(idx),
                         "raw": raw,
                         "text_preview": (txt[:300] + "…") if len(txt) > 300 else txt,
                     }
                 )
             else:
-                df.at[idx, NEW_COL] = pred
+                df.at[idx, NEW_COL] = bool(rel)
+                df.at[idx, JUSTIF_COL] = jus
                 df.at[idx, PARSEOK_COL] = True
 
         batches_done += 1
         if batches_done % CHECKPOINT_EVERY_BATCHES == 0:
-            df.to_parquet(ckpt_parquet, index=False)
+            atomic_to_parquet(df, ckpt_parquet)
             if failures:
                 pd.DataFrame(failures).to_csv(parse_fail_csv, index=False, encoding="utf-8")
 
-    # Write final outputs
-    df.to_parquet(out_parquet, index=False)
+    atomic_to_parquet(df, out_parquet)
 
     if WRITE_CSV:
         df_csv = df.copy()
-        df_csv[NEW_COL] = df_csv[NEW_COL].map(_to_csv_friendly_bool)
-        df_csv[PARSEOK_COL] = df_csv[PARSEOK_COL].map(_to_csv_friendly_bool)
+        df_csv[NEW_COL] = df_csv[NEW_COL].map(_csv_bool)
+        df_csv[PARSEOK_COL] = df_csv[PARSEOK_COL].map(_csv_bool)
         df_csv.to_csv(out_csv, index=False, encoding="utf-8")
 
     if failures:
         pd.DataFrame(failures).to_csv(parse_fail_csv, index=False, encoding="utf-8")
         print(f"[WARN] Parse failures: {len(failures):,} -> {parse_fail_csv}")
     else:
-        print("[OK] No parse failures (strict TRUE/FALSE).")
+        print("[OK] No parse failures (strict JSON).")
 
     print(f"[OK] Wrote parquet: {out_parquet}")
     if WRITE_CSV:
