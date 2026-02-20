@@ -1,12 +1,9 @@
-# src/portfolio_repo/llm/curnagl_client.py
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List
-
 import os
 
-# Important on clusters with accelerate/transformers meta-init behavior
 os.environ.setdefault("ACCELERATE_USE_META_DEVICE", "0")
 
 
@@ -29,12 +26,8 @@ class TransformersClient:
             trust_remote_code=cfg.trust_remote_code,
         )
 
-        if cfg.dtype == "bf16":
-            dtype = torch.bfloat16
-        else:
-            dtype = torch.float16
+        dtype = torch.bfloat16 if cfg.dtype == "bf16" else torch.float16
 
-        # Build on CPU first, then move to GPU (stable on clusters)
         try:
             torch.set_default_device("cpu")
         except Exception:
@@ -57,11 +50,6 @@ class TransformersClient:
         temperature: float = 0.0,
         max_tokens: int = 200,
     ) -> List[str]:
-        """
-        True GPU batching: one generate() for many prompts.
-        Returns one string per prompt (assistant completion only).
-        Robustly removes the prompt by slicing generated token ids (not string prefix matching).
-        """
         if not user_prompts:
             return []
 
@@ -79,30 +67,27 @@ class TransformersClient:
                 )
             )
 
-        inputs = self.tokenizer(
+        enc = self.tokenizer(
             prompts,
             return_tensors="pt",
             padding=True,
             truncation=True,
         )
-        inputs = {k: v.to(self.model.device) for k, v in inputs.items()}
+        enc = {k: v.to(self.model.device) for k, v in enc.items()}
 
         do_sample = float(temperature) > 0.0
 
         with self.torch.inference_mode():
             out = self.model.generate(
-                **inputs,
+                **enc,
                 max_new_tokens=int(max_tokens),
                 do_sample=do_sample,
                 temperature=float(temperature) if do_sample else None,
             )
 
-        # Compute per-row input lengths (excluding padding)
-        # attention_mask is 1 for tokens, 0 for padding
-        attn = inputs.get("attention_mask", None)
+        attn = enc.get("attention_mask")
         if attn is None:
-            # Fallback (should not happen with HF tokenizers)
-            input_lens = [inputs["input_ids"].shape[1]] * out.shape[0]
+            input_lens = [enc["input_ids"].shape[1]] * out.shape[0]
         else:
             input_lens = attn.sum(dim=1).tolist()
 

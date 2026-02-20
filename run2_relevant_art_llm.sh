@@ -22,12 +22,17 @@ echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-}"
 cd /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO
 source .venv/bin/activate
 
-OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
-mkdir -p logs "$OUTDIR"
+# CRITICAL: force import from repo/src (so you don't use an old installed package)
+export PYTHONPATH="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/src:${PYTHONPATH:-}"
 
 python -V
+python - <<'PY'
+import inspect
+import portfolio_repo.llm.curnagl_client as m
+print("curnagl_client imported from:", m.__file__)
+print("has TransformersClient:", hasattr(m, "TransformersClient"))
+PY
 
-# Optional: quick GPU info
 nvidia-smi || true
 
 python scripts/run2_relevant_art_llm.py
