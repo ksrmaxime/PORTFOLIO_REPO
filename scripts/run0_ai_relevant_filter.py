@@ -11,7 +11,7 @@ from portfolio_repo.ai_relevant_filter import build_ai_relevant_column
 # =========================
 # EDIT ONLY THESE TWO LINES
 # =========================
-INPUT_PARQUET = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure.parquet"
+INPUT_PARQUET = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected.parquet"
 OUTPUT_DIR = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed"
 # =========================
 
