@@ -13,7 +13,7 @@ from portfolio_repo.llm.relevant_art_apertus_runner import ApertusBatchClassifie
 # =========================
 # EDIT THESE (INPUT/OUTPUT)
 # =========================
-INPUT_PARQUET = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_ai_relevant.parquet"
+INPUT_PARQUET = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant.parquet"
 OUTPUT_DIR = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed"
 # =========================
 
