@@ -11,7 +11,7 @@ from portfolio_repo.ai_relevant_filter import build_ai_relevant_column
 # =========================
 # EDIT ONLY THESE TWO LINES
 # =========================
-INPUT_PARQUET = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected.parquet"
+INPUT_PARQUET = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure.parquet"
 OUTPUT_DIR = "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed"
 # =========================
 
@@ -34,7 +34,9 @@ def main() -> int:
 
     job_id = os.environ.get("SLURM_JOB_ID", "nojobid")
     stem = in_path.stem
-    out_path = out_dir / f"{stem}_with_{NEW_COL.lower()}_job{job_id}.parquet"
+
+    out_parquet = out_dir / f"{stem}_with_{NEW_COL.lower()}_job{job_id}.parquet"
+    out_csv = out_dir / f"{stem}_with_{NEW_COL.lower()}_job{job_id}.csv"
 
     df = pd.read_parquet(in_path)
 
@@ -47,11 +49,23 @@ def main() -> int:
         keywords=KEYWORDS,
     )
 
-    df.to_parquet(out_path, index=False)
-    print(f"[OK] Wrote: {out_path}")
+    # 1) Parquet (keeps nullable boolean cleanly)
+    df.to_parquet(out_parquet, index=False)
+
+    # 2) CSV (for manual checking)
+    # Convert pandas BooleanDtype to something CSV-friendly:
+    # True/False/"" (empty for NA)
+    df_csv = df.copy()
+    df_csv[NEW_COL] = df_csv[NEW_COL].map(lambda x: "" if pd.isna(x) else bool(x))
+
+    df_csv.to_csv(out_csv, index=False, encoding="utf-8")
+
+    print(f"[OK] Wrote parquet: {out_parquet}")
+    print(f"[OK] Wrote csv:    {out_csv}")
     print(f"[INFO] Rows total: {len(df):,}")
-    print(f"[INFO] In-scope levels (1-5): {pd.to_numeric(df[LEVEL_COL], errors='coerce').isin(RELEVANT_LEVELS).sum():,}")
-    print(f"[INFO] True count (among in-scope): {df[NEW_COL].sum(skipna=True)}")
+    in_scope = pd.to_numeric(df[LEVEL_COL], errors="coerce").isin(RELEVANT_LEVELS)
+    print(f"[INFO] In-scope levels (1-5): {in_scope.sum():,}")
+    print(f"[INFO] True count (among in-scope): {df.loc[in_scope, NEW_COL].sum(skipna=True)}")
     return 0
 
 
