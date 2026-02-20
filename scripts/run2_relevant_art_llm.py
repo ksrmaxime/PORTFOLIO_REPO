@@ -22,18 +22,21 @@ MODEL_PATH = "/reference/LLM/swiss-ai/Apertus-8B-Instruct-2509"
 TEXT_COL = "text"
 LEVEL_COL = "level"
 RELEVANCE_COL = None  # auto-detect RELEVANT_AI or AI_RELEVANT
+
 NEW_COL = "RELEVANT_ART"
+RAW_COL = "RELEVANT_ART_RAW"
+PARSEOK_COL = "RELEVANT_ART_PARSE_OK"
 
 # LLM config
-DTYPE = "bf16"          # "bf16" or "fp16"
+DTYPE = "bf16"
 TEMPERATURE = 0.0
-MAX_TOKENS = 32         # max_new_tokens
+MAX_TOKENS = 16  # plus bas suffit, réduit le blabla
 
 # Batching
-BATCH_SIZE = 40         # 32–64 typically ok on A100 40GB for short prompts
+BATCH_SIZE = 40
 
 # Safety checkpoint
-CHECKPOINT_EVERY_BATCHES = 25  # save every 25 batches
+CHECKPOINT_EVERY_BATCHES = 25
 WRITE_CSV = True
 
 
@@ -56,28 +59,42 @@ def main() -> int:
     out_csv = out_dir / f"{stem}_with_{NEW_COL.lower()}_job{job_id}.csv"
     ckpt_parquet = out_dir / f"{stem}_with_{NEW_COL.lower()}_job{job_id}.checkpoint.parquet"
 
+    debug_dir = out_dir / f"run2_debug_job{job_id}"
+    debug_dir.mkdir(parents=True, exist_ok=True)
+    parse_fail_csv = debug_dir / "parse_failures.csv"
+
     df = pd.read_parquet(in_path)
 
-    if TEXT_COL not in df.columns:
-        raise KeyError(f"Missing column: {TEXT_COL}")
-    if LEVEL_COL not in df.columns:
-        raise KeyError(f"Missing column: {LEVEL_COL}")
+    for c in (TEXT_COL, LEVEL_COL):
+        if c not in df.columns:
+            raise KeyError(f"Missing column: {c}")
 
     send_mask = build_articles_to_send_mask(df, level_col=LEVEL_COL, relevance_col=RELEVANCE_COL)
 
-    # output column: nullable boolean, only filled for level==6 we actually send
+    # Ensure columns exist with correct dtypes
     if NEW_COL not in df.columns:
         df[NEW_COL] = pd.Series(pd.NA, index=df.index, dtype="boolean")
     else:
         df[NEW_COL] = df[NEW_COL].astype("boolean")
 
-    # only send those still NA (resume-friendly)
+    if RAW_COL not in df.columns:
+        df[RAW_COL] = pd.Series(pd.NA, index=df.index, dtype="string")
+    else:
+        df[RAW_COL] = df[RAW_COL].astype("string")
+
+    if PARSEOK_COL not in df.columns:
+        df[PARSEOK_COL] = pd.Series(pd.NA, index=df.index, dtype="boolean")
+    else:
+        df[PARSEOK_COL] = df[PARSEOK_COL].astype("boolean")
+
+    # Resume-friendly: only rows selected and NEW_COL is NA
     todo_idx = df.index[send_mask & df[NEW_COL].isna()]
 
     print(f"[INFO] Total rows: {len(df):,}")
     print(f"[INFO] Selected level==6 to send: {int(send_mask.sum()):,}")
     print(f"[INFO] Remaining to classify (NA among selected): {len(todo_idx):,}")
     print(f"[INFO] Batch size: {BATCH_SIZE}")
+    print(f"[INFO] Debug dir: {debug_dir}")
 
     clf = ApertusBatchClassifier(
         ApertusConfig(
@@ -89,6 +106,7 @@ def main() -> int:
         )
     )
 
+    failures = []  # collect parse failures rows (small)
     batches_done = 0
 
     for start in tqdm(range(0, len(todo_idx), BATCH_SIZE), desc="Batches", unit="batch"):
@@ -100,26 +118,53 @@ def main() -> int:
             t = "" if pd.isna(t) else str(t)
             batch_texts.append(t)
 
-        preds = clf.classify_batch(batch_texts)  # list[Optional[bool]]
+        preds, raws = clf.classify_batch_raw(batch_texts)
 
-        # write back
-        for idx, pred, txt in zip(batch_idx, preds, batch_texts):
+        for idx, pred, raw, txt in zip(batch_idx, preds, raws, batch_texts):
             if not txt.strip():
+                # deterministic: empty text => False
                 df.at[idx, NEW_COL] = False
+                df.at[idx, PARSEOK_COL] = True
+                df.at[idx, RAW_COL] = ""
+                continue
+
+            df.at[idx, RAW_COL] = raw
+
+            if pred is None:
+                # strict parse failed => leave NA so we can debug + rerun
+                df.at[idx, NEW_COL] = pd.NA
+                df.at[idx, PARSEOK_COL] = False
+                failures.append(
+                    {
+                        "row_index": int(idx) if isinstance(idx, (int,)) else str(idx),
+                        "raw": raw,
+                        "text_preview": (txt[:300] + "…") if len(txt) > 300 else txt,
+                    }
+                )
             else:
-                df.at[idx, NEW_COL] = pred if pred is not None else pd.NA
+                df.at[idx, NEW_COL] = pred
+                df.at[idx, PARSEOK_COL] = True
 
         batches_done += 1
         if batches_done % CHECKPOINT_EVERY_BATCHES == 0:
             df.to_parquet(ckpt_parquet, index=False)
+            if failures:
+                pd.DataFrame(failures).to_csv(parse_fail_csv, index=False, encoding="utf-8")
 
-    # final writes
+    # Write final outputs
     df.to_parquet(out_parquet, index=False)
 
     if WRITE_CSV:
         df_csv = df.copy()
         df_csv[NEW_COL] = df_csv[NEW_COL].map(_to_csv_friendly_bool)
+        df_csv[PARSEOK_COL] = df_csv[PARSEOK_COL].map(_to_csv_friendly_bool)
         df_csv.to_csv(out_csv, index=False, encoding="utf-8")
+
+    if failures:
+        pd.DataFrame(failures).to_csv(parse_fail_csv, index=False, encoding="utf-8")
+        print(f"[WARN] Parse failures: {len(failures):,} -> {parse_fail_csv}")
+    else:
+        print("[OK] No parse failures (strict TRUE/FALSE).")
 
     print(f"[OK] Wrote parquet: {out_parquet}")
     if WRITE_CSV:

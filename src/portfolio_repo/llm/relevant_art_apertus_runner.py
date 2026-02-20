@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 
 SYSTEM_PROMPT = (
     "You are a strict legal classification system. "
-    "Return ONLY one token: TRUE or FALSE."
+    "Return ONLY one token: TRUE or FALSE. "
+    "No explanation, no punctuation, no extra words."
 )
 
 USER_TEMPLATE = """Does the following Swiss legal provision establish rules that can affect the implementation, development, security, use, accountability or responsibility regarding automated systems, registers, software, automated infrastructure or AI-related systems (broad sense of AI)?
+
+Return ONLY TRUE or FALSE.
 
 LEGAL TEXT:
 {article_text}
@@ -18,17 +21,23 @@ LEGAL TEXT:
 
 
 def build_user_prompt(article_text: str) -> str:
-    return USER_TEMPLATE.format(article_text=article_text.strip())
+    return USER_TEMPLATE.format(article_text=(article_text or "").strip())
 
 
-def parse_true_false(raw: str) -> Optional[bool]:
+def parse_true_false_strict(raw: str) -> Optional[bool]:
+    """
+    Strict parsing:
+    - Accepts ONLY 'TRUE' or 'FALSE' as the full answer (ignoring surrounding whitespace).
+    - If model returns anything else (e.g., 'TRUE.' or 'TRUE because...'), returns None.
+    """
     if raw is None:
         return None
     s = str(raw).strip().upper()
-    m = re.search(r"\b(TRUE|FALSE)\b", s)
-    if not m:
-        return None
-    return True if m.group(1) == "TRUE" else False
+    if s == "TRUE":
+        return True
+    if s == "FALSE":
+        return False
+    return None
 
 
 @dataclass(frozen=True)
@@ -42,7 +51,7 @@ class ApertusConfig:
 
 class ApertusBatchClassifier:
     """
-    Thin wrapper around src/portfolio_repo/llm/curnagl_client.py::TransformersClient
+    Wrapper around src/portfolio_repo/llm/curnagl_client.py::TransformersClient
     Uses chat_many() for true GPU batching.
     """
 
@@ -58,12 +67,15 @@ class ApertusBatchClassifier:
             )
         )
 
-    def classify_batch(self, article_texts: List[str]) -> List[Optional[bool]]:
-        user_prompts = [build_user_prompt(t or "") for t in article_texts]
+    def classify_batch_raw(self, article_texts: List[str]) -> Tuple[List[Optional[bool]], List[str]]:
+        user_prompts = [build_user_prompt(t) for t in article_texts]
         outs = self.client.chat_many(
             system_prompt=SYSTEM_PROMPT,
             user_prompts=user_prompts,
             temperature=float(self.cfg.temperature),
             max_tokens=int(self.cfg.max_tokens),
         )
-        return [parse_true_false(o) for o in outs]
+        # Ensure string outputs
+        outs_str = ["" if o is None else str(o) for o in outs]
+        preds = [parse_true_false_strict(o) for o in outs_str]
+        return preds, outs_str
