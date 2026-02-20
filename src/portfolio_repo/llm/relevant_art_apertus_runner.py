@@ -14,9 +14,8 @@ SYSTEM_PROMPT_FR = (
 )
 
 USER_TEMPLATE_FR = """Décide si cet article fixe des règles/obligations/procédures/responsabilités/exigences
-qui peuvent influencer l’implémentation, le développement, la sécurité, l’usage ou la responsabilité
-d’un système automatisé (au sens large) : logiciel, système informatique, registre/base de données,
-infrastructure automatisée, système d’automatisation (y compris IA au sens large).
+qui influence l’implémentation, le développement, la sécurité, l’usage ou la responsabilité
+d’une intelligence artificielle (au sens large) : système de décisions automatisées basées sur des données, y compris leurs formes appliquées comme les voiturres autonomes, les robots, la surveillance, l'optimisation etc...
 
 Important:
 - TRUE seulement s’il y a un effet normatif concret lié à ces systèmes (conditions, exigences, surveillance, obligations, responsabilités, procédure, autorisations, etc.).
