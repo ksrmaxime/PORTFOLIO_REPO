@@ -18,8 +18,8 @@ qui influence l’implémentation, le développement, la sécurité, l’usage o
 d’une intelligence artificielle (au sens large) : système qui utilise des algorithmes et des données pour analyser, prédire et automatiser des tâches ou des décisions.
 
 Important:
-- TRUE seulement s’il y a un effet normatif concret lié à ces systèmes (conditions, exigences, surveillance, obligations, responsabilités, procédure, autorisations, etc.).
-- FALSE si c’est seulement descriptif/définition générale ou sans portée normative liée à ces systèmes.
+- TRUE seulement si l'article aborde une dimension de l'intelligence artificielle et s’il y a un effet normatif concret lié à ces systèmes (conditions, exigences, surveillance, obligations, responsabilités, procédure, autorisations, etc.).
+- FALSE si aucune forme d'intelligence artificielle n'est impliqée ou que c’est seulement descriptif/définition générale ou sans portée normative liée à ces systèmes.
 
 Texte légal:
 {article_text}
