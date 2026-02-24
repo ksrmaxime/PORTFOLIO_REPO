@@ -69,16 +69,16 @@ _SYSTEM_PROMPT = (
     "- Si decision = \"FALSE\", la justification doit expliquer brièvement l’absence d’indice "
     "(ex. \"Aucun indice informationnel/technique explicite dans le titre\").\n\n"
 
-    "Réponds UNIQUEMENT avec ce JSON strict (une décision et une justification pour CHAQUE row_uid) :\n"
+    "Réponds UNIQUEMENT avec ce JSON strict (une justification puis une décision pour CHAQUE row_uid) :\n"
     "{\n"
     "  \"decisions\": {\n"
     "    \"row_uid\": {\n"
-    "      \"decision\": \"TRUE\" ,\n"
-    "      \"justification\": \"...\"\n"
+    "      \"justification\": \"Explique d’abord brièvement le raisonnement juridique spécifique à ce texte.\",\n"
+    "      \"decision\": \"TRUE ou FALSE (doit être strictement cohérent avec la justification ci-dessus)\"\n"
     "    }\n"
     "  }\n"
     "}\n"
-    "Aucun autre texte."
+    "La décision DOIT découler explicitement de la justification. Aucun autre texte."
 )
 
 
