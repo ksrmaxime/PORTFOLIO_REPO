@@ -46,11 +46,11 @@ Ta tâche:
 2) Ensuite, code les targets et instruments correspondants en utilisant uniquement les labels exacts.
 
 Réponds UNIQUEMENT avec ce JSON strict:
-{
+{{
   "justification": "...",
   "targets": ["Infrastructure" | "Data" | "Skills" | "Adoption"],
   "instruments": ["Voluntary instruments" | "Taxes & Subsidies" | "Public Investment & Public procurement" | "Prohibition & Ban" | "Planning & evaluation instruments" | "Obligation" | "Liability scheme"]
-}
+}}
 
 Texte légal:
 {article_text}
