@@ -49,7 +49,7 @@ python scripts/run_pipeline_run2.py \
 PRED_CSV="${OUTBASE}_job${SLURM_JOB_ID}.csv"
 
 # ton fichier "gold" (humain) ici:
-GOLD_CSV="data/external/HUMAN_CODED_REFERENCE.csv"
+GOLD_CSV="data/external/RUN2_GOLD.csv"
 
 # capture du score (ligne: "Similarity: 51.08%")
 SCORE=$(python scripts/evaluate_vs_gold.py \
