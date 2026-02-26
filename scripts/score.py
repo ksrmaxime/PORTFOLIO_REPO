@@ -10,7 +10,7 @@ sys.path.append(str(ROOT))
 import argparse
 import pandas as pd
 
-from src.eval import compare_frames
+from score_src import compare_frames
 
 
 def read_any(path: str) -> pd.DataFrame:

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from portfolio_repo.ai_relevant_filter import build_ai_relevant_column
+from run0_src import build_ai_relevant_column
 
 
 # =========================

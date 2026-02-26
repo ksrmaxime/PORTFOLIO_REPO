@@ -13,9 +13,9 @@ from src.client import TransformersClient, LLMConfig
 
 from src.client import TransformersClient, LLMConfig
 from src.runner import run_llm_dataframe, RunConfig
-import src.prompts as prompts
+import run2_prompts as run2_prompts
 
-from src.relevant_art_selection import build_articles_to_send_mask
+from run2_config import build_articles_to_send_mask
 
 
 def parse_relevant_justif(raw: str):
@@ -114,7 +114,7 @@ def main() -> int:
         return send_mask
 
     def _build_prompt(row: pd.Series, text_col: str) -> str:
-        return prompts.build_user_prompt(row, text_col=text_col)
+        return run2_prompts.build_user_prompt(row, text_col=text_col)
 
     def _parse(raw: str) -> dict:
         return parse_output(raw, args.decision_col, args.justif_col)
@@ -123,7 +123,7 @@ def main() -> int:
         df=df,
         cfg=run_cfg,
         client=client,
-        system_prompt=prompts.SYSTEM_PROMPT,
+        system_prompt=run2_prompts.SYSTEM_PROMPT,
         select_mask_fn=_select_mask,
         build_prompt_fn=_build_prompt,
         parse_fn=_parse,

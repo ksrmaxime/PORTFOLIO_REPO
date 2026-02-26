@@ -31,7 +31,7 @@ echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
 echo "DATE=$(date -Is)"
 nvidia-smi -L || true
 
-python scripts/run_pipeline_run2.py \
+python scripts/run2_pipeline.py \
   --input  "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant.parquet" \
   --output_base "$OUTBASE" \
   --model_path /reference/LLM/swiss-ai/Apertus-8B-Instruct-2509 \
@@ -52,7 +52,7 @@ PRED_CSV="${OUTBASE}_job${SLURM_JOB_ID}.csv"
 GOLD_CSV="data/external/RUN2_GOLD.csv"
 
 # capture du score (ligne: "Similarity: 51.08%")
-SCORE=$(python scripts/evaluate_vs_gold.py \
+SCORE=$(python scripts/score.py \
   --pred "$PRED_CSV" \
   --gold "$GOLD_CSV" \
   --use_row_order \
@@ -68,7 +68,7 @@ mkdir -p "$RUN_DIR"
 
 # --- Archive: outputs + prompt ---
 cp "$PRED_CSV" "$RUN_DIR/"
-cp "src/prompts.py" "$RUN_DIR/prompts_used.py"
+cp "src/run2_prompts.py" "$RUN_DIR/prompts_used.py"
 cp "$0" "$RUN_DIR/sbatch_used.sbatch"
 
 echo "Archived in: $RUN_DIR"
