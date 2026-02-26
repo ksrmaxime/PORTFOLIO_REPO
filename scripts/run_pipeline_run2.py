@@ -129,20 +129,20 @@ def main() -> int:
         skip_if_already_filled=args.decision_col,  # ✅ reprise sur décision seulement
     )
 
-# --- WRITE (parquet + csv, suffix job id) ---
-job_id = os.environ.get("SLURM_JOB_ID") or args.job_id or "nojobid"
+    # --- WRITE (parquet + csv, suffix job id) ---
+    job_id = os.environ.get("SLURM_JOB_ID") or args.job_id or "nojobid"
 
-base = f"{args.output_base}_job{job_id}"
-parquet_path = base + ".parquet"
-csv_path = base + ".csv"
+    base = f"{args.output_base}_job{job_id}"
+    parquet_path = base + ".parquet"
+    csv_path = base + ".csv"
 
-Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
 
-out.to_parquet(parquet_path, index=False)
-out.to_csv(csv_path, index=False)
+    out.to_parquet(parquet_path, index=False)
+    out.to_csv(csv_path, index=False)
 
-print(f"Saved: {parquet_path} and {csv_path} | Selected: {int(send_mask.sum()):,}")
-return 0
+    print(f"Saved: {parquet_path} and {csv_path} | Selected: {int(send_mask.sum()):,}")
+    return 0
 
 
 if __name__ == "__main__":
