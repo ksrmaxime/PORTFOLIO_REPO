@@ -1,4 +1,4 @@
-import sys
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -129,28 +129,20 @@ def main() -> int:
         skip_if_already_filled=args.decision_col,  # ✅ reprise sur décision seulement
     )
 
-    from pathlib import Path
-    import time
+# --- WRITE (parquet + csv, suffix job id) ---
+job_id = os.environ.get("SLURM_JOB_ID") or args.job_id or "nojobid"
 
-    job_id = args.job_id or f"local{int(time.time())}"
-    base = f"{args.output_base}_job{job_id}"
+base = f"{args.output_base}_job{job_id}"
+parquet_path = base + ".parquet"
+csv_path = base + ".csv"
 
-    parquet_path = base + ".parquet"
-    csv_path = base + ".csv"
+Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
 
-    Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
+out.to_parquet(parquet_path, index=False)
+out.to_csv(csv_path, index=False)
 
-    out.to_parquet(parquet_path, index=False)
-    out.to_csv(csv_path, index=False)
-
-    print(f"Saved: {parquet_path}")
-    print(f"Saved: {csv_path}")
-
-    print(
-        f"Saved: {parquet_path} and {csv_path} | "
-        f"Selected: {int(send_mask.sum()):,}"
-    )
-    return 0
+print(f"Saved: {parquet_path} and {csv_path} | Selected: {int(send_mask.sum()):,}")
+return 0
 
 
 if __name__ == "__main__":
