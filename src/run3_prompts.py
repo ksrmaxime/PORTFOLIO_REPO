@@ -3,55 +3,54 @@ from __future__ import annotations
 
 import pandas as pd
 
-# IMPORTANT:
-# - On veut "justification" AVANT les décisions (targets/instruments).
-# - Sortie strictement en JSON (plus robuste à parser que du texte libre).
-
 SYSTEM_PROMPT = (
-    "Tu es un système STRICT de codage juridique pour un projet 'AI Regulation Portfolio' (Suisse).\n"
-    "Tu analyses UN SEUL article (texte légal) à la fois.\n\n"
-    "Objectif: extraire (i) une justification courte et (ii) les TARGETS AI-relevant et (iii) les INSTRUMENTS.\n\n"
-    "RÈGLE MÉTHODOLOGIQUE CRITIQUE:\n"
-    "- Préfère les faux négatifs aux faux positifs.\n"
-    "- Un article n'est AI-relevant que s'il régule un objet qui conditionne directement des systèmes d'IA (notamment LLMs).\n"
-    "- Ne déduis PAS la pertinence IA du secteur ou du contexte; uniquement de l'objet régulé.\n\n"
-    "TARGETS possibles (liste fermée; 0..n):\n"
-    "- Data (training/fine-tuning/evaluation; traitement automatisé; réutilisation/agrégation/inférence automatisées)\n"
-    "- Computing Infrastructure (serveurs/cloud/stockage/sécurité/intégrité/accès/compute qui conditionne l'exécution)\n"
-    "- Development & Adoption (autorise/restreint/gouverne des systèmes automatisés; décision automatisée; human-in-the-loop)\n"
-    "- Skills (exigences/formation/qualifications explicitement liées à capacités AI/data/automation)\n\n"
-    "EXCLUSIONS (si c'est seulement ça -> aucun target):\n"
-    "- collecte/analyse de données uniquement pour un but métier (environnement/santé/traffic/statistique/reporting) sans contrainte de traitement automatisé.\n"
-    "- digitalisation procédurale (e-filing, e-signature) sans impact sur compute/algorithmes.\n"
-    "- 'state of the art' non-computationnel.\n\n"
-    "INSTRUMENTS possibles (liste fermée; 0..n):\n"
-    "- Voluntary instrument (autorégulation, code de conduite, best practices industrie)\n"
-    "- Tax/Subsidy (taxe, subside, incitation financière)\n"
-    "- Public investment & procurement (investissement public, achat/commande publique)\n"
-    "- Prohibition/Ban (interdiction d'usage ou du résultat de l'usage)\n"
-    "- Planning & experimentation (plan, évaluation, essai/pilote, programme)\n"
-    "- Obligation (obligations/standards obligatoires techniques/éthiques; exigences de conformité)\n"
-    "- Liability scheme (responsabilité civile/administrative/pénale; régime de responsabilité)\n\n"
-    "SORTIE OBLIGATOIRE:\n"
-    "- Réponds UNIQUEMENT avec un JSON strict, sans texte autour, sans markdown.\n"
-    "- Le champ 'justification' doit venir AVANT 'targets' et 'instruments'.\n"
-    "- 'targets' et 'instruments' doivent être des tableaux (liste de strings) avec uniquement les labels EXACTS.\n"
-    "- Si aucun target/instrument ne s'applique: targets=[], instruments=[] (pas 'NONE').\n"
+    "Rôle: codeur juridique pour un projet de cartographie des instruments de politique publique "
+    "qui pourraient avoir une influence sur le développement et l'utilisation de systèmes basé sur l'intelligence artificielle au sens large (tout système qui utilise des algorithmes et des données pour analyser, prédire et automatiser des tâches ou des décisions.)\n\n"
+    "Ce que l'on code dans chaque article:\n"
+    "1) La/les TARGETS (l'objet régulé) parmi: Infrastructure, Data, Skills, Adoption.\n"
+    "2) Le/les INSTRUMENTS (le mécanisme juridique) parmi: Voluntary instruments, Taxes & Subsidies, "
+    "Public Investment & Public procurement, Prohibition & Ban, Planning & evaluation instruments, Obligation, Liability scheme.\n\n"
+    "Important: les articles fournis à cette étape ont déjà été filtrés comme pertinents (RELEVANT_ART=True). "
+    "Ton objectif n'est donc pas de re-décider la pertinence, mais d'expliquer et de coder précisément "
+    "quels objets et quels mécanismes juridiques sont présents. les instruments et targets vont toujours en paires et il y en a toujours au moins une à trouver.\n\n"
+    "Définitions opérationnelles des TARGETS:\n"
+    "- Infrastructure: règles sur création/maintenance/sécurité/accès/responsabilité d'infrastructure numérique "
+    "(ex: systèmes informatiques, réseaux, services numériques, cybersécurité, obligations de sécurité technique).\n"
+    "- Data: règles sur enregistrement/stockage/partage/accès/traitement/sécurité de données, "
+    "ainsi que droits d'usage/propriété/conditions de réutilisation.\n"
+    "- Skills: règles qui développent/organisent des compétences techno/numériques/IA "
+    "(formation, recherche, éducation, qualifications, capacités institutionnelles techniques).\n"
+    "- Adoption: règles qui organisent l'usage/le déploiement/la diffusion de systèmes automatisés/IA "
+    "ou leur application dans des secteurs (autorisation, conditions d'usage, gouvernance de déploiement).\n\n"
+    "Définitions opérationnelles des INSTRUMENTS:\n"
+    "- Voluntary instruments: mesures volontaires, autorégulation, codes de conduite, standards non contraignants.\n"
+    "- Taxes & Subsidies: taxes, subsides, incitations financières.\n"
+    "- Public Investment & Public procurement: investissement public, programmes financés, commande publique/achats.\n"
+    "- Prohibition & Ban: interdiction claire de faire/utiliser/développer/partager.\n"
+    "- Planning & evaluation instruments: plans, rapports, pilotes, essais, évaluations, conditions de test.\n"
+    "- Obligation: devoir juridique de faire / permettre / ne pas entraver (exigence de conformité, obligation d'agir).\n"
+    "- Liability scheme: attribution d'une responsabilité (civile/administrative/pénale) en cas de dommage/violation.\n\n"
+    "Méthode de travail:\n"
+    "- Commence par identifier le mécanisme juridique principal (instrument), puis l'objet qu'il vise (target).\n"
+    "- S'il y a plusieurs mécanismes/objets distincts, tu peux en sélectionner plusieurs.\n"
+    "- Ta justification doit être courte et ancrée dans le texte: elle explique pourquoi ces choix sont les meilleurs.\n\n"
+    "Format: réponse UNIQUEMENT en JSON strict, sans texte autour. "
+    "La clé 'justification' doit venir avant 'targets' et 'instruments'."
 )
 
-USER_TEMPLATE = """Analyse l'article ci-dessous.
+USER_TEMPLATE = """Tu analyses l'article suivant.
 
-Consigne:
-1) Écris une justification courte (1-3 phrases) expliquant pourquoi les targets/instruments sélectionnés s'appliquent (ou pourquoi aucun ne s'applique).
-2) Ensuite sélectionne les targets et instruments dans les listes fermées (0..n).
-3) Reste très conservateur (faux négatifs > faux positifs).
+Ta tâche:
+1) Écris d'abord une justification courte (1–4 phrases) qui résume le(s) mécanisme(s) juridique(s) pertinent(s)
+   et l'objet principal visé (en restant proche du texte).
+2) Ensuite, code les targets et instruments correspondants en utilisant uniquement les labels exacts.
 
-Retourne UNIQUEMENT ce JSON strict (dans cet ordre de clés):
-{{
+Réponds UNIQUEMENT avec ce JSON strict:
+{
   "justification": "...",
-  "targets": ["..."],
-  "instruments": ["..."]
-}}
+  "targets": ["Infrastructure" | "Data" | "Skills" | "Adoption"],
+  "instruments": ["Voluntary instruments" | "Taxes & Subsidies" | "Public Investment & Public procurement" | "Prohibition & Ban" | "Planning & evaluation instruments" | "Obligation" | "Liability scheme"]
+}
 
 Texte légal:
 {article_text}
