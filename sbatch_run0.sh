@@ -26,4 +26,4 @@ OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 mkdir -p logs "$OUTDIR"
 
 python -V
-python scripts/run0_ai_relevant_filter.py
+python scripts/run0_pipeline.py
