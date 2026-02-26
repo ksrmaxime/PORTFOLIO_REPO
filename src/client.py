@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List
 import os
 
 os.environ.setdefault("ACCELERATE_USE_META_DEVICE", "0")
@@ -26,9 +26,15 @@ class TransformersClient:
             trust_remote_code=cfg.trust_remote_code,
         )
 
+        # Stabilise padding + évite warnings/bugs
+        # (le slicing correct ci-dessous marche même sans ça, mais c'est plus propre)
+        self.tok.padding_side = "right"
+        if self.tok.pad_token_id is None:
+            # fallback standard pour causal LM
+            self.tok.pad_token = self.tok.eos_token
+
         dtype = torch.bfloat16 if cfg.dtype == "bf16" else torch.float16
 
-        # Évite certains soucis accelerate/meta device
         try:
             torch.set_default_device("cpu")
         except Exception:
@@ -52,7 +58,6 @@ class TransformersClient:
         if not user_prompts:
             return []
 
-        # 1) build chat prompts
         prompts: List[str] = []
         for up in user_prompts:
             msgs = [
@@ -67,7 +72,6 @@ class TransformersClient:
                 )
             )
 
-        # 2) tokenize batch
         enc = self.tok(
             prompts,
             return_tensors="pt",
@@ -78,23 +82,22 @@ class TransformersClient:
 
         do_sample = float(temperature) > 0.0
 
-        # 3) generate
         with self.torch.inference_mode():
             out = self.model.generate(
                 **enc,
                 max_new_tokens=int(max_new_tokens),
                 do_sample=do_sample,
                 temperature=float(temperature) if do_sample else None,
+                pad_token_id=self.tok.pad_token_id,
             )
 
-        # 4) decode only generated part (robuste avec attention_mask)
-        attn = enc.get("attention_mask")
-        input_lens = attn.sum(dim=1).tolist() if attn is not None else [enc["input_ids"].shape[1]] * out.shape[0]
+        # ✅ decode only generated part: slice after the full input tensor length
+        input_len = enc["input_ids"].shape[1]
 
         res: List[str] = []
         for i in range(out.shape[0]):
-            in_len = int(input_lens[i])
-            gen_ids = out[i, in_len:]
+            gen_ids = out[i, input_len:]
             txt = self.tok.decode(gen_ids, skip_special_tokens=True)
             res.append(txt.strip())
+
         return res
