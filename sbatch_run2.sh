@@ -44,3 +44,10 @@ python scripts/run_pipeline_run2.py \
   --batch_size 32 \
   --max_new_tokens 160 \
   --temperature 0.0
+
+NAS_DIR=/nas/FAC/FDCA/IDHEAP/mhinterl/parp/D2c/maxime/output/PORTFOLIO_RUN2
+mkdir -p "$NAS_DIR"
+
+cp "${OUTBASE}_job${SLURM_JOB_ID}.csv" "$NAS_DIR"
+
+echo "Copied results to NAS"
