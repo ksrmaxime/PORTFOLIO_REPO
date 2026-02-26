@@ -90,13 +90,21 @@ def parse_run3_json(raw: str):
 
     return justif, targets, instruments
 
-
 def parse_output(raw: str, targets_col: str, instruments_col: str, justif_col: str) -> dict:
     justif, targets, instruments = parse_run3_json(raw)
 
-    # If parsing fails: leave NA (so reruns can pick it up)
     if justif is None:
+        head = "" if raw is None else str(raw)[:600].replace("\n", "\\n")
+        print(f"[RUN3 PARSE FAIL] raw_head={head}")
         return {targets_col: pd.NA, instruments_col: pd.NA, justif_col: pd.NA}
+
+    # ... le reste inchangé ...
+#def parse_output(raw: str, targets_col: str, instruments_col: str, justif_col: str) -> dict:
+    #justif, targets, instruments = parse_run3_json(raw)
+
+    # If parsing fails: leave NA (so reruns can pick it up)
+    #if justif is None:
+     #   return {targets_col: pd.NA, instruments_col: pd.NA, justif_col: pd.NA}
 
     targets_s = "; ".join(targets) if targets else ""
     instruments_s = "; ".join(instruments) if instruments else ""
