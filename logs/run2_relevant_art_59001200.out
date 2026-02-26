@@ -1,0 +1,34 @@
+=== SLURM ===
+JOBID=59001200 HOST=dnagpu004 DATE=2026-02-20T16:39:05+01:00
+CUDA_VISIBLE_DEVICES=0
+Python 3.12.1
+curnagl_client imported from: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/src/portfolio_repo/llm/curnagl_client.py
+has TransformersClient: True
+Fri Feb 20 16:39:05 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.82.07              Driver Version: 580.82.07      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:E2:00.0 Off |                    0 |
+| N/A   41C    P0             33W /  250W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+[INFO] Total rows: 2,225
+[INFO] Selected level==6 to send: 154
+[INFO] Remaining to classify (NA among selected): 154
+[INFO] Batch size: 40
+[INFO] Debug dir: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/run2_debug_job59001200
+[OK] No parse failures (strict JSON).
+[OK] Wrote parquet: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant_with_relevant_art_job59001200.parquet
+[OK] Wrote csv:    /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant_with_relevant_art_job59001200.csv

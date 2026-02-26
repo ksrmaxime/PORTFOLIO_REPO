@@ -1,0 +1,130 @@
+=== SLURM ===
+JOBID=58687394 HOST=dnagpu004 PARTITION=gpu
+CUDA_VISIBLE_DEVICES=0
+DATE=2026-02-09T15:13:46+01:00
+=== GPU (start) ===
+GPU 0: NVIDIA A100-PCIE-40GB (UUID: GPU-eb89d342-4ac2-3dca-048d-0d1de3a714c6)
+=== RUN ===
+
+=== SYSTEM PROMPT ===
+Tu reçois ci-dessous une liste de titres, sous-titres, chapitres etc. représentant la structure des textes de lois suisses.
+Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles.
+
+Tâche: identifier les titres qui pourraient être à la tête d'une section contenant des articles en lien avec l'intelligence artificielle.
+L'IA est définie de manière large: systèmes automatisés/algorithmes, traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'IA au sens strict.
+
+Important:
+- Base-toi UNIQUEMENT sur les mots du titre.
+- N'infère pas le contenu des articles.
+- Les titres génériques ou structurels (ex: Preuve, Définitions, Chapitre X, Dispositions finales) ne doivent PAS être sélectionnés sauf s'ils contiennent un indice explicite.
+- Pour chaque titre sélectionné, tu dois fournir une justification courte.
+
+Réponds UNIQUEMENT avec ce JSON strict:
+{
+  "true_row_uids": [],
+  "justifications": {}
+}
+en remplaçant [] par les row_uid jugés pertinents.
+Pour chaque row_uid sélectionné, ajoute une justification courte dans "justifications" (clé = row_uid, valeur = justification).
+Aucun autre texte.
+
+=== USER PROMPT (first batch, first prompt) ===
+Données (row_uid<TAB>label):
+3	Titre premier: Dispositions générales
+48	Titre deuxième: De la poursuite pour dettes
+112	Titre troisième: De la poursuite par voie de saisie
+181	Titre quatrième: De la poursuite en réalisation du gage
+191	Titre cinquième: De la poursuite par voie de faillite
+232	Titre sixième: Des effets juridiques de la faillite
+258	Titre septième: De la liquidation de la faillite
+316	Titre huitième: Du séquestre
+328	Titre neuvième: Dispositions particulières sur les loyers et fermages
+333	Titre neuvièmebis: Dispositions particulières sur les relations de trust
+336	Titre dixième: Révocation
+346	Titre onzième: Procédure concordataire
+403	Titre douzième: Sursis extraordinaire
+419	Titre treizième: Dispositions finales
+522	Titre premier: Champ d’application de la loi et compétence
+525	Titre deuxième: Principes généraux de procédure
+532	Titre troisième: Délais, citations et communications, défaut et restitution
+538	Titre quatrième: Parties et participation de tiers au procès
+544	Titre cinquième: Échange des écritures
+561	Titre sixième: Procédure préparatoire
+564	Titre septième: Preuve
+596	Titre huitième: Débats principaux
+603	Titre neuvième: Fin du procès sans jugement
+606	Titre dixième: Exécution
+612	Titre onzième: Mesures provisionnelles
+620	Titre douzième: Dispositions finales et transitoires
+691	Première partie: Fondements de l’aviation
+692	Titre premier: Espace aérien et surface terrestre
+693	Chapitre I: La souveraineté sur l’espace aérien et ses effets
+712	Chapitre II: Usage de l’espace aérien et mesures de sûreté
+751	Chapitre III: L’infrastructure
+810	Titre deuxième: Aéronefs et personnel aéronautique
+811	Chapitre I: Les aéronefs
+822	Chapitre II: Le personnel aéronautique
+828	Deuxième partie: Rapports juridiques résultant de la pratique de l’aviation
+829	Titre premier: La responsabilité civile envers les tiers
+842	Titre deuxième: Le droit de transport aérien
+846	Titre troisième: Dispositions communes sur la responsabilité civile
+850	Titre quatrième: La saisie conservatoire des aéronefs
+858	Titre cinquième: Dispositions pénales
+
+=== RAW LLM RESPONSE (first batch, first prompt) ===
+Tu reçois ci-dessous une liste de titres, sous-titres, chapitres etc. représentant la structure des textes de lois suisses.
+Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles.
+
+Tâche: identifier les titres qui pourraient être à la tête d'une section contenant des articles en lien avec l'intelligence artificielle.
+L'IA est définie de manière large: systèmes automatisés/algorithmes, traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'IA au sens strict.
+
+Important:
+- Base-toi UNIQUEMENT sur les mots du titre.
+- N'infère pas le contenu des articles.
+- Les titres génériques ou structurels (ex: Preuve, Définitions, Chapitre X, Dispositions finales) ne doivent PAS être sélectionnés sauf s'ils contiennent un indice explicite.
+- Pour chaque titre sélectionné, tu dois fournir une justification courte.
+
+Réponds UNIQUEMENT avec ce JSON strict:
+{
+  "true_row_uids": [],
+  "justifications": {}
+}
+en remplaçant [] par les row_uid jugés pertinents.
+Pour chaque row_uid sélectionné, ajoute une justification courte dans "justifications" (clé = row_uid, valeur = justification).
+Aucun autre texte.Deliberation: disabled
+Tool Capabilities: disabledDonnées (row_uid<TAB>label):
+3	Titre premier: Dispositions générales
+48	Titre deuxième: De la poursuite pour dettes
+112	Titre troisième: De la poursuite par voie de saisie
+181	Titre quatrième: De la poursuite en réalisation du gage
+191	Titre cinquième: De la poursuite par voie de faillite
+232	Titre sixième: Des effets juridiques de la faillite
+258	Titre septième: De la liquidation de la faillite
+316	Titre huitième: Du séquestre
+328	Titre neuvième: Dispositions particulières sur les loyers et fermages
+333	Titre neuvièmebis: Dispositions particulières sur les relations de trust
+336	Titre dixième: Révocation
+346	Titre onzième: Procédure concordataire
+403	Titre douzième: Sursis extraordinaire
+419	Titre treizième: Dispositions finales
+522	Titre premier: Champ d’application de la loi et compétence
+525	Titre deuxième: Principes généraux de procédure
+532	Titre troisième: Délais, citations et communications, défaut et restitution
+538	Titre quatrième: Parties et participation de tiers au procès
+544	Titre cinquième: Échange des écritures
+561	Titre sixième: Procédure préparatoire
+564	Titre septième: Preuve
+596	Titre huitième: Débats principaux
+603	Titre neuvième: Fin du procès sans jugement
+606	Titre dixième: Exécution
+612	Titre onzième: Mesures provisionnelles
+620	Titre douzième: Dispositions finales et transitoires
+691	Première partie: Fondements de l’aviation
+692	Titre premier: Espace aérien et surface terrestre
+693	Chapitre I: La souveraineté sur l’espace aérien et ses effets
+712	Chapitre II: Usage de l’espace aérien et mesures de sûreté
+751	Chapitre III: L’infrastructure
+810	Titre deuxième: Aéronefs et personnel aéronautique
+811	Chapitre I: Les aéronefs
+822	Chapitre II: Le personnel aéronautique
+828	Deuxième partie: Rapports juridiques résultant de la pratique de l’avi

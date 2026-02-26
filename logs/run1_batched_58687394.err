@@ -1,0 +1,17 @@
+CUDA-fused xIELU not available (No module named 'xielu') – falling back to a Python version.
+For CUDA xIELU (experimental), `pip install git+https://github.com/nickjbrowning/XIELU`
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:05,  1.93s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:09<00:10,  5.04s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:12<00:04,  4.17s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:13<00:00,  2.89s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:13<00:00,  3.30s/it]
+Asking to truncate to max_length but no maximum length is provided and the model has no predefined maximum length. Default to no truncation.
+Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Traceback (most recent call last):
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run1_title_triage_batched.py", line 94, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run1_title_triage_batched.py", line 77, in main
+    df_out = run1_title_triage_batched(client=client, df=df, cfg=cfg)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/src/portfolio_repo/llm/run1_title_triage_batched.py", line 236, in run1_title_triage_batched
+    if (not true_uids and not justs) and cfg.debug_raw_response:
+                                         ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'Run1Config' object has no attribute 'debug_raw_response'

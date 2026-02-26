@@ -1,0 +1,8 @@
+=== SLURM ===
+JOBID=59058752 HOST=dnagpu005 PARTITION=gpu
+CUDA_VISIBLE_DEVICES=0
+DATE=2026-02-24T17:18:17+01:00
+GPU 0: NVIDIA A100-PCIE-40GB (UUID: GPU-167b7737-8a49-aed1-a9fb-04d434573f96)
+Saved: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_relart_joblocal1771950193.parquet
+Saved: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_relart_joblocal1771950193.csv
+Saved: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_relart_joblocal1771950193.parquet and /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_relart_joblocal1771950193.csv | Selected: 154

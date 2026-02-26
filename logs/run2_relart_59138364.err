@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run_pipeline_run2.py", line 5, in <module>
+    sys.path.append(str(ROOT))
+    ^^^
+NameError: name 'sys' is not defined. Did you forget to import 'sys'?

@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run_pipeline_run2.py", line 6, in <module>
+    from src.client import TransformersClient, LLMConfig
+ModuleNotFoundError: No module named 'src'

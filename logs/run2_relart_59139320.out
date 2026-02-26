@@ -1,0 +1,7 @@
+=== SLURM ===
+JOBID=59139320 HOST=dnagpu003 PARTITION=gpu
+CUDA_VISIBLE_DEVICES=0
+DATE=2026-02-26T15:13:18+01:00
+GPU 0: NVIDIA A100-PCIE-40GB (UUID: GPU-8a923bd5-5e27-a6d2-9c20-8117d257be14)
+Saved: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_relart_job59139320.parquet and /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_relart_job59139320.csv | Selected: 154
+Check NAS mount:

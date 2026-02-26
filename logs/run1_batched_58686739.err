@@ -1,0 +1,26 @@
+CUDA-fused xIELU not available (No module named 'xielu') – falling back to a Python version.
+For CUDA xIELU (experimental), `pip install git+https://github.com/nickjbrowning/XIELU`
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:01<00:03,  1.02s/it]Loading checkpoint shards:  50%|█████     | 2/4 [00:05<00:05,  2.76s/it]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:07<00:02,  2.42s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.68s/it]Loading checkpoint shards: 100%|██████████| 4/4 [00:07<00:00,  1.89s/it]
+Asking to truncate to max_length but no maximum length is provided and the model has no predefined maximum length. Default to no truncation.
+Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Traceback (most recent call last):
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run1_title_triage_batched.py", line 94, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run1_title_triage_batched.py", line 77, in main
+    df_out = run1_title_triage_batched(client=client, df=df, cfg=cfg)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/src/portfolio_repo/llm/run1_title_triage_batched.py", line 202, in run1_title_triage_batched
+    raise ValueError(
+ValueError: Unparseable LLM response (missing true_rows). Raw preview:
+Tu reçois ci-dessous une liste de titres, sous-titres, chapitres etc. représentant la structure des textes de lois suisses.
+Tu n'as accès qu'aux TITRES/INTITULÉS, pas au texte des articles.
+
+Tâche: identifier les titres qui pourraient être à la tête d'une section contenant des articles en lien avec l'intelligence artificielle.
+L'IA est définie de manière large: systèmes automatisés/algorithmes, traitement automatisé de données, infrastructures informatiques/de calcul (serveurs, cloud), ainsi que l'IA au sens strict.
+
+Important:
+- Base-toi UNIQUEMENT sur les mots du titre.
+- N'infère pas le contenu des articles.
+- Les titres génériques ou structurels (ex: Preuve, Définitions, Chapitre X, Dispositions finales) ne doivent PAS être sélectionnés sauf s'ils contiennent un indice explicite.
+- Pou

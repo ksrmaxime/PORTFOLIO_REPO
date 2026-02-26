@@ -1,0 +1,18 @@
+CUDA-fused xIELU not available (No module named 'xielu') – falling back to a Python version.
+For CUDA xIELU (experimental), `pip install git+https://github.com/nickjbrowning/XIELU`
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 53.47it/s]
+Asking to truncate to max_length but no maximum length is provided and the model has no predefined maximum length. Default to no truncation.
+Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Traceback (most recent call last):
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run1_title_triage_batched.py", line 75, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run1_title_triage_batched.py", line 60, in main
+    out = run1_title_triage_batched(client, df, cfg)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/src/portfolio_repo/llm/run1_title_triage_batched.py", line 164, in run1_title_triage_batched
+    jus[u] = (tjust.get(u) if u in tset else pd.NA) or pd.NA
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "pandas/_libs/missing.pyx", line 415, in pandas._libs.missing.NAType.__bool__
+TypeError: boolean value of NA is ambiguous

@@ -1,0 +1,4 @@
+  File "/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/scripts/run_pipeline_run2.py", line 145
+    return 0
+    ^^^^^^^^
+SyntaxError: 'return' outside function

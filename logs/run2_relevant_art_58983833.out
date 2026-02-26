@@ -1,0 +1,32 @@
+=== SLURM ===
+JOBID=58983833 HOST=dnagpu002 DATE=2026-02-20T14:58:04+01:00
+CUDA_VISIBLE_DEVICES=0
+Python 3.12.1
+Fri Feb 20 14:58:04 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.82.07              Driver Version: 580.82.07      CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-PCIE-40GB          On  |   00000000:E2:00.0 Off |                    0 |
+| N/A   33C    P0             32W /  250W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+[INFO] Total rows: 2,225
+[INFO] Selected level==6 to send: 154
+[INFO] Remaining to classify (NA among selected): 154
+[INFO] Batch size: 40
+[INFO] Debug dir: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/run2_debug_job58983833
+[WARN] Parse failures: 148 -> /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/run2_debug_job58983833/parse_failures.csv
+[OK] Wrote parquet: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant_with_relevant_art_job58983833.parquet
+[OK] Wrote csv:    /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant_with_relevant_art_job58983833.csv

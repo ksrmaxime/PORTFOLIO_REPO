@@ -1,0 +1,10 @@
+=== SLURM ===
+JOBID=58885201 HOST=dnagpu005 PARTITION=gpu
+CUDA_VISIBLE_DEVICES=0
+DATE=2026-02-16T16:38:21+01:00
+GPU 0: NVIDIA A100-PCIE-40GB (UUID: GPU-16639611-f1eb-cce3-d377-4376c418b52b)
+[RUN1] WARN: 47 prompt(s) non-parseables après retry (forcés FALSE).
+Input : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/fedlex/laws_structure.parquet
+Saved : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_title_triage.parquet
+Saved : /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_title_triage.csv
+Levels 1..4 classified: TRUE=213, FALSE=4195, total=4408

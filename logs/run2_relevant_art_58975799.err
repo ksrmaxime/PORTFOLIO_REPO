@@ -1,0 +1,9 @@
+CUDA-fused xIELU not available (No module named 'xielu') – falling back to a Python version.
+For CUDA xIELU (experimental), `pip install git+https://github.com/nickjbrowning/XIELU`
+Loading checkpoint shards:   0%|          | 0/4 [00:00<?, ?it/s]Loading checkpoint shards:  25%|██▌       | 1/4 [00:00<00:00,  7.50it/s]Loading checkpoint shards:  75%|███████▌  | 3/4 [00:00<00:00,  9.21it/s]Loading checkpoint shards: 100%|██████████| 4/4 [00:00<00:00, 11.62it/s]
+Batches:   0%|          | 0/4 [00:00<?, ?batch/s]Asking to truncate to max_length but no maximum length is provided and the model has no predefined maximum length. Default to no truncation.
+Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Batches:  25%|██▌       | 1/4 [00:10<00:30, 10.22s/batch]Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Batches:  50%|█████     | 2/4 [00:17<00:16,  8.50s/batch]Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Batches:  75%|███████▌  | 3/4 [00:24<00:07,  7.69s/batch]Setting `pad_token_id` to `eos_token_id`:2 for open-end generation.
+Batches: 100%|██████████| 4/4 [00:28<00:00,  6.49s/batch]Batches: 100%|██████████| 4/4 [00:28<00:00,  7.22s/batch]

@@ -1,0 +1,8 @@
+=== SLURM ===
+JOBID=58970054 HOST=dna081 DATE=2026-02-20T10:31:26+01:00
+Python 3.12.1
+[OK] Wrote parquet: /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant_job58970054.parquet
+[OK] Wrote csv:    /work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant_job58970054.csv
+[INFO] Rows total: 2,225
+[INFO] In-scope levels (1-5): 1,209
+[INFO] True count (among in-scope): 109
