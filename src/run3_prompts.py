@@ -26,7 +26,7 @@ SYSTEM_PROMPT = (
     "- Prohibition & Ban: interdiction claire de faire/utiliser/développer/partager.\n"
     "- Planning & evaluation instruments: plans, rapports, pilotes, essais, évaluations, conditions de test.\n"
     "- Obligation: devoir juridique de faire / permettre / ne pas entraver (exigence de conformité, obligation d'agir).\n"
-    "- Liability scheme: attribution d'une responsabilité (civile/administrative/pénale) en cas de dommage/violation.\n\n"
+    "- Liability scheme: règle qui attribue formellement la responsabilité institutionnelle ou juridique d’un système, d’une infrastructure ou d’une activité à un acteur déterminé.\n\n"
     "Méthode de travail:\n"
     "- Commence par identifier le mécanisme juridique (instrument), puis l'objet qu'il vise (target).\n"
     "- S'il y a plusieurs mécanismes/objets distincts, tu peux en sélectionner plusieurs.\n"
