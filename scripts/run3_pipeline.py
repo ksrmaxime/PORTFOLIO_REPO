@@ -138,8 +138,13 @@ def parse_output(raw: str, targets_col: str, instruments_col: str, justif_col: s
     justif, targets, instruments = parse_run3_json(raw)
 
     if justif is None:
+    head = "" if raw is None else str(raw)[:600].replace("\n","\\n")
+    print(f"[RUN3 PARSE FAIL] raw_head={head}")
+    return {targets_col: pd.NA, instruments_col: pd.NA, justif_col: pd.NA}
+
+    #if justif is None:
         # keep NA to allow reruns / diagnostics
-        return {targets_col: pd.NA, instruments_col: pd.NA, justif_col: pd.NA}
+      #  return {targets_col: pd.NA, instruments_col: pd.NA, justif_col: pd.NA}
 
     return {
         targets_col: "; ".join(targets),
