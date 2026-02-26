@@ -43,7 +43,7 @@ python scripts/run3_pipeline.py \
   --instruments_col INSTRUMENTS \
   --justif_col RUN3_JUSTIF \
   --batch_size 24 \
-  --max_new_tokens 220 \
+  --max_new_tokens 400 \
   --temperature 0.0
 
 # --- Archive: outputs + prompt/config/sbatch ---

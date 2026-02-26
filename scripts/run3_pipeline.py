@@ -13,48 +13,98 @@ import pandas as pd
 
 from src.client import TransformersClient, LLMConfig
 from src.runner import run_llm_dataframe, RunConfig
-
 from src.run3_config import build_run3_mask
 from src import run3_prompts
 
 
+# -------------------------
+# Robust JSON loading helpers (run3-only patch)
+# -------------------------
 def _strip_code_fences(s: str) -> str:
     s = s.strip()
-    # remove ```json ... ``` or ``` ... ```
     if s.startswith("```"):
         s = re.sub(r"^```[a-zA-Z0-9]*\s*", "", s)
         s = re.sub(r"\s*```$", "", s)
     return s.strip()
 
 
+def _extract_first_json_object(s: str) -> str | None:
+    m = re.search(r"\{.*\}", s, flags=re.DOTALL)
+    return m.group(0) if m else None
+
+
+def _repair_common_json_prefix_bugs(s: str) -> str:
+    """
+    Conservative repairs for common model artifacts we saw in logs:
+    - leading comma before first key: , "justification": ...
+    - missing opening brace: "justification": ...
+    """
+    t = s.lstrip()
+
+    # Case 1: starts with comma then a key
+    if t.startswith(","):
+        t2 = t.lstrip(", \n\r\t")
+        if t2.startswith('"justification"') or t2.startswith('"targets"') or t2.startswith('"instruments"'):
+            return "{" + t2 + "}"
+
+    # Case 2: starts with a key without opening brace
+    if t.startswith('"justification"') or t.startswith('"targets"') or t.startswith('"instruments"'):
+        return "{" + t + "}"
+
+    return s
+
+
+def load_json_robust(raw: str):
+    if raw is None:
+        return None
+
+    s = _strip_code_fences(str(raw))
+    s = _repair_common_json_prefix_bugs(s)
+
+    # Try direct parse
+    try:
+        return json.loads(s)
+    except Exception:
+        pass
+
+    # Try extracting first {...} block
+    block = _extract_first_json_object(s)
+    if block:
+        try:
+            return json.loads(block)
+        except Exception:
+            return None
+
+    return None
+
+
+# -------------------------
+# Parsing logic (keeps original "justification/targets/instruments" outputs)
+# -------------------------
+ALLOWED_TARGETS = {"Infrastructure", "Data", "Skills", "Adoption"}
+ALLOWED_INSTRUMENTS = {
+    "Voluntary instruments",
+    "Taxes & Subsidies",
+    "Public Investment & Public procurement",
+    "Prohibition & Ban",
+    "Planning & evaluation instruments",
+    "Obligation",
+    "Liability scheme",
+}
+
+
 def parse_run3_json(raw: str):
     """
-    Expected strict JSON:
+    Expected strict-ish JSON:
     {
       "justification": "...",
       "targets": [...],
       "instruments": [...]
     }
+
     Returns (justif, targets_list, instruments_list) or (None,None,None) on failure.
     """
-    if raw is None:
-        return None, None, None
-
-    s = _strip_code_fences(str(raw))
-
-    # try direct JSON
-    try:
-        obj = json.loads(s)
-    except Exception:
-        # fallback: attempt to extract first {...} block
-        m = re.search(r"\{.*\}", s, flags=re.DOTALL)
-        if not m:
-            return None, None, None
-        try:
-            obj = json.loads(m.group(0))
-        except Exception:
-            return None, None, None
-
+    obj = load_json_robust(raw)
     if not isinstance(obj, dict):
         return None, None, None
 
@@ -70,52 +120,37 @@ def parse_run3_json(raw: str):
         return None, None, None
 
     justif = " ".join(justif.strip().split())
-    targets = [t.strip() for t in targets if t.strip()]
-    instruments = [i.strip() for i in instruments if i.strip()]
+    targets = [t.strip() for t in targets if isinstance(t, str) and t.strip()]
+    instruments = [i.strip() for i in instruments if isinstance(i, str) and i.strip()]
 
-    # Optional: enforce allowed labels (drop invalid instead of failing hard)
-    allowed_targets = {"Data", "Computing Infrastructure", "Development & Adoption", "Skills"}
-    allowed_instruments = {
-        "Voluntary instrument",
-        "Tax/Subsidy",
-        "Public investment & procurement",
-        "Prohibition/Ban",
-        "Planning & experimentation",
-        "Obligation",
-        "Liability scheme",
-    }
+    # Keep only allowed labels (do not hard-fail; drop invalids)
+    targets = [t for t in targets if t in ALLOWED_TARGETS]
+    instruments = [i for i in instruments if i in ALLOWED_INSTRUMENTS]
 
-    targets = [t for t in targets if t in allowed_targets]
-    instruments = [i for i in instruments if i in allowed_instruments]
+    # Still require at least one of each for a "successful" parse
+    if not targets or not instruments:
+        return None, None, None
 
     return justif, targets, instruments
+
 
 def parse_output(raw: str, targets_col: str, instruments_col: str, justif_col: str) -> dict:
     justif, targets, instruments = parse_run3_json(raw)
 
     if justif is None:
-        head = "" if raw is None else str(raw)[:600].replace("\n", "\\n")
-        print(f"[RUN3 PARSE FAIL] raw_head={head}")
+        # keep NA to allow reruns / diagnostics
         return {targets_col: pd.NA, instruments_col: pd.NA, justif_col: pd.NA}
 
-    # ... le reste inchangé ...
-#def parse_output(raw: str, targets_col: str, instruments_col: str, justif_col: str) -> dict:
-    #justif, targets, instruments = parse_run3_json(raw)
-
-    # If parsing fails: leave NA (so reruns can pick it up)
-    #if justif is None:
-     #   return {targets_col: pd.NA, instruments_col: pd.NA, justif_col: pd.NA}
-
-    targets_s = "; ".join(targets) if targets else ""
-    instruments_s = "; ".join(instruments) if instruments else ""
-
     return {
-        targets_col: targets_s,
-        instruments_col: instruments_s,
+        targets_col: "; ".join(targets),
+        instruments_col: "; ".join(instruments),
         justif_col: justif,
     }
 
 
+# -------------------------
+# Main
+# -------------------------
 def main() -> int:
     ap = argparse.ArgumentParser()
 
@@ -137,7 +172,7 @@ def main() -> int:
 
     ap.add_argument("--batch_size", type=int, default=24)
     ap.add_argument("--temperature", type=float, default=0.0)
-    ap.add_argument("--max_new_tokens", type=int, default=220)
+    ap.add_argument("--max_new_tokens", type=int, default=400)
 
     args = ap.parse_args()
 
@@ -149,7 +184,7 @@ def main() -> int:
         relevant_art_col=args.relevant_art_col,
     )
 
-    # create/normalize columns
+    # ensure output columns exist (string dtype) — created in run3, so cannot be "already filled" on first run
     for c in (args.targets_col, args.instruments_col, args.justif_col):
         if c not in df.columns:
             df[c] = pd.Series(pd.NA, index=df.index, dtype="string")
@@ -190,7 +225,7 @@ def main() -> int:
         build_prompt_fn=_build_prompt,
         parse_fn=_parse,
         output_cols=[args.targets_col, args.instruments_col, args.justif_col],
-        skip_if_already_filled=args.justif_col,  # reprise sur la justification
+        skip_if_already_filled=args.justif_col,
     )
 
     job_id = os.environ.get("SLURM_JOB_ID") or args.job_id or "nojobid"
@@ -202,7 +237,8 @@ def main() -> int:
     out.to_parquet(parquet_path, index=False)
     out.to_csv(csv_path, index=False)
 
-    print(f"Saved: {parquet_path} and {csv_path} | Selected: {int(send_mask.sum()):,}")
+    print(f"Saved: {parquet_path} and {csv_path}")
+    print(f"Selected rows (mask True): {int(send_mask.sum()):,} / {len(df):,}")
     return 0
 
 
