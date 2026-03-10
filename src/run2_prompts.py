@@ -3,22 +3,19 @@ from __future__ import annotations
 import pandas as pd
 
 SYSTEM_PROMPT = (
-    "Tu es un système STRICT de classification juridique.\n"
-    "Tu dois répondre exactement sur DEUX lignes, dans cet ordre, sans texte supplémentaire:\n"
-    "RELEVANT: TRUE ou FALSE\n"
-    "JUSTIFICATION: une justification courte (1-2 phrases) en français\n"
-    "Ne mets rien d'autre."
+"You are a STRICT legal classification system.\n"
+"You must respond with exactly TWO lines, in this order, without any additional text:\n"
+"RELEVANT: TRUE or FALSE\n"
+"JUSTIFICATION: a short justification (1–2 sentences) in English\n"
+"Do not add anything else."
 )
-
-USER_TEMPLATE = """Décide si cet article fixe des règles/obligations/procédures/responsabilités/exigences
-qui influence l’implémentation, le développement, la sécurité, l’usage ou la responsabilité
-d’une intelligence artificielle (au sens large) : système qui utilise des algorithmes et des données pour analyser, prédire et automatiser des tâches ou des décisions.
-
+USER_TEMPLATE = """Decide whether this article establishes rules/obligations/procedures/liabilities/requirements
+that influence the implementation, development, security, use, or liability
+of an artificial intelligence system (in a broad sense): a system that uses algorithms and data to analyze, predict, and automate tasks or decisions.
 Important:
-- TRUE seulement si l'article aborde une dimension de l'intelligence artificielle et s’il y a un effet normatif concret lié à ces systèmes (conditions, exigences, surveillance, obligations, responsabilités, procédure, autorisations, etc.).
-- FALSE si aucune forme d'intelligence artificielle n'est impliqée ou que c’est seulement descriptif/définition générale ou sans portée normative liée à ces systèmes.
-
-Texte légal:
+TRUE only if the article addresses a dimension of artificial intelligence and there is a concrete normative effect related to these systems (conditions, requirements, monitoring, obligations, responsibilities, procedures, authorizations, etc.).
+FALSE if no form of artificial intelligence is involved, or if the text is only descriptive/a general definition without normative implications related to such systems.
+Legal text:
 {article_text}
 """
 
