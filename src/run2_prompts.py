@@ -9,12 +9,14 @@ SYSTEM_PROMPT = (
 "JUSTIFICATION: a short justification (1–2 sentences) in English\n"
 "Do not add anything else."
 )
-USER_TEMPLATE = """Decide whether this article establishes rules/obligations/procedures/liabilities/requirements
-that influence the implementation, development, security, use, or liability
-of an artificial intelligence system (in a broad sense): a system that uses algorithms and data to analyze, predict, and automate tasks or decisions.
+USER_TEMPLATE = """Imagine you are a legal consultant advising companies that develop or use artificial intelligence systems.
+For each legal article, ask yourself the following question:
+Would this rule potentially affect how a company designs, develops, deploys, secures, governs, or uses artificial intelligence systems?
+Artificial intelligence should be understood broadly as systems that use algorithms and data to analyze information, make predictions, or automate tasks or decisions.
 Important:
-TRUE only if the article addresses a dimension of artificial intelligence and there is a concrete normative effect related to these systems (conditions, requirements, monitoring, obligations, responsibilities, procedures, authorizations, etc.).
-FALSE if no form of artificial intelligence is involved, or if the text is only descriptive/a general definition without normative implications related to such systems.
+TRUE if the article establishes rules, obligations, responsibilities, procedures, restrictions, authorizations, or oversight that could affect AI systems or organizations developing or using them — whether the impact is direct or indirect.
+Consider all domains where AI could be affected (data governance, digital infrastructure, automated decision-making, liability, security, compliance, etc.).
+FALSE if the article clearly has no plausible impact on AI systems, their development, or their use.
 Legal text:
 {article_text}
 """
