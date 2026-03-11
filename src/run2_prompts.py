@@ -9,16 +9,14 @@ SYSTEM_PROMPT = (
 "JUSTIFICATION: a short justification (1–2 sentences) in English\n"
 "Do not add anything else."
 )
-USER_TEMPLATE = """Imagine you are a legal consultant advising companies that develop or use artificial intelligence systems.
-For each legal article, ask yourself the following question:
-Would this rule potentially affect how a company designs, develops, deploys, secures, governs, or uses artificial intelligence systems?
+USER_TEMPLATE = """Decide whether this legal article regulates an activity that could realistically involve artificial intelligence systems.
 Artificial intelligence should be understood broadly as systems that use algorithms and data to analyze information, make predictions, or automate tasks or decisions.
-interpretation rule: A law is AI-relevant only if the regulated object itself could realistically involve algorithmic or automated data processing, not simply because an AI system could hypothetically interact with the regulated environment.
-
-Important:
-TRUE if the article establishes rules, obligations, responsibilities, procedures, restrictions, authorizations, or oversight that could affect AI systems or organizations developing or using them — whether the impact is direct or indirect.
-Consider all domains where AI could be affected (data governance, digital infrastructure, automated decision-making, liability, security, compliance, etc.).
-FALSE if the article clearly has no plausible impact on AI systems, their development, or their use.
+Important interpretation rule:
+Do NOT imagine hypothetical AI applications. Only consider the activity that the law actually regulates.
+Classification rule:
+TRUE if the article regulates activities that inherently involve data processing, data analysis, information systems, automated decision-making, digital infrastructures, or analytical technologies where AI systems could realistically be used.
+FALSE if the article regulates purely physical activities, infrastructure, public behavior, construction, traffic, administrative procedures, or other domains that do not inherently involve computational or data-processing systems.
+Do not speculate about possible future AI uses. Base your decision only on the object of the legal rule.
 Legal text:
 {article_text}
 """
