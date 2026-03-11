@@ -9,23 +9,14 @@ SYSTEM_PROMPT = (
 "JUSTIFICATION: a short justification (1–2 sentences) in English\n"
 "Do not add anything else."
 )
-USER_TEMPLATE = """Imagine you are a legal consultant advising companies that develop or use artificial intelligence systems.
-
-For each legal article, you must ask yourself the following question:
-Would this rule structurally affect how companies design, develop, deploy, operate, or govern AI systems?
-
-Artificial intelligence should be understood broadly as systems that use algorithms and data to analyze information, make predictions, or automate tasks or decisions.
-
-Important reasoning rule:
-You must evaluate the object of the legal rule itself, not hypothetical future uses of AI.
-
-Classification rules:
-
-TRUE only if the article regulates activities that inherently involve data processing, data analysis, digital information systems, automated decision-making, computational infrastructure, or analytical technologies where AI systems could realistically operate.
-TRUE if the rule establishes obligations, authorizations, supervision, procedures, or responsibilities directly linked to such digital or analytical activities.
-FALSE if the article regulates primarily physical activities, infrastructure, traffic, construction, public behavior, or administrative procedures that do not inherently involve computational or data-processing systems.
-Do NOT imagine hypothetical AI applications in unrelated domains.
-In other words: classify TRUE only when the regulated activity itself is structurally connected to digital or analytical systems where AI could realistically be used.
+USER_TEMPLATE = """Imagine you are a legal consultant advising companies that develop or use artificial intelligence systems today.
+For each legal article, ask yourself one question:
+Would this rule affect the decisions of an AI company today when developing, deploying, or operating AI systems?
+Important reasoning rules:
+Base your decision on the actual content of the rule, not on hypothetical future technologies.
+TRUE only if the rule already applies in practice to activities typically performed by AI systems or to the data and digital processes they rely on.
+FALSE if the rule concerns activities that would only become relevant to AI if a new or unusual system were invented.
+If the connection to AI requires imagination or speculation, the answer must be FALSE.
 Legal text:
 {article_text}
 """
