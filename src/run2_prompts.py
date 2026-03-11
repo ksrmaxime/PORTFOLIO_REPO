@@ -9,14 +9,23 @@ SYSTEM_PROMPT = (
 "JUSTIFICATION: a short justification (1–2 sentences) in English\n"
 "Do not add anything else."
 )
-USER_TEMPLATE = """Decide whether this legal article regulates an activity that could realistically involve artificial intelligence systems.
+USER_TEMPLATE = """Imagine you are a legal consultant advising companies that develop or use artificial intelligence systems.
+
+For each legal article, you must ask yourself the following question:
+Would this rule structurally affect how companies design, develop, deploy, operate, or govern AI systems?
+
 Artificial intelligence should be understood broadly as systems that use algorithms and data to analyze information, make predictions, or automate tasks or decisions.
-Important interpretation rule:
-Do NOT imagine hypothetical AI applications. Only consider the activity that the law actually regulates.
-Classification rule:
-TRUE if the article regulates activities that inherently involve data processing, data analysis, information systems, automated decision-making, digital infrastructures, or analytical technologies where AI systems could realistically be used.
-FALSE if the article regulates purely physical activities, infrastructure, public behavior, construction, traffic, administrative procedures, or other domains that do not inherently involve computational or data-processing systems.
-Do not speculate about possible future AI uses. Base your decision only on the object of the legal rule.
+
+Important reasoning rule:
+You must evaluate the object of the legal rule itself, not hypothetical future uses of AI.
+
+Classification rules:
+
+TRUE only if the article regulates activities that inherently involve data processing, data analysis, digital information systems, automated decision-making, computational infrastructure, or analytical technologies where AI systems could realistically operate.
+TRUE if the rule establishes obligations, authorizations, supervision, procedures, or responsibilities directly linked to such digital or analytical activities.
+FALSE if the article regulates primarily physical activities, infrastructure, traffic, construction, public behavior, or administrative procedures that do not inherently involve computational or data-processing systems.
+Do NOT imagine hypothetical AI applications in unrelated domains.
+In other words: classify TRUE only when the regulated activity itself is structurally connected to digital or analytical systems where AI could realistically be used.
 Legal text:
 {article_text}
 """
