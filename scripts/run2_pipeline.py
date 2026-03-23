@@ -77,6 +77,9 @@ def main() -> int:
 
     df = pd.read_parquet(args.input) if args.input.endswith(".parquet") else pd.read_csv(args.input)
 
+    if "row_id" not in df.columns:
+        df.insert(0, "row_id", range(len(df)))
+
     send_mask = build_articles_to_send_mask(
         df,
         level_col=args.level_col,
