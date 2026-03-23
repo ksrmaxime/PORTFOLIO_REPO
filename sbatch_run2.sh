@@ -51,25 +51,47 @@ PRED_CSV="${OUTBASE}_job${SLURM_JOB_ID}.csv"
 # ton fichier "gold" (humain) ici:
 GOLD_CSV="data/external/RUN2_GOLD.csv"
 
-# capture du score (ligne: "Similarity: 51.08%")
-SCORE=$(python scripts/score.py \
+# dossier temporaire pour l'évaluation
+TEMP_RUN_DIR="data/output/run2_job${SLURM_JOB_ID}"
+mkdir -p "$TEMP_RUN_DIR"
+
+# run evaluation and capture stdout
+SCORE_LOG=$(python scripts/score.py \
   --pred "$PRED_CSV" \
   --gold "$GOLD_CSV" \
   --use_row_order \
-  --id_col __row__ \
   --cols RELEVANT_ART \
-  | awk '/Similarity:/ {gsub(/%/,"",$2); print $2}')
+  --col_kinds RELEVANT_ART=label \
+  --report_dir "$TEMP_RUN_DIR/eval")
+
+echo "$SCORE_LOG"
+
+# extract numeric similarity from stdout
+SCORE=$(echo "$SCORE_LOG" | awk '/^Similarity:/ {gsub(/%/,"",$2); print $2; exit}')
+SCORE=${SCORE:-NA}
 
 # normaliser pour nom de dossier (51.08 -> 51p08)
-SCORE_TAG=$(printf "%.2f" "$SCORE" | tr '.' 'p')
+if [ "$SCORE" = "NA" ]; then
+  RUN_DIR="data/output/run2_no_score_job${SLURM_JOB_ID}"
+else
+  SCORE_TAG=$(printf "%.2f" "$SCORE" | tr '.' 'p')
+  RUN_DIR="data/output/run2_${SCORE_TAG}_job${SLURM_JOB_ID}"
+fi
 
-RUN_DIR="data/output/run2_${SCORE_TAG}"
 mkdir -p "$RUN_DIR"
 
 # --- Archive: outputs + prompt ---
-cp "$PRED_CSV" "$RUN_DIR/"
-cp "src/run2_prompts.py" "$RUN_DIR/prompts_used.py"
-cp "$0" "$RUN_DIR/sbatch_used.sbatch"
+cp "$PRED_CSV" "$RUN_DIR/" || true
+cp "src/run2_prompts.py" "$RUN_DIR/prompts_used.py" || true
+cp "$0" "$RUN_DIR/sbatch_used.sbatch" || true
+
+# move eval reports
+if [ -d "$TEMP_RUN_DIR/eval" ]; then
+  mv "$TEMP_RUN_DIR/eval" "$RUN_DIR/eval"
+fi
+
+# cleanup temp dir if empty
+rmdir "$TEMP_RUN_DIR" 2>/dev/null || true
 
 echo "Archived in: $RUN_DIR"
 echo "Score: ${SCORE}%"
