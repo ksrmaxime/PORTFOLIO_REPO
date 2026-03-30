@@ -9,35 +9,38 @@ SYSTEM_PROMPT = (
 "JUSTIFICATION: a short justification (1–2 sentences) in English\n"
 "Do not add anything else."
 )
-USER_TEMPLATE = """Imagine you are a legal consultant advising companies that develop or use artificial intelligence systems.
+USER_TEMPLATE = """You are a legal expert specializing in AI law and policy.
 
-For each legal article, you must ask yourself the following question:
-Would this rule structurally affect how companies design, develop, deploy, operate, or govern AI systems?
+Your task: determine whether a legal article has a DIRECT and SIGNIFICANT impact on the development, deployment, or governance of artificial intelligence — broadly understood.
 
-Artificial intelligence means systems that use machine learning, neural networks, statistical models, or similar techniques to learn from data, make predictions, generate content, or automate decisions in ways that go beyond simple rule-based logic.
+AI should be understood in all its dimensions: technical systems, data ecosystems, digital infrastructure, economic conditions, societal frameworks, and fundamental rights that shape how AI is built and used.
 
-Important reasoning rules:
-1. You must evaluate the object of the legal rule itself, not hypothetical future uses of AI.
-2. CRITICAL: In Swiss legal texts, the abbreviation "AI" or "office AI" stands for "assurance-invalidité" (disability insurance) — this has NOTHING to do with artificial intelligence. Do NOT treat such references as AI-relevant.
-3. General databases, registries, or administrative information systems are NOT AI systems, even if they process data electronically.
+--- STEP 1: Identify what the article actually regulates ---
+Ask yourself: what is the core subject matter of this article? What activity, right, obligation, or relationship does it govern?
 
-Classification rules:
+--- STEP 2: Apply the directness test ---
+Ask yourself: would a lawyer specializing in AI law cite this article in a regulatory analysis of the AI sector? Would it appear in a compliance memo for a company developing or deploying AI?
 
-TRUE only if the article specifically and directly governs one or more of the following:
-- AI/ML systems themselves (algorithmic models, machine learning, neural networks, automated decision-making by algorithms)
-- Autonomous or self-learning systems (e.g., autonomous vehicles, robotics with adaptive behavior)
-- Algorithmic accountability, transparency, or explainability obligations
-- Training data, datasets used for AI model development
-- Automated profiling, scoring, or AI-generated recommendations with legal or significant effects
+An article has direct impact if it governs any of the following dimensions:
 
-FALSE if the article governs any of the following, even if digital systems are involved:
-- Physical infrastructure, traffic rules, construction, or public order
-- Administrative registries, databases, or information systems used for record-keeping (not AI decision-making)
-- Standard data protection rules that apply generally to any personal data, not specifically to AI
-- Procedures, authorizations, or supervision of human experts (doctors, officers, etc.)
-- Social insurance matters (disability insurance "AI/assurance-invalidité", old-age insurance "AVS", etc.)
-- Copyright or intellectual property management not specifically tied to AI-generated content
-- Any regulated activity where AI is only a hypothetical future application
+1. DATA — rules on collection, use, storage, sharing, or protection of personal or non-personal data that affect how AI systems are trained or operated
+2. AUTOMATED SYSTEMS — rules on algorithmic decision-making, automated processing, autonomous systems, or AI-specific obligations (transparency, explainability, human oversight)
+3. DIGITAL INFRASTRUCTURE — rules on computing infrastructure, cloud services, connectivity, or platforms that underpin AI systems
+4. TECHNOLOGY POLICY — rules on public funding, research, digital transformation, or technology investment that shape the AI ecosystem
+5. EDUCATION & WORKFORCE — rules on digital skills, AI literacy, research programs, or professional qualifications in relevant technical fields
+6. INTELLECTUAL PROPERTY — rules on authorship, copyright, patents, or ownership that apply to AI-generated content, AI-assisted creation, or training data
+7. FUNDAMENTAL RIGHTS & ETHICS — rules on non-discrimination, privacy, human dignity, or due process that directly constrain or shape how AI may be used
+8. SECTOR-SPECIFIC AI APPLICATIONS — rules in sectors where AI plays a structurally important role (healthcare diagnostics, autonomous vehicles, financial scoring, content moderation, etc.)
+
+An article does NOT have direct impact if:
+- The connection to AI requires imagining a hypothetical future application not implied by the article itself
+- It governs purely physical activities, human expert procedures, or administrative processes with no inherent computational dimension
+- It is a generic administrative rule (inter-agency data sharing, organizational structure, procedural timelines) whose AI relevance is incidental
+- Digital systems appear only as a delivery mechanism for a non-AI activity
+
+--- STEP 3: Classify ---
+If the article has a direct and significant impact on any dimension above → TRUE
+If the article's connection to AI is absent, indirect, or merely hypothetical → FALSE
 
 Legal text:
 {article_text}
