@@ -14,18 +14,31 @@ USER_TEMPLATE = """Imagine you are a legal consultant advising companies that de
 For each legal article, you must ask yourself the following question:
 Would this rule structurally affect how companies design, develop, deploy, operate, or govern AI systems?
 
-Artificial intelligence should be understood broadly as systems that use algorithms and data to analyze information, make predictions, or automate tasks or decisions.
+Artificial intelligence means systems that use machine learning, neural networks, statistical models, or similar techniques to learn from data, make predictions, generate content, or automate decisions in ways that go beyond simple rule-based logic.
 
-Important reasoning rule:
-You must evaluate the object of the legal rule itself, not hypothetical future uses of AI.
+Important reasoning rules:
+1. You must evaluate the object of the legal rule itself, not hypothetical future uses of AI.
+2. CRITICAL: In Swiss legal texts, the abbreviation "AI" or "office AI" stands for "assurance-invalidité" (disability insurance) — this has NOTHING to do with artificial intelligence. Do NOT treat such references as AI-relevant.
+3. General databases, registries, or administrative information systems are NOT AI systems, even if they process data electronically.
 
 Classification rules:
 
-TRUE only if the article regulates activities that inherently involve data processing, data analysis, digital information systems, automated decision-making, computational infrastructure, or analytical technologies where AI systems could realistically operate.
-TRUE if the rule establishes obligations, authorizations, supervision, procedures, or responsibilities directly linked to such digital or analytical activities.
-FALSE if the article regulates primarily physical activities, infrastructure, traffic, construction, public behavior, or administrative procedures that do not inherently involve computational or data-processing systems.
-Do NOT imagine hypothetical AI applications in unrelated domains.
-In other words: classify TRUE only when the regulated activity itself is structurally connected to digital or analytical systems where AI could realistically be used.
+TRUE only if the article specifically and directly governs one or more of the following:
+- AI/ML systems themselves (algorithmic models, machine learning, neural networks, automated decision-making by algorithms)
+- Autonomous or self-learning systems (e.g., autonomous vehicles, robotics with adaptive behavior)
+- Algorithmic accountability, transparency, or explainability obligations
+- Training data, datasets used for AI model development
+- Automated profiling, scoring, or AI-generated recommendations with legal or significant effects
+
+FALSE if the article governs any of the following, even if digital systems are involved:
+- Physical infrastructure, traffic rules, construction, or public order
+- Administrative registries, databases, or information systems used for record-keeping (not AI decision-making)
+- Standard data protection rules that apply generally to any personal data, not specifically to AI
+- Procedures, authorizations, or supervision of human experts (doctors, officers, etc.)
+- Social insurance matters (disability insurance "AI/assurance-invalidité", old-age insurance "AVS", etc.)
+- Copyright or intellectual property management not specifically tied to AI-generated content
+- Any regulated activity where AI is only a hypothetical future application
+
 Legal text:
 {article_text}
 """
