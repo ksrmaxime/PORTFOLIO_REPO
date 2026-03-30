@@ -49,7 +49,7 @@ python scripts/run1_pipeline.py \
 PRED_CSV="${OUTBASE}_job${SLURM_JOB_ID}.csv"
 
 # ton fichier "gold" (humain) ici:
-GOLD_CSV="data/external/RUN1_GOLD.csv"
+GOLD_CSV="data/external/RAIN_RUN1_EMILE_GOLD.csv"
 
 # dossier temporaire pour l'évaluation
 TEMP_RUN_DIR="data/output/run1_job${SLURM_JOB_ID}"
