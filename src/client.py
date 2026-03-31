@@ -26,11 +26,9 @@ class TransformersClient:
             trust_remote_code=cfg.trust_remote_code,
         )
 
-        # Stabilise padding + évite warnings/bugs
-        # (le slicing correct ci-dessous marche même sans ça, mais c'est plus propre)
-        self.tok.padding_side = "right"
+        # Decoder-only models require left padding for correct batch generation
+        self.tok.padding_side = "left"
         if self.tok.pad_token_id is None:
-            # fallback standard pour causal LM
             self.tok.pad_token = self.tok.eos_token
 
         dtype = torch.bfloat16 if cfg.dtype == "bf16" else torch.float16
@@ -72,11 +70,16 @@ class TransformersClient:
                 )
             )
 
+        max_len = getattr(self.tok, "model_max_length", None)
+        if max_len is None or max_len > 32768:
+            max_len = 4096
+
         enc = self.tok(
             prompts,
             return_tensors="pt",
             padding=True,
             truncation=True,
+            max_length=max_len,
         )
         enc = {k: v.to(self.model.device) for k, v in enc.items()}
 

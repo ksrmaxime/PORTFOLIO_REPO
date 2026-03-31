@@ -23,6 +23,8 @@ OUTBASE="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_
 cd "$WORKDIR"
 source .venv/bin/activate
 
+export PYTORCH_ALLOC_CONF=expandable_segments:True
+
 mkdir -p logs "$OUTDIR"
 
 echo "=== SLURM ==="
@@ -41,7 +43,7 @@ python scripts/run1_pipeline.py \
   --level_col level \
   --decision_col RELEVANT_ART \
   --justif_col  RELEVANT_ART_JUSTIF \
-  --batch_size 32 \
+  --batch_size 8 \
   --max_new_tokens 160 \
   --temperature 0.0
 
