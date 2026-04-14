@@ -15,7 +15,7 @@ from src.client import TransformersClient, LLMConfig
 from src.runner import run_llm_dataframe, RunConfig
 import run1_prompts as run1_prompts
 
-from run1_config import build_articles_to_send_mask
+from run1_config import build_articles_to_send_mask, enrich_with_context
 
 
 def parse_relevant_justif(raw: str):
@@ -80,10 +80,16 @@ def main() -> int:
     if "row_id" not in df.columns:
         df.insert(0, "row_id", range(len(df)))
 
+    df = enrich_with_context(
+        df,
+        text_col=args.text_col,
+        level_col=args.level_col,
+    )
+
     send_mask = build_articles_to_send_mask(
         df,
         level_col=args.level_col,
-        relevance_col=args.relevance_col,
+        text_col=args.text_col,
     )
 
     # ✅ crée uniquement 2 colonnes

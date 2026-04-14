@@ -3,81 +3,79 @@ from __future__ import annotations
 import pandas as pd
 
 
-def _get_relevance_col(df: pd.DataFrame) -> str:
-    # Tolérant : tu as parlé de RELEVANT_AI, mais run1 créait AI_RELEVANT
-    for c in ("RELEVANT_AI", "AI_RELEVANT"):
-        if c in df.columns:
-            return c
-    raise KeyError("Missing relevance column: expected RELEVANT_AI or AI_RELEVANT")
+def enrich_with_context(
+    df: pd.DataFrame,
+    *,
+    text_col: str = "text",
+    label_col: str = "label",
+    level_col: str = "level",
+) -> pd.DataFrame:
+    """
+    For each level-6 row, adds three context columns by scanning backward:
+      ctx_law_title     — label of the nearest preceding level-0 row
+      ctx_chapter_title — label of the nearest preceding level 1–4 row
+      ctx_article_title — label of the nearest preceding level-5 row
+    All other rows receive empty strings in these columns.
+    """
+    if level_col not in df.columns:
+        raise KeyError(f"Missing column: {level_col}")
+    if label_col not in df.columns:
+        raise KeyError(f"Missing column: {label_col}")
+
+    df = df.copy()
+    levels = pd.to_numeric(df[level_col], errors="coerce")
+    labels = df[label_col].fillna("").astype(str)
+
+    ctx_law: list[str] = []
+    ctx_chapter: list[str] = []
+    ctx_article: list[str] = []
+
+    cur_law = ""
+    cur_chapter = ""
+    cur_article = ""
+
+    for i in df.index:
+        lvl = levels.at[i]
+        if lvl == 0:
+            cur_law = labels.at[i]
+            cur_chapter = ""
+            cur_article = ""
+        elif lvl in (1, 2, 3, 4):
+            cur_chapter = labels.at[i]
+            cur_article = ""
+        elif lvl == 5:
+            cur_article = labels.at[i]
+
+        ctx_law.append(cur_law)
+        ctx_chapter.append(cur_chapter)
+        ctx_article.append(cur_article)
+
+    df["ctx_law_title"] = ctx_law
+    df["ctx_chapter_title"] = ctx_chapter
+    df["ctx_article_title"] = ctx_article
+
+    return df
+
 
 def build_articles_to_send_mask(
     df: pd.DataFrame,
     *,
     level_col: str = "level",
-    relevance_col: str | None = None,
+    text_col: str = "text",
+    relevance_col: str | None = None,  # kept for backward compat, unused
 ) -> pd.Series:
-
+    """
+    Returns a boolean mask selecting level-6 rows that have non-empty text.
+    Rows with empty or NaN text (abrogated articles) are excluded.
+    """
     if level_col not in df.columns:
         raise KeyError(f"Missing column: {level_col}")
 
     levels = pd.to_numeric(df[level_col], errors="coerce")
+    is_article = levels == 6
 
-    # Send ALL article rows
-    send = levels == 6
+    if text_col in df.columns:
+        has_text = df[text_col].notna() & (df[text_col].astype(str).str.strip() != "")
+        return is_article & has_text
 
-    return send
-
-# def build_articles_to_send_mask(
-#     df: pd.DataFrame,
-#     *,
-#     level_col: str = "level",
-#     relevance_col: str | None = None,
-# ) -> pd.Series:
-#     """
-#     Returns boolean mask over df.index for rows (level==6) that must be sent to LLM.
-
-#     Rules implemented:
-#     A) If a section/subchapter (level in 1..4) is marked True, then send ALL level==6 rows
-#        until the next level in 1..4 (regardless of level==5 True/False inside).
-#     B) If an article name row (level==5) is marked True but not inside an active True section,
-#        then send ONLY the immediately following row if it is level==6.
-#     """
-#     if level_col not in df.columns:
-#         raise KeyError(f"Missing column: {level_col}")
-
-#     rel_col = relevance_col or _get_relevance_col(df)
-
-#     levels = pd.to_numeric(df[level_col], errors="coerce")
-#     rel = df[rel_col]
-
-#     # Normalize relevance to pandas nullable boolean
-#     rel_bool = rel.astype("boolean")
-
-#     n = len(df)
-#     send = pd.Series(False, index=df.index)
-
-#     active_true_section = False
-
-#     # Iterate in original order (assumes parquet preserves structural order)
-#     # If you have a specific ordering column, sort before calling this.
-#     for i in range(n):
-#         lvl = levels.iat[i]
-#         r = rel_bool.iat[i]
-
-#         # Section boundaries: any level 1..4 row resets section state
-#         if lvl in (1, 2, 3, 4):
-#             active_true_section = bool(r) if pd.notna(r) else False
-#             continue
-
-#         # If inside a True section, send all article-text rows (level 6)
-#         if active_true_section:
-#             if lvl == 6:
-#                 send.iat[i] = True
-#             continue
-
-#         # Outside True section: special case level 5 marked True -> send next row if level 6
-#         if lvl == 5 and pd.notna(r) and bool(r) is True:
-#             if i + 1 < n and levels.iat[i + 1] == 6:
-#                 send.iat[i + 1] = True
-
-#     return send
+    return is_article
