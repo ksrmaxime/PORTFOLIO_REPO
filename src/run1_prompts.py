@@ -9,38 +9,43 @@ SYSTEM_PROMPT = (
 "JUSTIFICATION: a short justification (1–2 sentences) in English\n"
 "Do not add anything else."
 )
-USER_TEMPLATE = """You are a legal expert specializing in AI law and policy.
+USER_TEMPLATE = """You are a legal expert specializing in AI regulation.
 
-Your task: determine whether a legal article has a DIRECT and SIGNIFICANT impact on the development, deployment, or governance of artificial intelligence — broadly understood.
+Your task: determine whether a legal article directly regulates at least one of the following five variables. These variables are defined as the concrete regulatory targets that shape how AI is developed or used.
 
-AI should be understood in all its dimensions: technical systems, data ecosystems, digital infrastructure, economic conditions, societal frameworks, and fundamental rights that shape how AI is built and used.
+--- THE FIVE REGULATORY TARGETS ---
 
---- STEP 1: Identify what the article actually regulates ---
-Ask yourself: what is the core subject matter of this article? What activity, right, obligation, or relationship does it govern?
+DEVELOPMENT SIDE:
 
---- STEP 2: Apply the directness test ---
-Ask yourself: would a lawyer specializing in AI law cite this article in a regulatory analysis of the AI sector? Would it appear in a compliance memo for a company developing or deploying AI?
+1. SKILLS
+   Rules governing education, academic research, or professional training in digital and technology fields.
+   Rules on public funding, grants, or subsidies directed at technology development or innovation.
+   Examples: university programs in computer science, research funding for tech sectors, digital skills curricula.
 
-An article has direct impact if it governs any of the following dimensions:
+2. INFRASTRUCTURE
+   Rules governing computing infrastructure relevant to AI: servers, data centres, cloud facilities, their security, maintenance, or national/federal deployment.
+   Examples: regulations on data centre construction, national computing capacity, cybersecurity standards for critical digital infrastructure.
 
-1. DATA — rules on collection, use, storage, sharing, or protection of personal or non-personal data that affect how AI systems are trained or operated
-2. AUTOMATED SYSTEMS — rules on algorithmic decision-making, automated processing, autonomous systems, or AI-specific obligations (transparency, explainability, human oversight)
-3. DIGITAL INFRASTRUCTURE — rules on computing infrastructure, cloud services, connectivity, or platforms that underpin AI systems
-4. TECHNOLOGY POLICY — rules on public funding, research, digital transformation, or technology investment that shape the AI ecosystem
-5. EDUCATION & WORKFORCE — rules on digital skills, AI literacy, research programs, or professional qualifications in relevant technical fields
-6. INTELLECTUAL PROPERTY — rules on authorship, copyright, patents, or ownership that apply to AI-generated content, AI-assisted creation, or training data
-7. FUNDAMENTAL RIGHTS & ETHICS — rules on non-discrimination, privacy, human dignity, or due process that directly constrain or shape how AI may be used
-8. SECTOR-SPECIFIC AI APPLICATIONS — rules in sectors where AI plays a structurally important role (healthcare diagnostics, autonomous vehicles, financial scoring, content moderation, etc.)
+3. TRAINING DATA
+   Rules governing the acquisition, access, or use of large-scale datasets for the purpose of training machine learning models.
+   This covers data collection practices, licensing of datasets, or restrictions on mass data harvesting — NOT the individual inputs or outputs of a deployed AI system.
+   Examples: rules on bulk web scraping, dataset licensing frameworks, obligations when collecting data for model training.
 
-An article does NOT have direct impact if:
-- The connection to AI requires imagining a hypothetical future application not implied by the article itself
-- It governs purely physical activities, human expert procedures, or administrative processes with no inherent computational dimension
-- It is a generic administrative rule (inter-agency data sharing, organizational structure, procedural timelines) whose AI relevance is incidental
-- Digital systems appear only as a delivery mechanism for a non-AI activity
+USAGE SIDE:
 
---- STEP 3: Classify ---
-If the article has a direct and significant impact on any dimension above → TRUE
-If the article's connection to AI is absent, indirect, or merely hypothetical → FALSE
+4. INPUT
+   Rules that constrain or govern what information can be submitted to an AI system.
+   This includes: personal data protection rules, cross-border data transfer restrictions, limits on what government agencies may process, and data collection by cameras or sensors feeding into integrated AI systems.
+   Examples: privacy laws restricting what data users may enter, rules on biometric data capture for AI-powered surveillance.
+
+5. OUTPUT
+   Rules that govern what an AI system produces or the consequences of its outputs.
+   This includes: AI-generated text, images, or creative works; decisions made by automated systems; actions taken by autonomous systems such as self-driving vehicles.
+   Examples: liability rules for autonomous vehicle accidents, copyright rules for AI-generated content, accountability requirements for automated decisions.
+
+--- CLASSIFICATION RULE ---
+If the article directly regulates at least one of these five variables → TRUE
+If the article does not regulate any of these variables → FALSE
 
 Legal text:
 {article_text}
