@@ -14,11 +14,23 @@ USER_TEMPLATE = """You are a legal expert building a cross-national comparative 
 
 Your task: determine whether this legal article governs at least one of the six regulatory targets below.
 
---- STEP 1: PRELIMINARY FILTER — DELEGATION ARTICLES ---
-If the article does nothing more than grant an authority the power to regulate a topic in the future
-(e.g. "The Federal Council shall regulate...", "The authority may issue provisions on..."),
-without itself creating any substantive rule, obligation, or right → classify as FALSE immediately.
-The implementing regulation that follows may be relevant, but the delegation itself is not.
+--- STEP 1: PRELIMINARY FILTER — PURE DELEGATION ARTICLES ---
+Some articles only grant an authority the power to regulate a topic, without themselves creating
+any substantive rule, obligation, or right. These are pure delegations → classify as FALSE immediately.
+
+Example of a pure delegation (→ FALSE):
+"The Federal Council shall regulate the organisation and operation of [system X]."
+Nothing substantive is said about X itself — the article only transfers regulatory power.
+
+However, an article is NOT a pure delegation if it also:
+- explicitly recognises or creates a new legal category relevant to AI (e.g. "vehicles equipped with
+  an automation system", "automated decision-making", "AI-generated works"), OR
+- grants a specific right or authorisation tied to an AI-relevant phenomenon (e.g. authorising
+  driverless operations under defined conditions), OR
+- establishes obligations on how an AI-relevant activity must be conducted.
+
+In these cases, the article is substantive even if it also delegates details to a lower authority.
+Apply the normal examination mode to it.
 
 --- STEP 2: READ THE LAW TITLE — CHOOSE YOUR EXAMINATION MODE ---
 
@@ -49,13 +61,9 @@ DEVELOPMENT SIDE (Mode A only) — ask: does this article DIRECTLY govern a reso
 "Directly" means one single link: the article governs X, and X is a resource AI needs.
 If the connection requires two or more steps (the article governs X → X relates to Y → Y is used by AI), it is too indirect → FALSE.
 
-USAGE SIDE (both modes) — ask: does this article SPECIFICALLY constrain how an AI or automated system operates, receives inputs, or produces outputs?
-General rules that apply equally to humans and machines do not qualify.
-What matters is whether the article creates obligations or rights specifically tied to automated processing or autonomous systems.
-
 --- THE SIX REGULATORY TARGETS ---
 
-DEVELOPMENT SIDE:
+DEVELOPMENT SIDE (examined in Mode A only):
 
 1. SKILLS
    Does this article directly govern education, research, or public funding SPECIFICALLY in digital or technical fields?
@@ -77,17 +85,45 @@ DEVELOPMENT SIDE:
    Qualifies for: tech-sector foreign investment screening, R&D tax incentives, technology-specific procurement rules, M&A rules in digital markets.
    Does not qualify for: general commercial, tax, or procurement law of broad application with no technology-specific dimension.
 
-USAGE SIDE:
+USAGE SIDE (examined in both modes, but with different criteria):
 
-5. INPUT
-   Does this article specifically constrain what data can be collected or processed by automated or AI systems?
-   Qualifies for: rules on automated data processing, algorithmic profiling, consent requirements for AI-driven collection, biometric data for surveillance or recognition systems, cross-border transfer rules for data fed into AI.
-   Does not qualify for: general privacy rules applying equally to manual human processing with no reference to automation.
+5. INPUT — what data flows into AI systems
 
-6. OUTPUT
-   Does this article specifically govern the results, decisions, or actions produced by automated or autonomous systems?
-   Qualifies for: rules explicitly governing automated decisions, AI-generated content, autonomous vehicles or robots acting without human control, liability for AI outputs, accountability for algorithmic decision-making.
-   Does not qualify for: general safety or liability rules applying to all operators (human or machine) with no specific reference to automation, sector regulations that predate automation and make no reference to it.
+   In MODE A (data, IP, telecom laws):
+   Requires explicit reference to automated or AI processing.
+   Qualifies for: automated data processing rules, algorithmic profiling, consent for AI-driven collection,
+   biometric surveillance systems, cross-border transfers for automated systems.
+   Does not qualify for: general privacy rules with no reference to automation.
+
+   In MODE B (other sectoral laws):
+   The article does NOT need to mention AI or automation explicitly.
+   Qualifies if the article regulates a SENSITIVE DATA TYPE that is a primary AI input in this sector
+   AND creates specific rights, restrictions, or obligations on how this data is collected or used.
+   Sensitive data types that qualify: biometric data (facial images, fingerprints, voice), genetic or
+   health data, behavioural data collected at scale (location, communications, browsing), financial
+   transaction data at individual level.
+   Does not qualify for: general professional confidentiality rules, administrative record-keeping with
+   no individual-level or large-scale dimension, sector rules unrelated to data collection.
+
+6. OUTPUT — what AI systems produce, decide, or do
+
+   In MODE A (data, IP, telecom laws):
+   Requires explicit reference to automated decisions or AI-generated content.
+   Qualifies for: automated decision-making rules, AI-generated content liability, algorithmic accountability.
+   Does not qualify for: general liability rules with no specific reference to automation.
+
+   In MODE B (other sectoral laws):
+   The article does NOT need to mention AI or automation explicitly.
+   Qualifies if the article regulates either:
+   (a) CONSEQUENTIAL DECISIONS affecting individuals in domains where AI systems produce such outcomes:
+       hiring or dismissal, credit or insurance assessments, medical diagnosis or treatment decisions,
+       administrative or judicial decisions, content moderation and publication;
+   (b) the behaviour or authorisation of PHYSICAL AUTONOMOUS SYSTEMS acting without continuous
+       human control: vehicles, robots, drones, or similar systems.
+   AND the article creates specific obligations, rights, or liability rules around how these decisions
+   or actions must be made, justified, challenged, or authorised.
+   Does not qualify for: general safety standards applying equally to human and automated operators,
+   sector rules that govern human professional conduct with no dimension of autonomous decision-making.
 
 --- REASONING STEPS ---
 
