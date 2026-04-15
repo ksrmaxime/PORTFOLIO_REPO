@@ -10,68 +10,59 @@ SYSTEM_PROMPT = (
 "Do not add anything else."
 )
 
-USER_TEMPLATE = """You are a legal expert building a cross-national comparative dataset of AI-relevant regulation.
+USER_TEMPLATE = """You are a legal expert classifying legal articles for a study on AI regulation.
 
-Determine whether this article governs at least one of the six targets below. Follow the three steps in order.
+== AI PRODUCTION CHAIN ==
 
---- STEP 1: DELEGATION CHECK ---
-Ask: does this article only state that an authority WILL regulate or decide something at a later stage?
-If YES → FALSE, stop here. A future regulation may be relevant, but this article is not.
-If the article itself grants a concrete authorisation ("authority X MAY do Y") or establishes a specific rule or obligation → it contains an instrument. Continue to Step 2.
+Building AI requires four types of resources (DEVELOPMENT SIDE):
+- SKILLS: the human capital that creates AI — researchers, engineers, and the education and funding that produces them.
+- COMPUTE: the physical infrastructure AI runs on — chips, servers, data centres, and cloud systems.
+- TRAINING DATA: the data AI learns from — governed by rules on what data can be collected, accessed, or reused at scale.
+- CAPITAL: the financial flows that fund AI development — investment rules, R&D incentives, and technology-sector funding.
 
---- STEP 2: SCOPE CHECK ---
-Ask: does the law title indicate that this law primarily governs one of the five development-side nodes of the AI production chain?
+Deploying AI creates two regulatory interfaces (USAGE SIDE):
+- INPUT: what goes into an AI system during use — data collected from individuals or sent to automated systems for processing.
+- OUTPUT: what AI systems produce — decisions affecting individuals, autonomous physical actions, AI-generated content, or intellectual property of those outputs.
 
-The five development nodes are:
-  - Supply of technical human capital and research (SKILLS)
-  - Computing hardware and infrastructure (COMPUTE)
-  - Data collection, access, and processing (TRAINING DATA)
-  - Investment and financial flows in technology (CAPITAL)
-  - Physical computing components and their trade (HARDWARE)
+== CLASSIFICATION TASK ==
 
-If YES → examine all six targets (1 to 6).
-If NO → examine ONLY targets 5 (INPUT) and 6 (OUTPUT).
+STEP 1 — Read the law title.
+Does this law primarily govern one of the four development-side resources (skills, compute, training data, capital)?
 
---- STEP 3: TARGET CHECK ---
+If YES → go to STEP 2A.
+If NO → go to STEP 2B.
 
-1. SKILLS — Rules specifically funding or organising the supply of technical human capital or research.
-   YES: digital skills programmes, tech R&D grants, computer science curricula, innovation subsidies.
-   NO: general labour law, general apprenticeship obligations, non-technical professional licensing.
+---
 
-2. COMPUTE — Rules specifically governing computing hardware or infrastructure.
-   YES: semiconductors, chips, export controls on computing components, data centres, servers, cloud, cybersecurity of computing systems.
-   NO: general telecom or telephone services, general energy or construction rules.
+STEP 2A — Development-side analysis.
+Does this article itself create a specific rule, right, or obligation that directly governs one of the four resources?
+Note: if the article only states that an authority will regulate the topic later, it creates no rule of its own → FALSE.
 
-3. TRAINING DATA — Rules governing large-scale data collection, access, or reuse.
-   YES: data protection rules on collection and processing, data access rights, scraping restrictions, dataset reuse rules.
-   NO: administrative record-keeping with no large-scale dimension, IP enforcement on counterfeit goods.
+- SKILLS: specific rules on technical education programmes, digital R&D funding, or innovation subsidies targeted at technology sectors.
+- COMPUTE: specific rules on computing hardware, data centres, servers, cloud infrastructure, or cybersecurity of computing systems.
+- TRAINING DATA: rules on data collection rights, bulk data access, processing authorisations, or reuse of datasets.
+- CAPITAL: rules on investment, funding, or market conditions specifically in technology sectors.
 
-4. CAPITAL — Rules specifically governing financial flows in technology sectors.
-   YES: tech-sector investment rules, foreign investment screening, R&D tax credits, tech-specific procurement.
-   NO: general commercial law, general tax law, general procurement with no technology-specific dimension.
+If the article governs one of these → TRUE.
+If it only delegates future regulation, or governs something unrelated → FALSE.
 
-5. INPUT — Rules creating specific rights or restrictions on data that enters or feeds AI systems.
-   YES if the article governs either:
-   (a) data explicitly destined for automated or AI processing (automated profiling, AI-driven collection, algorithmic processing), OR
-   (b) sensitive individual data — biometric, genetic, health, behavioural at scale, or financial — with specific rights or restrictions on how it is collected or used.
-   NO: general professional confidentiality, administrative data rules with no individual-level or large-scale dimension.
+---
 
-6. OUTPUT — Rules creating specific obligations or liability around what automated or autonomous systems produce.
-   YES if the article governs either:
-   (a) decisions or content explicitly produced by automated or AI systems (algorithmic decisions, AI-generated content), OR
-   (b) consequential decisions affecting individuals (hiring, credit, insurance, medical, administrative, judicial) OR physical autonomous systems (vehicles, robots, drones without continuous human control) — where the article establishes specific obligations, rights, or liability around how these decisions or actions are made.
-   NO: general safety or liability rules applying equally to human and automated operators with no specific dimension of autonomous decision-making.
+STEP 2B — Usage-side analysis.
+Does this article create a specific rule, right, or obligation that governs AI input or output?
 
-→ If at least one applicable target is governed → TRUE
-→ If no applicable target is governed, or the link requires multiple inferential steps → FALSE
-→ If genuinely uncertain → TRUE
+- INPUT: rules on what data can be collected from individuals or processed by automated systems — in particular: biometric data (face, fingerprint, voice), genetic or health data, behavioural data collected at scale, or data explicitly processed by automated systems.
+- OUTPUT: rules on what automated or autonomous systems produce or do — in particular: decisions affecting individuals (hiring, credit, medical, administrative), autonomous physical actions (vehicles, robots, drones acting without continuous human control), AI-generated content, or intellectual property rights over outputs produced by automated systems.
 
---- LEGAL CONTEXT ---
+If the article governs one of these → TRUE.
+If it governs something with no specific connection to AI input or output → FALSE.
+
+== LEGAL CONTEXT ==
 Law: {law_title}
 Chapter: {chapter_title}
 Article: {article_title}
 
---- LEGAL TEXT ---
+== LEGAL TEXT ==
 {article_text}
 """
 
