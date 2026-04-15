@@ -12,66 +12,66 @@ SYSTEM_PROMPT = (
 
 USER_TEMPLATE = """You are a legal expert building a cross-national comparative dataset of AI-relevant regulation.
 
-Your task: determine whether this legal article directly governs at least one of the six regulatory targets below. These targets map onto the AI production chain — from the resources needed to build AI systems, to the conditions under which they operate.
+Your task: determine whether this legal article governs at least one of the six regulatory targets below.
 
---- CRITICAL ANCHORING RULE ---
-An article qualifies ONLY IF its PRIMARY regulatory subject is one of the six targets.
-Do NOT classify an article as TRUE simply because AI could theoretically be deployed in that sector.
-The connection must exist in the article itself, not in a hypothetical future application.
+The correct test is DIFFERENT depending on which side of the AI production chain you are examining:
 
-Ask yourself: "Does this article govern the target directly, or does the link to AI only appear if I imagine an AI application that the article does not mention?"
-If the link requires imagination → FALSE.
+DEVELOPMENT SIDE — ask: does this article directly govern a resource that AI development depends on?
+The article qualifies even if it was written before AI existed, and even if it applies to other sectors too.
+What matters is whether the resource it governs (data, compute, skills, capital, hardware) is directly consumed by AI development.
+
+USAGE SIDE — ask: does this article specifically constrain how an AI or automated system operates, receives inputs, or produces outputs?
+General rules that apply equally to humans and machines do not qualify here.
+What matters is whether the article creates obligations or rights specifically tied to automated processing or autonomous systems.
 
 --- THE SIX REGULATORY TARGETS ---
 
-DEVELOPMENT SIDE (resources needed to build AI):
+DEVELOPMENT SIDE:
 
 1. SKILLS
-   Rules whose primary subject is the supply of human capital for technology development.
-   Covers: education and research programs in digital or technical fields; public funding for technology R&D; professional training in technical domains; grants or subsidies directed at technology or innovation sectors.
-   Does NOT cover: general education policy, professional licensing in non-technical fields, vocational training unrelated to technology.
+   Does this article govern education, research, training, or public funding in digital or technical fields?
+   Qualifies even if it also covers non-AI sectors, as long as technical or digital skills and research are within its scope.
 
 2. COMPUTE RESOURCES
-   Rules whose primary subject is the availability or operating conditions of computing hardware or infrastructure.
-   Covers: semiconductors and advanced chips — their production, trade, or export controls; data centres, servers, cloud infrastructure — their construction, operation, security, or energy requirements; network infrastructure underpinning digital services; cybersecurity obligations specifically targeting digital or computing infrastructure.
-   Does NOT cover: general energy policy, general construction regulations, telecommunications rules that do not specifically concern computing infrastructure.
+   Does this article govern the availability, conditions, or trade of computing hardware or infrastructure?
+   Qualifies for: semiconductors, chips, data centres, servers, cloud, digital networks, cybersecurity of computing infrastructure.
+   Does not qualify for: general energy or construction rules with no specific link to computing.
 
 3. TRAINING DATA
-   Rules whose primary subject is the acquisition of large-scale datasets for machine learning purposes.
-   Covers: rights to collect, access, or use bulk data for model training; restrictions on mass data harvesting or automated scraping; dataset licensing and access frameworks.
-   Does NOT cover: individual data protection rights in deployed systems (see INPUT), general statistical or administrative data collection unrelated to model training.
+   Does this article govern how data can be collected, accessed, or used at scale?
+   Qualifies for: data protection rules (they constrain what data can be used for training), bulk collection restrictions, data access rights, automated scraping rules.
+   The article does not need to mention AI — governing data as a resource is sufficient.
 
 4. CAPITAL
-   Rules whose primary subject is financial flows into AI and technology development.
-   Covers: foreign investment screening or restrictions in technology sectors; rules on mergers and acquisitions involving technology firms; R&D tax incentives; public procurement rules that shape the technology market; regulations on technology company financing or market access.
-   Does NOT cover: general corporate or commercial law, tax law of general application, standard public procurement rules not specific to technology.
+   Does this article govern financial flows or market conditions in technology sectors?
+   Qualifies for: tech-sector investment rules, foreign investment screening, R&D tax incentives, technology procurement, M&A rules in digital markets.
+   Does not qualify for: general commercial, tax, or procurement law with no technology-specific dimension.
 
-USAGE SIDE (conditions under which AI systems operate):
+USAGE SIDE:
 
 5. INPUT
-   Rules whose primary subject is what information can enter or be processed by a deployed AI system.
-   Covers: personal data protection and consent requirements applicable to automated processing; cross-border data transfer restrictions; limits on what public bodies may process automatically; data collection by sensors, cameras, or connected devices feeding AI systems; rules on biometric or sensitive data used as system inputs.
-   Does NOT cover: general privacy rules with no link to automated processing, surveillance rules applying exclusively to human operators.
+   Does this article specifically constrain what data can be collected or processed by automated or AI systems?
+   Qualifies for: rules on automated data processing, algorithmic profiling, consent for AI-driven collection, biometric data for surveillance or recognition systems, cross-border transfer rules for data fed into AI.
+   Does not qualify for: general privacy rules applying equally to manual human processing with no reference to automation.
 
 6. OUTPUT
-   Rules whose primary subject is the legal treatment of what AI or automated systems produce or decide.
-   Covers: liability, copyright, or authorship rules for AI-generated content; accountability or oversight requirements for automated decisions affecting individuals; rules explicitly governing autonomous systems making real-world decisions (vehicles, robots, agents); sector-specific obligations explicitly triggered by AI-produced results.
-   Does NOT cover: general traffic law governing human drivers (even in vehicles that could be automated), general liability rules of broad application with no AI-specific provision, sector regulations that predate AI and make no reference to automation.
+   Does this article specifically govern the results, decisions, or actions produced by automated or autonomous systems?
+   Qualifies for: rules explicitly governing automated decisions, AI-generated content, autonomous vehicles or robots, liability for AI outputs, accountability requirements for algorithmic decision-making.
+   Does not qualify for: general safety or liability rules applying to all operators (human or machine) that make no specific reference to automation.
 
 --- REASONING STEPS ---
 
-STEP 1 — Identify the primary subject
-What is the core subject of this article? What activity, right, or obligation does it govern?
-State it in plain terms without projecting AI onto it.
+STEP 1 — Identify what the article governs
+Describe its primary subject in plain terms.
 
-STEP 2 — Apply the anchoring test
-Is this primary subject itself one of the six targets above?
-Or does the connection to the targets only emerge by imagining an AI application the article does not mention?
+STEP 2 — Apply the correct test
+Development side: does this article govern a resource (data, compute, skills, capital, hardware) that AI directly depends on?
+Usage side: does this article specifically constrain the operation, inputs, or outputs of automated systems?
 
 STEP 3 — Classify
-If the primary subject directly matches a target → TRUE
-If the connection requires imagining an AI application → FALSE
-If genuinely uncertain after Steps 1 and 2 → TRUE
+If yes to Step 2 for at least one target → TRUE
+If no for all targets → FALSE
+If genuinely uncertain → TRUE
 
 --- LEGAL CONTEXT ---
 Law: {law_title}
