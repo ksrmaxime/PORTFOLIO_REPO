@@ -10,59 +10,57 @@ SYSTEM_PROMPT = (
 "Do not add anything else."
 )
 
-USER_TEMPLATE = """You are a legal expert classifying legal articles for a study on AI regulation.
+USER_TEMPLATE = """You are classifying legal articles for a study on AI regulation.
 
-== AI PRODUCTION CHAIN ==
+== WHAT YOU ARE CLASSIFYING ==
+You are evaluating a SINGLE ARTICLE, not the law as a whole.
+Use the law title and chapter as context to understand the regulatory domain.
+Base your decision on what THIS ARTICLE'S TEXT itself governs.
+Different articles in the same law will have different answers.
 
-Building AI requires four types of resources (DEVELOPMENT SIDE):
-- SKILLS: the human capital that creates AI — researchers, engineers, and the education and funding that produces them.
-- COMPUTE: the physical infrastructure AI runs on — chips, servers, data centres, and cloud systems.
+== THE AI PRODUCTION CHAIN ==
+
+To BUILD AI, four resources are needed:
+- SKILLS: technical human capital — researchers, engineers, and the education and R&D funding that produces them.
+- COMPUTE: physical infrastructure — chips, servers, data centres, cloud systems.
 - TRAINING DATA: the data AI learns from — governed by rules on what data can be collected, accessed, or reused at scale.
-- CAPITAL: the financial flows that fund AI development — investment rules, R&D incentives, and technology-sector funding.
+- CAPITAL: financial flows — investment rules, R&D incentives, and tech-sector funding.
 
-Deploying AI creates two regulatory interfaces (USAGE SIDE):
-- INPUT: what goes into an AI system during use — data collected from individuals or sent to automated systems for processing.
-- OUTPUT: what AI systems produce — decisions affecting individuals, autonomous physical actions, AI-generated content, or intellectual property of those outputs.
+When AI is DEPLOYED, two interfaces are regulated:
+- INPUT: data collected from individuals or fed into automated systems during use.
+- OUTPUT: what AI systems produce — decisions affecting individuals, autonomous physical actions, AI-generated content, intellectual property of those outputs.
 
-== CLASSIFICATION TASK ==
+== CLASSIFICATION ==
 
-STEP 1 — Read the law title.
-Does this law primarily govern one of the four development-side resources (skills, compute, training data, capital)?
+Read the article text. Does it itself create a specific rule, right, or obligation — not merely delegate future regulation — that directly governs one of the following?
 
-If YES → go to STEP 2A.
-If NO → go to STEP 2B.
+DEVELOPMENT SIDE — apply these only if the law title indicates the law governs that resource:
 
----
+  SKILLS: rules specifically funding or organising technical education programmes, digital R&D, or innovation subsidies in technology sectors.
 
-STEP 2A — Development-side analysis.
-Does this article itself create a specific rule, right, or obligation that directly governs one of the four resources?
-Note: if the article only states that an authority will regulate the topic later, it creates no rule of its own → FALSE.
+  COMPUTE: rules specifically governing computing hardware (chips, semiconductors), data centres, servers, cloud infrastructure, or cybersecurity of computing systems.
 
-- SKILLS: specific rules on technical education programmes, digital R&D funding, or innovation subsidies targeted at technology sectors.
-- COMPUTE: specific rules on computing hardware, data centres, servers, cloud infrastructure, or cybersecurity of computing systems.
-- TRAINING DATA: rules on data collection rights, bulk data access, processing authorisations, or reuse of datasets.
-- CAPITAL: rules on investment, funding, or market conditions specifically in technology sectors.
+  TRAINING DATA: rules on data collection rights, bulk data access, processing authorisations, or reuse of datasets.
 
-If the article governs one of these → TRUE.
-If it only delegates future regulation, or governs something unrelated → FALSE.
+  CAPITAL: rules on investment, financing, or market conditions specifically targeting technology sectors.
 
----
+USAGE SIDE — apply these regardless of the law's domain:
 
-STEP 2B — Usage-side analysis.
-Does this article create a specific rule, right, or obligation that governs AI input or output?
+  INPUT: rules creating specific rights or restrictions on data collected from individuals or processed by automated systems — particularly biometric data (face, fingerprint, voice), genetic or health data, behavioural data collected at scale, or data explicitly destined for automated processing.
 
-- INPUT: rules on what data can be collected from individuals or processed by automated systems — in particular: biometric data (face, fingerprint, voice), genetic or health data, behavioural data collected at scale, or data explicitly processed by automated systems.
-- OUTPUT: rules on what automated or autonomous systems produce or do — in particular: decisions affecting individuals (hiring, credit, medical, administrative), autonomous physical actions (vehicles, robots, drones acting without continuous human control), AI-generated content, or intellectual property rights over outputs produced by automated systems.
+  OUTPUT: rules creating specific obligations, rights, or liability around what automated or autonomous systems produce — particularly decisions affecting individuals (hiring, credit, insurance, medical, administrative), autonomous physical systems (vehicles, robots, drones acting without continuous human control), AI-generated content, or intellectual property over outputs of automated systems.
 
-If the article governs one of these → TRUE.
-If it governs something with no specific connection to AI input or output → FALSE.
+An article that only states that an authority WILL regulate something later creates no rule of its own → FALSE.
+
+→ TRUE if the article text directly governs at least one of the above elements.
+→ FALSE if it governs something unrelated, or only delegates future regulation.
 
 == LEGAL CONTEXT ==
 Law: {law_title}
 Chapter: {chapter_title}
 Article: {article_title}
 
-== LEGAL TEXT ==
+== ARTICLE TEXT ==
 {article_text}
 """
 
