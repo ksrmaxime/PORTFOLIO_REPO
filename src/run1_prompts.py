@@ -14,21 +14,42 @@ USER_TEMPLATE = """You are a legal expert building a cross-national comparative 
 
 Your task: determine whether this legal article governs at least one of the six regulatory targets below.
 
---- PRELIMINARY FILTER: DELEGATION ARTICLES ---
+--- STEP 1: PRELIMINARY FILTER — DELEGATION ARTICLES ---
 If the article does nothing more than grant an authority the power to regulate a topic in the future
 (e.g. "The Federal Council shall regulate...", "The authority may issue provisions on..."),
-without itself creating any substantive rule, obligation, or right → classify as FALSE.
-The implementing regulation that will follow may be relevant, but the delegation itself is not.
+without itself creating any substantive rule, obligation, or right → classify as FALSE immediately.
+The implementing regulation that follows may be relevant, but the delegation itself is not.
+
+--- STEP 2: READ THE LAW TITLE — CHOOSE YOUR EXAMINATION MODE ---
+
+Look at the law title provided in the context and determine which examination mode applies.
+
+MODE A — FULL EXAMINATION (all six targets)
+Use this mode if the law primarily governs one of these development-side domains:
+  - Data, personal information, or privacy
+  - Computing, telecommunications, or digital infrastructure
+  - Research, universities, or higher education
+  - Financial markets, investment, or international trade
+  - Intellectual property, copyright, or patents
+
+In Mode A, examine the article against all six regulatory targets.
+
+MODE B — USAGE-SIDE ONLY
+Use this mode if the law governs any other domain (transport, health, environment, agriculture,
+criminal law, social affairs, culture, civil procedure, etc.).
+
+In Mode B, examine the article ONLY against INPUT and OUTPUT (targets 5 and 6).
+Do not classify as TRUE for development-side targets (1–4) unless the article text itself
+contains an explicit and direct reference to data collection infrastructure, computing systems,
+technical education funding, technology investment, or hardware trade — not inferred from the sector.
 
 --- THE TWO-SIDED TEST ---
 
-The correct test is DIFFERENT depending on which side of the AI production chain you are examining:
-
-DEVELOPMENT SIDE — ask: does this article DIRECTLY govern a resource that AI development depends on?
+DEVELOPMENT SIDE (Mode A only) — ask: does this article DIRECTLY govern a resource that AI development depends on?
 "Directly" means one single link: the article governs X, and X is a resource AI needs.
 If the connection requires two or more steps (the article governs X → X relates to Y → Y is used by AI), it is too indirect → FALSE.
 
-USAGE SIDE — ask: does this article SPECIFICALLY constrain how an AI or automated system operates, receives inputs, or produces outputs?
+USAGE SIDE (both modes) — ask: does this article SPECIFICALLY constrain how an AI or automated system operates, receives inputs, or produces outputs?
 General rules that apply equally to humans and machines do not qualify.
 What matters is whether the article creates obligations or rights specifically tied to automated processing or autonomous systems.
 
@@ -70,20 +91,23 @@ USAGE SIDE:
 
 --- REASONING STEPS ---
 
-STEP 1 — Preliminary check
-Does this article only delegate power to regulate, without itself creating a substantive rule? If yes → FALSE, stop here.
+STEP 1 — Delegation check
+Does this article only grant power to regulate without itself creating a substantive rule? If yes → FALSE, stop here.
 
-STEP 2 — Identify what the article governs
+STEP 2 — Choose examination mode
+Read the law title. Does it indicate a development-side domain (data, computing, research, finance, IP, trade)? → Mode A (all six targets). Otherwise → Mode B (INPUT and OUTPUT only).
+
+STEP 3 — Identify what the article governs
 Describe its primary subject in plain terms, without projecting AI onto it.
 
-STEP 3 — Apply the correct test
-Development side: is there a DIRECT, single-step link between what the article governs and a resource AI depends on?
-Usage side: does the article specifically constrain the operation, inputs, or outputs of automated systems?
+STEP 4 — Apply the correct test
+Mode A / development side: is there a direct, single-step link between what the article governs and a resource AI depends on?
+Both modes / usage side: does the article specifically constrain the operation, inputs, or outputs of automated systems?
 
-STEP 4 — Classify
-If yes to Step 3 for at least one target → TRUE
-If the link requires two or more steps, or applies to a general category where AI is just one sub-case → FALSE
-If genuinely uncertain after Steps 1–3 → TRUE
+STEP 5 — Classify
+If yes to Step 4 for at least one applicable target → TRUE
+If the link requires two or more steps, falls outside the applicable mode, or applies to a general category where AI is just one sub-case → FALSE
+If genuinely uncertain after Steps 1–4 → TRUE
 
 --- LEGAL CONTEXT ---
 Law: {law_title}
