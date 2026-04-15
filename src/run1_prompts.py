@@ -14,14 +14,22 @@ USER_TEMPLATE = """You are a legal expert building a cross-national comparative 
 
 Your task: determine whether this legal article governs at least one of the six regulatory targets below.
 
+--- PRELIMINARY FILTER: DELEGATION ARTICLES ---
+If the article does nothing more than grant an authority the power to regulate a topic in the future
+(e.g. "The Federal Council shall regulate...", "The authority may issue provisions on..."),
+without itself creating any substantive rule, obligation, or right → classify as FALSE.
+The implementing regulation that will follow may be relevant, but the delegation itself is not.
+
+--- THE TWO-SIDED TEST ---
+
 The correct test is DIFFERENT depending on which side of the AI production chain you are examining:
 
-DEVELOPMENT SIDE — ask: does this article directly govern a resource that AI development depends on?
-The article qualifies even if it was written before AI existed, and even if it applies to other sectors too.
-What matters is whether the resource it governs (data, compute, skills, capital, hardware) is directly consumed by AI development.
+DEVELOPMENT SIDE — ask: does this article DIRECTLY govern a resource that AI development depends on?
+"Directly" means one single link: the article governs X, and X is a resource AI needs.
+If the connection requires two or more steps (the article governs X → X relates to Y → Y is used by AI), it is too indirect → FALSE.
 
-USAGE SIDE — ask: does this article specifically constrain how an AI or automated system operates, receives inputs, or produces outputs?
-General rules that apply equally to humans and machines do not qualify here.
+USAGE SIDE — ask: does this article SPECIFICALLY constrain how an AI or automated system operates, receives inputs, or produces outputs?
+General rules that apply equally to humans and machines do not qualify.
 What matters is whether the article creates obligations or rights specifically tied to automated processing or autonomous systems.
 
 --- THE SIX REGULATORY TARGETS ---
@@ -29,49 +37,53 @@ What matters is whether the article creates obligations or rights specifically t
 DEVELOPMENT SIDE:
 
 1. SKILLS
-   Does this article govern education, research, training, or public funding in digital or technical fields?
-   Qualifies even if it also covers non-AI sectors, as long as technical or digital skills and research are within its scope.
+   Does this article directly govern education, research, or public funding SPECIFICALLY in digital or technical fields?
+   Qualifies for: digital skills programmes, computer science curricula, tech R&D funding, grants targeting innovation or technology sectors.
+   Does not qualify for: general labour law or apprenticeship obligations applied to tech-adjacent companies, general education policy, professional licensing in non-technical fields.
 
 2. COMPUTE RESOURCES
-   Does this article govern the availability, conditions, or trade of computing hardware or infrastructure?
-   Qualifies for: semiconductors, chips, data centres, servers, cloud, digital networks, cybersecurity of computing infrastructure.
-   Does not qualify for: general energy or construction rules with no specific link to computing.
+   Does this article directly govern the availability, conditions, or trade of COMPUTING hardware or infrastructure?
+   Qualifies for: semiconductors and chips (production, trade, export controls), data centres, servers, cloud infrastructure, cybersecurity obligations specifically targeting computing infrastructure.
+   Does not qualify for: general telecommunications networks or telephone services, general energy or construction rules, internet regulations with no specific link to computing infrastructure.
 
 3. TRAINING DATA
-   Does this article govern how data can be collected, accessed, or used at scale?
-   Qualifies for: data protection rules (they constrain what data can be used for training), bulk collection restrictions, data access rights, automated scraping rules.
-   The article does not need to mention AI — governing data as a resource is sufficient.
+   Does this article directly govern how data can be collected, accessed, or used at scale?
+   Qualifies for: data protection rules on bulk or automated collection, data access rights, restrictions on mass scraping, rules on reuse of public or private datasets.
+   Does not qualify for: copyright management oversight with no link to data collection, intellectual property enforcement rules whose object is counterfeit goods rather than data, general administrative data rules unrelated to large-scale processing.
 
 4. CAPITAL
-   Does this article govern financial flows or market conditions in technology sectors?
-   Qualifies for: tech-sector investment rules, foreign investment screening, R&D tax incentives, technology procurement, M&A rules in digital markets.
-   Does not qualify for: general commercial, tax, or procurement law with no technology-specific dimension.
+   Does this article directly govern financial flows or market conditions SPECIFICALLY in technology sectors?
+   Qualifies for: tech-sector foreign investment screening, R&D tax incentives, technology-specific procurement rules, M&A rules in digital markets.
+   Does not qualify for: general commercial, tax, or procurement law of broad application with no technology-specific dimension.
 
 USAGE SIDE:
 
 5. INPUT
    Does this article specifically constrain what data can be collected or processed by automated or AI systems?
-   Qualifies for: rules on automated data processing, algorithmic profiling, consent for AI-driven collection, biometric data for surveillance or recognition systems, cross-border transfer rules for data fed into AI.
+   Qualifies for: rules on automated data processing, algorithmic profiling, consent requirements for AI-driven collection, biometric data for surveillance or recognition systems, cross-border transfer rules for data fed into AI.
    Does not qualify for: general privacy rules applying equally to manual human processing with no reference to automation.
 
 6. OUTPUT
    Does this article specifically govern the results, decisions, or actions produced by automated or autonomous systems?
-   Qualifies for: rules explicitly governing automated decisions, AI-generated content, autonomous vehicles or robots, liability for AI outputs, accountability requirements for algorithmic decision-making.
-   Does not qualify for: general safety or liability rules applying to all operators (human or machine) that make no specific reference to automation.
+   Qualifies for: rules explicitly governing automated decisions, AI-generated content, autonomous vehicles or robots acting without human control, liability for AI outputs, accountability for algorithmic decision-making.
+   Does not qualify for: general safety or liability rules applying to all operators (human or machine) with no specific reference to automation, sector regulations that predate automation and make no reference to it.
 
 --- REASONING STEPS ---
 
-STEP 1 — Identify what the article governs
-Describe its primary subject in plain terms.
+STEP 1 — Preliminary check
+Does this article only delegate power to regulate, without itself creating a substantive rule? If yes → FALSE, stop here.
 
-STEP 2 — Apply the correct test
-Development side: does this article govern a resource (data, compute, skills, capital, hardware) that AI directly depends on?
-Usage side: does this article specifically constrain the operation, inputs, or outputs of automated systems?
+STEP 2 — Identify what the article governs
+Describe its primary subject in plain terms, without projecting AI onto it.
 
-STEP 3 — Classify
-If yes to Step 2 for at least one target → TRUE
-If no for all targets → FALSE
-If genuinely uncertain → TRUE
+STEP 3 — Apply the correct test
+Development side: is there a DIRECT, single-step link between what the article governs and a resource AI depends on?
+Usage side: does the article specifically constrain the operation, inputs, or outputs of automated systems?
+
+STEP 4 — Classify
+If yes to Step 3 for at least one target → TRUE
+If the link requires two or more steps, or applies to a general category where AI is just one sub-case → FALSE
+If genuinely uncertain after Steps 1–3 → TRUE
 
 --- LEGAL CONTEXT ---
 Law: {law_title}
