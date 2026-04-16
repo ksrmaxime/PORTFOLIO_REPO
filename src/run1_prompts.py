@@ -19,18 +19,22 @@ Your task: determine whether this legal article governs at least one of the six 
 Look at the law title provided in the context and determine which examination mode applies.
 
 MODE A — FULL EXAMINATION (all six targets)
-Use this mode if the law primarily governs one of these development-side domains:
+Use this mode ONLY if the law title explicitly indicates one of these five development-side domains — and no other:
   - Data, personal information, or privacy
   - Computing, telecommunications, or digital infrastructure
   - Research, universities, or higher education
   - Financial markets, investment, or international trade
   - Intellectual property, copyright, or patents
+This list is exhaustive. If the law title does not clearly and unambiguously fall into one of these five categories, use Mode B.
 
 In Mode A, examine the article against all six regulatory targets.
 
 MODE B — USAGE-SIDE ONLY
-Use this mode if the law governs any other domain (transport, health, environment, agriculture,
-criminal law, social affairs, culture, civil procedure, etc.).
+Use this mode for ALL other laws. This includes — but is not limited to — laws governing:
+transport and road traffic, health and medicine, environment and energy, agriculture and food,
+criminal law and public order, social affairs and labour, culture and media, civil procedure,
+construction and urban planning, or any other sectoral domain not listed under Mode A.
+When in doubt about which mode applies, default to Mode B.
 
 In Mode B, examine the article ONLY against INPUT and OUTPUT (targets 5 and 6).
 A positive match on target 5 or 6 alone is sufficient to classify the article as TRUE.
@@ -121,7 +125,8 @@ If the article contains at least one concrete regulatory instrument → proceed 
 If it contains only definitional, structural, or delegation-only provisions → FALSE.
 
 STEP 1 — Choose examination mode
-Read the law title. Does it indicate a development-side domain (data, computing, research, finance, IP, trade)? → Mode A (all six targets). Otherwise → Mode B (INPUT and OUTPUT only).
+Read the law title. Does it unambiguously match one of the five Mode A categories listed above (data/privacy, computing/telecom, research/education, financial markets/investment/trade, intellectual property)? → Mode A.
+If there is any doubt, or if the law governs a sectoral domain such as transport, health, environment, criminal law, or any domain not explicitly listed under Mode A → Mode B.
 
 STEP 2 — Identify what the article governs
 Describe its primary subject in plain terms, without projecting AI onto it.
