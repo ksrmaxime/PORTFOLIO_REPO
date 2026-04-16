@@ -10,138 +10,82 @@ SYSTEM_PROMPT = (
 "Do not add anything else."
 )
 
-USER_TEMPLATE = """You are a legal expert building a cross-national comparative dataset of AI-relevant regulation.
+USER_TEMPLATE = """You are a legal classifier. Follow the four steps below in order. Stop and output FALSE as soon as a step produces a negative result.
 
-Your task: determine whether this legal article governs at least one of the six regulatory targets below.
+━━━ STEP 0 — INSTRUMENT FILTER ━━━
+Does this article directly impose at least one of the following on any person, entity, or system?
+  • An obligation (must, shall, is required to)
+  • A prohibition (must not, is prohibited, may not)
+  • A conditional right or permission (may, provided that…)
+  • A liability rule or penalty
 
---- STEP 1: READ THE LAW TITLE — CHOOSE YOUR EXAMINATION MODE ---
+If NONE of the above → FALSE. Stop here.
+The following never qualify, regardless of content:
+  • Pure definitions ("for the purposes of this law, X means Y")
+  • Scope or purpose clauses ("this law applies to…", "the aim of this law is…")
+  • Bare competence assignments ("Authority X shall determine / regulate / set conditions for Y") that contain no substantive condition of their own
 
-Look at the law title provided in the context and determine which examination mode applies.
+━━━ STEP 1 — EXAMINATION MODE ━━━
+Does the law title unambiguously match one of these five domains — and no other?
+  (A1) Data, personal information, or privacy
+  (A2) Computing, telecommunications, or digital infrastructure
+  (A3) Research, universities, or higher education
+  (A4) Financial markets, investment, or international trade
+  (A5) Intellectual property, copyright, or patents
 
-MODE A — FULL EXAMINATION (all six targets)
-Use this mode ONLY if the law title explicitly indicates one of these five development-side domains — and no other:
-  - Data, personal information, or privacy
-  - Computing, telecommunications, or digital infrastructure
-  - Research, universities, or higher education
-  - Financial markets, investment, or international trade
-  - Intellectual property, copyright, or patents
-This list is exhaustive. If the law title does not clearly and unambiguously fall into one of these five categories, use Mode B.
+If YES → Mode A (test all six targets in Step 3).
+If NO or uncertain → Mode B (test only targets 5 and 6 in Step 3).
+Transport, health, environment, agriculture, criminal law, labour, culture, civil procedure, construction, and all other sectoral domains → always Mode B.
 
-In Mode A, examine the article against all six regulatory targets.
+━━━ STEP 2 — SUBJECT ━━━
+State in one sentence what this article governs, without any reference to AI or automation.
 
-MODE B — USAGE-SIDE ONLY
-Use this mode for ALL other laws. This includes — but is not limited to — laws governing:
-transport and road traffic, health and medicine, environment and energy, agriculture and food,
-criminal law and public order, social affairs and labour, culture and media, civil procedure,
-construction and urban planning, or any other sectoral domain not listed under Mode A.
-When in doubt about which mode applies, default to Mode B.
+━━━ STEP 3 — TARGET TEST ━━━
 
-In Mode B, examine the article ONLY against INPUT and OUTPUT (targets 5 and 6).
-A positive match on target 5 or 6 alone is sufficient to classify the article as TRUE.
-Do not classify as TRUE for development-side targets (1–4) unless the article text itself
-contains an explicit and direct reference to data collection infrastructure, computing systems,
-technical education funding, technology investment, or hardware trade — not inferred from the sector.
-Do not require a match on targets 1–4 before accepting a match on targets 5 or 6.
+⚠ ANTI-INFERENCE RULE (applies in all modes):
+A connection is valid only if the article directly governs the target.
+"AI may use or depend on what this article governs" is NEVER sufficient — that reasoning is always indirect → do not use it.
 
---- THE TWO-SIDED TEST ---
+— MODE A ONLY: DEVELOPMENT SIDE (targets 1–4) —
+Apply each target as a one-step test: the article governs X, and X is the resource. Two or more steps → FALSE for that target.
 
-DEVELOPMENT SIDE (Mode A only) — ask: does this article DIRECTLY govern a resource that AI development depends on?
-"Directly" means one single link: the article governs X, and X is a resource AI needs.
-If the connection requires two or more steps (the article governs X → X relates to Y → Y is used by AI), it is too indirect → FALSE.
+  1. SKILLS — Does the article directly govern education, research, or public funding specifically in digital or technical fields?
+     ✓ Digital skills programmes, computer science curricula, tech R&D funding, grants targeting innovation.
+     ✗ General labour law, general education policy, professional licensing in non-technical fields.
 
---- THE SIX REGULATORY TARGETS ---
+  2. COMPUTE — Does the article directly govern the availability, conditions, or trade of computing hardware or infrastructure?
+     ✓ Semiconductors, data centres, servers, cloud infrastructure, cybersecurity obligations for computing infrastructure.
+     ✗ General telecom networks, general energy or construction rules, internet rules with no specific computing link.
 
-DEVELOPMENT SIDE (examined in Mode A only):
+  3. TRAINING DATA — Does the article directly govern how data is collected, accessed, or used at scale?
+     ✓ Data protection for bulk or automated collection, data access rights, mass-scraping restrictions, dataset reuse rules.
+     ✗ IP enforcement targeting counterfeit goods, general administrative data rules unrelated to large-scale processing.
 
-1. SKILLS
-   Does this article directly govern education, research, or public funding SPECIFICALLY in digital or technical fields?
-   Qualifies for: digital skills programmes, computer science curricula, tech R&D funding, grants targeting innovation or technology sectors.
-   Does not qualify for: general labour law or apprenticeship obligations applied to tech-adjacent companies, general education policy, professional licensing in non-technical fields.
+  4. CAPITAL — Does the article directly govern financial flows or market conditions specifically in technology sectors?
+     ✓ Tech-sector foreign investment screening, R&D tax incentives, technology-specific procurement, M&A rules in digital markets.
+     ✗ General commercial, tax, or procurement law with no technology-specific dimension.
 
-2. COMPUTE RESOURCES
-   Does this article directly govern the availability, conditions, or trade of COMPUTING hardware or infrastructure?
-   Qualifies for: semiconductors and chips (production, trade, export controls), data centres, servers, cloud infrastructure, cybersecurity obligations specifically targeting computing infrastructure.
-   Does not qualify for: general telecommunications networks or telephone services, general energy or construction rules, internet regulations with no specific link to computing infrastructure.
+— BOTH MODES: USAGE SIDE (targets 5–6) —
 
-3. TRAINING DATA
-   Does this article directly govern how data can be collected, accessed, or used at scale?
-   Qualifies for: data protection rules on bulk or automated collection, data access rights, restrictions on mass scraping, rules on reuse of public or private datasets.
-   Does not qualify for: copyright management oversight with no link to data collection, intellectual property enforcement rules whose object is counterfeit goods rather than data, general administrative data rules unrelated to large-scale processing.
+  5. INPUT — Does the article impose specific obligations or restrictions on the collection or use of a sensitive data type?
+     Sensitive data types: biometric data (facial images, fingerprints, voice), genetic or health data, large-scale behavioural data (location, communications, browsing), individual-level financial transaction data.
+     Mode A: requires explicit reference to automated or AI processing.
+     Mode B: does not require explicit AI reference, but the article must directly govern the sensitive data type — not merely mention it incidentally.
+     ✗ General professional confidentiality, administrative record-keeping without individual-level or large-scale dimension.
 
-4. CAPITAL
-   Does this article directly govern financial flows or market conditions SPECIFICALLY in technology sectors?
-   Qualifies for: tech-sector foreign investment screening, R&D tax incentives, technology-specific procurement rules, M&A rules in digital markets.
-   Does not qualify for: general commercial, tax, or procurement law of broad application with no technology-specific dimension.
+  6. OUTPUT — Does the article specifically regulate what automated systems produce, decide, or do?
+     Mode A: requires explicit reference to automated decisions or AI-generated content.
+     Mode B: does not require explicit AI reference. Qualifies only if the article directly governs:
+       (a) Consequential individual decisions in these domains: hiring or dismissal, credit or insurance assessments, medical diagnosis or treatment, administrative or judicial decisions, content moderation — AND the article imposes specific obligations on how such decisions are made, justified, or challenged; OR
+       (b) The authorisation, operating conditions, or operator obligations of physical autonomous systems (vehicles, robots, drones) operating without continuous human control.
+     ✗ General safety or technical standards that apply equally to human and automated operators.
+     ✗ General infrastructure or environment rules that autonomous systems may incidentally use or depend on.
 
-USAGE SIDE (examined in both modes, but with different criteria):
-
-5. INPUT — what data flows into AI systems
-
-   In MODE A (data, IP, telecom laws):
-   Requires explicit reference to automated or AI processing.
-   Qualifies for: automated data processing rules, algorithmic profiling, consent for AI-driven collection,
-   biometric surveillance systems, cross-border transfers for automated systems.
-   Does not qualify for: general privacy rules with no reference to automation.
-
-   In MODE B (other sectoral laws):
-   The article does NOT need to mention AI or automation explicitly.
-   Qualifies if the article regulates a SENSITIVE DATA TYPE that is a primary AI input in this sector
-   AND creates specific rights, restrictions, or obligations on how this data is collected or used.
-   Sensitive data types that qualify: biometric data (facial images, fingerprints, voice), genetic or
-   health data, behavioural data collected at scale (location, communications, browsing), financial
-   transaction data at individual level.
-   Does not qualify for: general professional confidentiality rules, administrative record-keeping with
-   no individual-level or large-scale dimension, sector rules unrelated to data collection.
-
-6. OUTPUT — what AI systems produce, decide, or do
-
-   In MODE A (data, IP, telecom laws):
-   Requires explicit reference to automated decisions or AI-generated content.
-   Qualifies for: automated decision-making rules, AI-generated content liability, algorithmic accountability.
-   Does not qualify for: general liability rules with no specific reference to automation.
-
-   In MODE B (other sectoral laws):
-   The article does NOT need to mention AI or automation explicitly.
-   Qualifies if the article regulates either:
-   (a) CONSEQUENTIAL DECISIONS affecting individuals in domains where AI systems produce such outcomes:
-       hiring or dismissal, credit or insurance assessments, medical diagnosis or treatment decisions,
-       administrative or judicial decisions, content moderation and publication;
-   (b) the behaviour or authorisation of PHYSICAL AUTONOMOUS SYSTEMS acting without continuous
-       human control: vehicles, robots, drones, or similar systems.
-   AND the article creates specific obligations, rights, or liability rules around how these decisions
-   or actions must be made, justified, challenged, or authorised.
-   Does not qualify for: general safety standards applying equally to human and automated operators,
-   sector rules that govern human professional conduct with no dimension of autonomous decision-making.
-
---- REASONING STEPS ---
-
-STEP 0 — Preliminary filter: does the article contain a concrete regulatory instrument?
-A concrete regulatory instrument is any provision that directly imposes or creates at least one of the following on a person, entity, or system: an obligation, a prohibition, a permission with specific conditions, a right, a liability rule, or a penalty.
-The following are NOT concrete regulatory instruments and must be classified FALSE immediately, without proceeding to Steps 1–3:
-  - Pure definitions ("for the purposes of this law, X means Y")
-  - Pure purpose or scope clauses ("this law applies to…")
-  - Bare delegations of competence that only authorise a public authority to regulate a topic later, without themselves imposing any condition or restriction ("Authority X shall determine the conditions for Y")
-If the article contains at least one concrete regulatory instrument → proceed to Step 1.
-If it contains only definitional, structural, or delegation-only provisions → FALSE.
-
-STEP 1 — Choose examination mode
-Read the law title. Does it unambiguously match one of the five Mode A categories listed above (data/privacy, computing/telecom, research/education, financial markets/investment/trade, intellectual property)? → Mode A.
-If there is any doubt, or if the law governs a sectoral domain such as transport, health, environment, criminal law, or any domain not explicitly listed under Mode A → Mode B.
-
-STEP 2 — Identify what the article governs
-Describe its primary subject in plain terms, without projecting AI onto it.
-
-STEP 3 — Apply the correct test
-MODE A — development side (targets 1–4): is there a direct, single-step link between what the article governs and a resource AI depends on?
-BOTH MODES — usage side (targets 5–6): does the article specifically constrain the operation, inputs, or outputs of automated systems?
-MODE B RESTRICTION: in Mode B, targets 1–4 are out of scope. Do NOT evaluate them, do NOT mention whether they match or not, and do NOT let their absence affect your conclusion.
-
-STEP 4 — Classify
-The six targets are independent. ONE positive match on ANY applicable target is sufficient → TRUE.
-For Mode B articles, a match on target 5 or 6 alone is a fully valid TRUE outcome. The absence of a match on targets 1–4 is irrelevant and must not appear in your reasoning.
-CONTRADICTION GUARD: if your Step 3 analysis identified a positive match for any applicable target, you MUST output TRUE. Do not override a positive finding by noting that other targets were not matched.
-If the link requires two or more steps, falls outside the applicable mode, or applies to a general category where AI is just one sub-case → FALSE.
-If genuinely uncertain after Steps 1–3 → TRUE.
+━━━ STEP 4 — CLASSIFY ━━━
+One positive match on any applicable target → TRUE.
+No positive match → FALSE.
+CONTRADICTION GUARD: if Step 3 found a match on any target, output TRUE. Do not override a match by noting that other targets were not matched.
+In Mode B, do not mention targets 1–4. Their absence is irrelevant and must not appear in your reasoning.
 
 --- LEGAL CONTEXT ---
 Law: {law_title}
