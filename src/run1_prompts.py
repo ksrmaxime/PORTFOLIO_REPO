@@ -73,11 +73,12 @@ Apply each target as a one-step test: the article governs X, and X is the resour
      Mode B: does not require explicit AI reference, but the article must directly govern the sensitive data type — not merely mention it incidentally.
      ✗ General professional confidentiality, administrative record-keeping without individual-level or large-scale dimension.
 
-  6. OUTPUT — Does the article specifically regulate what automated systems produce, decide, or do?
+  6. AUTOMATED SYSTEMS — Does the article specifically regulate automated or autonomous systems themselves?
      Mode A: requires explicit reference to automated decisions or AI-generated content.
-     Mode B: does not require explicit AI reference. Qualifies only if the article directly governs:
+     Mode B: does not require explicit AI reference. Qualifies if the article directly governs at least one of:
        (a) Consequential individual decisions in these domains: hiring or dismissal, credit or insurance assessments, medical diagnosis or treatment, administrative or judicial decisions, content moderation — AND the article imposes specific obligations on how such decisions are made, justified, or challenged; OR
-       (b) The authorisation, operating conditions, or operator obligations of physical autonomous systems (vehicles, robots, drones) operating without continuous human control.
+       (b) Physical autonomous systems (vehicles, robots, drones) operating without continuous human control — including their authorisation to operate, the routes or zones where they may be used, the conditions under which they may act without a human on board, or the obligations of the operators who supervise them.
+     ✓ For (b): an article qualifies as soon as it imposes at least one condition, restriction, or obligation that applies specifically because the system operates autonomously — even if it does not mention AI or automation by that name.
      ✗ General safety or technical standards that apply equally to human and automated operators.
      ✗ General infrastructure or environment rules that autonomous systems may incidentally use or depend on.
 
