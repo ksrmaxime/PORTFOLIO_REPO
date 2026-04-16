@@ -111,6 +111,15 @@ USAGE SIDE (examined in both modes, but with different criteria):
 
 --- REASONING STEPS ---
 
+STEP 0 — Preliminary filter: does the article contain a concrete regulatory instrument?
+A concrete regulatory instrument is any provision that directly imposes or creates at least one of the following on a person, entity, or system: an obligation, a prohibition, a permission with specific conditions, a right, a liability rule, or a penalty.
+The following are NOT concrete regulatory instruments and must be classified FALSE immediately, without proceeding to Steps 1–3:
+  - Pure definitions ("for the purposes of this law, X means Y")
+  - Pure purpose or scope clauses ("this law applies to…")
+  - Bare delegations of competence that only authorise a public authority to regulate a topic later, without themselves imposing any condition or restriction ("Authority X shall determine the conditions for Y")
+If the article contains at least one concrete regulatory instrument → proceed to Step 1.
+If it contains only definitional, structural, or delegation-only provisions → FALSE.
+
 STEP 1 — Choose examination mode
 Read the law title. Does it indicate a development-side domain (data, computing, research, finance, IP, trade)? → Mode A (all six targets). Otherwise → Mode B (INPUT and OUTPUT only).
 
@@ -118,12 +127,13 @@ STEP 2 — Identify what the article governs
 Describe its primary subject in plain terms, without projecting AI onto it.
 
 STEP 3 — Apply the correct test
-Mode A / development side: is there a direct, single-step link between what the article governs and a resource AI depends on?
-Both modes / usage side: does the article specifically constrain the operation, inputs, or outputs of automated systems?
+MODE A — development side (targets 1–4): is there a direct, single-step link between what the article governs and a resource AI depends on?
+BOTH MODES — usage side (targets 5–6): does the article specifically constrain the operation, inputs, or outputs of automated systems?
+MODE B RESTRICTION: in Mode B, targets 1–4 are out of scope. Do NOT evaluate them, do NOT mention whether they match or not, and do NOT let their absence affect your conclusion.
 
 STEP 4 — Classify
 The six targets are independent. ONE positive match on ANY applicable target is sufficient → TRUE.
-For Mode B articles, finding a match only on targets 5 or 6 — with no match on targets 1–4 — is a fully valid TRUE outcome. Sectoral laws (transport, health, etc.) are expected to govern only the usage side.
+For Mode B articles, a match on target 5 or 6 alone is a fully valid TRUE outcome. The absence of a match on targets 1–4 is irrelevant and must not appear in your reasoning.
 CONTRADICTION GUARD: if your Step 3 analysis identified a positive match for any applicable target, you MUST output TRUE. Do not override a positive finding by noting that other targets were not matched.
 If the link requires two or more steps, falls outside the applicable mode, or applies to a general category where AI is just one sub-case → FALSE.
 If genuinely uncertain after Steps 1–3 → TRUE.
