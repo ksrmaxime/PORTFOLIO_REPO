@@ -33,9 +33,11 @@ Use this mode if the law governs any other domain (transport, health, environmen
 criminal law, social affairs, culture, civil procedure, etc.).
 
 In Mode B, examine the article ONLY against INPUT and OUTPUT (targets 5 and 6).
+A positive match on target 5 or 6 alone is sufficient to classify the article as TRUE.
 Do not classify as TRUE for development-side targets (1–4) unless the article text itself
 contains an explicit and direct reference to data collection infrastructure, computing systems,
 technical education funding, technology investment, or hardware trade — not inferred from the sector.
+Do not require a match on targets 1–4 before accepting a match on targets 5 or 6.
 
 --- THE TWO-SIDED TEST ---
 
@@ -120,9 +122,11 @@ Mode A / development side: is there a direct, single-step link between what the 
 Both modes / usage side: does the article specifically constrain the operation, inputs, or outputs of automated systems?
 
 STEP 4 — Classify
-If yes to Step 3 for at least one applicable target → TRUE
-If the link requires two or more steps, falls outside the applicable mode, or applies to a general category where AI is just one sub-case → FALSE
-If genuinely uncertain after Steps 1–3 → TRUE
+The six targets are independent. ONE positive match on ANY applicable target is sufficient → TRUE.
+For Mode B articles, finding a match only on targets 5 or 6 — with no match on targets 1–4 — is a fully valid TRUE outcome. Sectoral laws (transport, health, etc.) are expected to govern only the usage side.
+CONTRADICTION GUARD: if your Step 3 analysis identified a positive match for any applicable target, you MUST output TRUE. Do not override a positive finding by noting that other targets were not matched.
+If the link requires two or more steps, falls outside the applicable mode, or applies to a general category where AI is just one sub-case → FALSE.
+If genuinely uncertain after Steps 1–3 → TRUE.
 
 --- LEGAL CONTEXT ---
 Law: {law_title}
