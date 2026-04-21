@@ -16,9 +16,11 @@ QUESTION: Does this article address at least one of the ten public problems belo
 
 A provision qualifies if it represents a form of state intervention — binding or non-binding, financial, regulatory, or planning-oriented — that directly addresses one of these public problems. AI does not need to be mentioned explicitly.
 
-A provision does NOT qualify if it only defines terms, states purposes, or assigns regulatory competences to an authority without any substantive content of its own.
+A provision does NOT qualify if it only defines terms, states purposes, assigns regulatory competences to an authority without any substantive content of its own, or is a cross-reference that merely activates or applies other articles ("Article X applies", "the provisions of Y are applicable here").
 
 The connection must be direct. "This article governs X, which AI may use or depend on" is not sufficient.
+
+CLASSIFICATION RULE: if the article matches at least one public problem, answer TRUE. A match on a single problem is sufficient — do not require matches on multiple problems.
 
 --- THE TEN PUBLIC PROBLEMS ---
 
@@ -31,11 +33,11 @@ SKILLS
 4. Research — the state intervenes to fund or organize scientific research in digital or AI-related fields, because markets may underprovide this capacity.
 
 INFRASTRUCTURE
-5. Compute & hardware — the state intervenes to govern the availability, procurement, or trade of chips, HPC systems, servers, or cloud infrastructure for AI development.
+5. Compute & hardware — the state intervenes to govern the availability, procurement, or trade of chips, HPC systems, servers, or cloud infrastructure for AI development. Radio spectrum, satellite positions, and general telecommunications networks do not qualify.
 6. Data centers & energy — the state intervenes to govern the construction, operation, security, or energy provisioning of data centers hosting AI infrastructure.
 
 RISK & SOCIETAL HARMS
-7. High-stakes application governance — the state intervenes to govern automated or autonomous systems deployed in sensitive domains (transport, medicine, justice, finance). Qualifies even without explicit mention of AI if the article directly governs the authorisation, operating conditions, or operator obligations of such systems, or imposes specific requirements on consequential decisions affecting individuals.
+7. High-stakes application governance — the state intervenes to govern automated or autonomous systems deployed in sensitive domains (transport, medicine, justice, finance). Qualifies even without explicit mention of AI if the article directly governs the authorisation, operating conditions, or operator obligations of such systems, or imposes specific requirements on consequential decisions affecting individuals. General sector safety rules, infrastructure planning, or maintenance obligations that apply equally to human and automated operators do not qualify — the article must impose conditions that apply specifically because the system is automated or autonomous.
 8. Algorithmic accountability — the state intervenes to require explainability, auditability, or human oversight of automated decisions. Requires explicit reference to automated or algorithmic processing.
 9. Disinformation — the state intervenes to govern synthetic media, deepfakes, or AI-generated misleading content. Requires explicit reference to generated or automated content.
 10. Cybersecurity of AI systems — the state intervenes to protect the security or integrity of AI systems and their data pipelines specifically, distinct from general IT security.
