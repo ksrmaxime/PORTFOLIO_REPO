@@ -37,10 +37,10 @@ INFRASTRUCTURE
 6. Data centers & energy — the state intervenes to govern the construction, operation, security, or energy provisioning of data centers hosting AI infrastructure.
 
 RISK & SOCIETAL HARMS
-7. High-stakes application governance — the state intervenes to govern automated or autonomous systems, or automated decision-making processes, deployed in sensitive domains (transport, medicine, justice, finance).
-   The PRIMARY SUBJECT of the article must be an automated or autonomous system or an automated decision — not a sector, an infrastructure, or a general safety rule that could incidentally affect such systems.
-   To qualify, the article must explicitly name or describe: a vehicle without a driver, a system with automation, an autonomous system, an algorithmic decision, or a comparable AI output — and govern how it is authorised, tested, deployed, operated, or held liable.
-   Does NOT qualify: general road safety rules, traffic signs, speed limits, advertising on roads, road infrastructure planning, maintenance obligations, or any provision whose subject remains equally applicable when automated systems are replaced by human operators.
+7. High-stakes application governance — the state intervenes to govern automated or autonomous systems, or automated decision-making processes, in sensitive domains.
+   HARD RULE: if the article text does not contain an explicit reference to a system being automated, autonomous, or operating without human control — or to a decision being made algorithmically or by an automated process — target 7 cannot apply. No inference from the sector or domain is allowed.
+   When this condition is met, qualifies if the article governs how such a system is authorised, tested, deployed, operated, supervised, or held liable.
+   Does NOT qualify: general safety rules, infrastructure, advertising, speed limits, or any provision equally applicable to human operators — even if autonomous systems happen to operate in that sector.
 8. Algorithmic accountability — the state intervenes to require explainability, auditability, or human oversight of automated decisions. Requires explicit reference to automated or algorithmic processing.
 9. Disinformation — the state intervenes to govern synthetic media, deepfakes, or AI-generated misleading content. Requires explicit reference to generated or automated content.
 10. Cybersecurity of AI systems — the state intervenes to protect the security or integrity of AI systems and their data pipelines specifically, distinct from general IT security.
