@@ -65,8 +65,8 @@ SCORE_LOG=$(python scripts/score.py \
   --pred "$PRED_CSV" \
   --gold "$GOLD_WITH_ID" \
   --id_col row_id \
-  --cols RELEVANT_ART \
-  --col_kinds RELEVANT_ART=label \
+  --cols instrument \
+  --col_kinds instrument=label \
   --report_dir "$TEMP_RUN_DIR/eval")
 
 echo "$SCORE_LOG"
