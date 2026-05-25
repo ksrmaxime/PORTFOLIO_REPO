@@ -41,7 +41,7 @@ python scripts/run1_pipeline.py \
   --trust_remote_code \
   --text_col text \
   --level_col level \
-  --decision_col RELEVANT_ART \
+  --decision_col instrument \
   --batch_size 8 \
   --max_new_tokens 16 \
   --temperature 0.0

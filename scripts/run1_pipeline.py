@@ -19,10 +19,10 @@ from src.run1_config import build_articles_to_send_mask
 def parse_yes_no(raw: str) -> bool | None:
     if raw is None:
         return None
-    m = re.search(r"\b(YES|NO)\b", str(raw).strip(), flags=re.IGNORECASE)
+    m = re.search(r"\b(YES|NO|OUI|NON)\b", str(raw).strip(), flags=re.IGNORECASE)
     if not m:
         return None
-    return m.group(1).upper() == "YES"
+    return m.group(1).upper() in {"YES", "OUI"}
 
 
 def parse_output(raw: str, decision_col: str) -> dict:

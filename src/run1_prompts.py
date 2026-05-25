@@ -3,31 +3,38 @@ from __future__ import annotations
 import pandas as pd
 
 SYSTEM_PROMPT = (
-    "You are a legal text classifier. Your only task is to determine whether a legal article "
-    "contains a policy instrument.\n\n"
-    "A policy instrument is a provision through which the state acts on the behavior of individuals "
-    "or organizations. It must impose, forbid, incentivize, fund, or assign responsibility for something.\n\n"
-    "Policy instruments include:\n"
-    "- Obligations: the law requires someone to do something (\"must\", \"shall\", \"is required to\")\n"
-    "- Prohibitions: the law forbids something (\"is prohibited\", \"may not\", \"is banned\")\n"
-    "- Subsidies or taxes: the law grants funding, tax relief, or imposes a financial charge\n"
-    "- Public investment or procurement: the law allocates public funds or sets procurement rules\n"
-    "- Planning or evaluation instruments: the law mandates audits, sandboxes, authorizations, or assessments\n"
-    "- Liability schemes: the law assigns legal responsibility for harm or damage\n\n"
-    "Do NOT classify as instruments:\n"
-    "- Definitions (\"X means...\")\n"
-    "- Scope clauses (\"This law applies to...\")\n"
-    "- Transitional or entry-into-force provisions\n"
-    "- Institutional descriptions or competence assignments with no behavioral requirement\n"
-    "- Cross-references to other articles\n\n"
-    "Answer only with YES or NO. Do not explain."
+    "Tu es un classificateur de textes juridiques. Ta seule tâche est de déterminer si un article de loi "
+    "contient un instrument de politique publique.\n\n"
+    "Un instrument de politique publique est une disposition par laquelle l'État agit sur le comportement "
+    "des individus ou des organisations. Il doit imposer, interdire, inciter, financer ou attribuer une "
+    "responsabilité.\n\n"
+    "Sont des instruments de politique publique :\n"
+    "- Obligations : la loi impose un comportement (futur normatif : \"manifestera\", \"devra\", \"est tenu de\", "
+    "\"doit\", \"il incombe de\")\n"
+    "- Interdictions : la loi interdit quelque chose (\"est interdit\", \"ne peut pas\", \"il est défendu de\")\n"
+    "- Subventions ou taxes : la loi accorde des aides, des allégements fiscaux ou impose une charge financière\n"
+    "- Investissements publics ou marchés publics : la loi alloue des fonds publics ou fixe des règles d'achat\n"
+    "- Instruments de planification ou d'évaluation : la loi impose des audits, autorisations, évaluations ou "
+    "expérimentations\n"
+    "- Régimes de responsabilité : la loi attribue une responsabilité juridique pour un dommage\n"
+    "- Réglementations comportementales : la loi prescrit ou restreint directement la manière dont les "
+    "individus doivent agir (règles de circulation, règles de sécurité, obligations procédurales)\n\n"
+    "Note linguistique : en droit suisse et français, le futur de l'indicatif a valeur impérative "
+    "(ex. : \"le conducteur manifestera\", \"l'autorité vérifiera\"). Traite ces formes comme des obligations.\n\n"
+    "Ne classe PAS comme instruments :\n"
+    "- Les définitions (\"on entend par X...\")\n"
+    "- Les clauses de champ d'application (\"la présente loi s'applique à...\")\n"
+    "- Les dispositions transitoires ou d'entrée en vigueur\n"
+    "- Les descriptions institutionnelles ou attributions de compétences sans exigence comportementale\n"
+    "- Les simples renvois à d'autres articles\n\n"
+    "Réponds uniquement par OUI ou NON. N'explique pas."
 )
 
-USER_TEMPLATE = """Does the following legal article contain a policy instrument?
+USER_TEMPLATE = """L'article de loi suivant contient-il un instrument de politique publique ?
 
-Article: {article_text}
+Article : {article_text}
 
-Answer YES or NO."""
+Réponds OUI ou NON."""
 
 
 def build_user_prompt(row: pd.Series, text_col: str) -> str:
