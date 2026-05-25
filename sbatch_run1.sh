@@ -42,9 +42,8 @@ python scripts/run1_pipeline.py \
   --text_col text \
   --level_col level \
   --decision_col RELEVANT_ART \
-  --justif_col  RELEVANT_ART_JUSTIF \
   --batch_size 8 \
-  --max_new_tokens 160 \
+  --max_new_tokens 16 \
   --temperature 0.0
 
 # --- Évaluation ---
