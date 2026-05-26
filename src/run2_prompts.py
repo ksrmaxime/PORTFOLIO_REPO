@@ -1,56 +1,60 @@
-# src/run3_prompts.py
+# src/run2_prompts.py
 from __future__ import annotations
 
 import pandas as pd
 
 SYSTEM_PROMPT = (
-    "Tu es un codeur juridique. Tu reçois un article de loi suisse qui a été identifié comme pouvant avoir "
-    "une influence sur le développement et l'utilisation de systèmes basé sur l'intelligence artificielle au sens large (tout système qui utilise des algorithmes et des données pour analyser, prédire et automatiser des tâches ou des décisions.)\n\n"
-    "Ton objectif est de déterminer pour chaque article des paires d'instrument juridique (appelé ici INSTRUMENTS) et du domaine régulé (appelé ici TARGETS)\n"
-    "1) La/les TARGETS (le domaine régulé) sont: Infrastructure, Data, Skills, Adoption.\n"
-    "2) Le/les INSTRUMENTS (le mécanisme juridique) sont: Voluntary instruments, Taxes & Subsidies, "
-    "Public Investment & Public procurement, Prohibition & Ban, Planning & evaluation instruments, Obligation, Liability scheme.\n\n"
-    "Définitions opérationnelles des TARGETS:\n"
-    "- Infrastructure: règles sur création/maintenance/sécurité/accès/responsabilité d'infrastructure numérique "
-    "(ex: systèmes informatiques, réseaux, services numériques, cybersécurité, obligations de sécurité technique).\n"
-    "- Data: règles sur enregistrement/stockage/partage/accès/traitement/sécurité de données, "
-    "ainsi que droits d'usage/propriété/conditions de réutilisation.\n"
-    "- Skills: règles qui développent/organisent des compétences techno/numériques/IA "
-    "(formation, recherche, éducation, qualifications, capacités institutionnelles techniques).\n"
-    "- Adoption: règles qui organisent l'usage/le déploiement/la diffusion de systèmes automatisés/IA "
-    "ou leur application dans des secteurs (autorisation, conditions d'usage, gouvernance de déploiement).\n\n"
-    "Définitions opérationnelles des INSTRUMENTS:\n"
-    "- Voluntary instruments: mesures volontaires, autorégulation, codes de conduite, standards non contraignants.\n"
-    "- Taxes & Subsidies: taxes, subsides, incitations financières.\n"
-    "- Public Investment & Public procurement: investissement public, programmes financés, commande publique/achats.\n"
-    "- Prohibition & Ban: interdiction claire de faire/utiliser/développer/partager.\n"
-    "- Planning & evaluation instruments: plans, rapports, pilotes, essais, évaluations, conditions de test.\n"
-    "- Obligation: devoir juridique de faire / permettre / ne pas entraver (exigence de conformité, obligation d'agir).\n"
-    "- Liability scheme: règle qui attribue formellement la responsabilité institutionnelle ou juridique d’un système, d’une infrastructure ou d’une activité à un acteur déterminé.\n\n"
-    "Méthode de travail:\n"
-    "- Commence par identifier le mécanisme juridique (instrument), puis l'objet qu'il vise (target).\n"
-    "- S'il y a plusieurs mécanismes/objets distincts, tu peux en sélectionner plusieurs.\n"
-    "- Ta justification doit être courte et ancrée dans le texte: elle explique pourquoi ces choix sont les meilleurs.\n\n"
-    "Format: réponse UNIQUEMENT en JSON strict, sans texte autour. "
-    "La clé 'justification' doit venir avant 'targets' et 'instruments'."
+    "Tu es un classificateur de textes juridiques. Ta seule tâche est de "
+    "déterminer si un article de loi contient un instrument qui répond à "
+    "un problème public en lien avec l'intelligence artificielle.\n\n"
+    "Un article est pertinent s'il adresse au moins un des problèmes "
+    "publics suivants :\n\n"
+    "DONNÉES\n"
+    "- Protection des données personnelles : collecte, traitement, "
+    "conservation ou transfert de données individuelles par des "
+    "systèmes automatisés\n"
+    "- Propriété intellectuelle et contenu créatif : droits d'auteur, "
+    "droits voisins ou protections appliquées à des contenus générés "
+    "ou traités par des systèmes automatisés\n\n"
+    "COMPÉTENCES\n"
+    "- Formation et éducation : développement de compétences numériques "
+    "ou liées aux technologies dans les cursus ou programmes de "
+    "formation\n"
+    "- Recherche : financement ou organisation de la recherche "
+    "scientifique sur ou avec des technologies numériques et "
+    "automatisées\n\n"
+    "INFRASTRUCTURE\n"
+    "- Calcul et matériel informatique : accès, approvisionnement ou "
+    "disponibilité stratégique de capacités de calcul ou de matériel "
+    "spécialisé\n"
+    "- Centres de données et énergie : construction, exploitation, "
+    "sécurité ou approvisionnement énergétique des infrastructures "
+    "physiques hébergeant des systèmes numériques\n\n"
+    "RISQUES ET PRÉJUDICES SOCIÉTAUX\n"
+    "- Gouvernance des applications à enjeux élevés : déploiement de "
+    "systèmes automatisés dans des domaines sensibles comme la santé, "
+    "la justice, les transports ou la finance\n"
+    "- Responsabilité algorithmique : transparence, auditabilité ou "
+    "contrôle humain des décisions automatisées affectant des citoyens\n"
+    "- Désinformation : création, diffusion ou responsabilité liée à "
+    "des contenus synthétiques ou trompeurs générés automatiquement\n"
+    "- Cybersécurité des systèmes automatisés : robustesse, intégrité "
+    "ou sécurité des systèmes et des données qui les alimentent\n\n"
+    "RÈGLE IMPORTANTE : l'article n'a pas besoin de mentionner "
+    "explicitement l'intelligence artificielle ou un algorithme. Il "
+    "suffit que le problème public qu'il adresse ait des conséquences "
+    "directes sur le développement ou le déploiement de systèmes "
+    "automatisés.\n\n"
+    "Réponds uniquement par OUI ou NON. Ne fournis aucune explication."
 )
 
-USER_TEMPLATE = """Tu analyses l'article suivant.
+USER_TEMPLATE = """L'article suivant contient-il un instrument qui répond à un \
+problème public en lien avec l'intelligence artificielle ?
 
-Ta tâche:
-1) Écris d'abord une justification courte (1–4 phrases) qui résume le(s) mécanisme(s) juridique(s) pertinent(s) et l'objet principal visé (en restant proche du texte) ou qui explique pourquoi il n'y en a pas.
-2) Ensuite, code les targets et instruments correspondants en utilisant uniquement les labels exacts.
+Article : {article_text}
 
-Réponds UNIQUEMENT avec ce JSON strict:
-{{
-  "justification": "...",
-  "targets": ["Infrastructure" | "Data" | "Skills" | "Adoption"],
-  "instruments": ["Voluntary instruments" | "Taxes & Subsidies" | "Public Investment & Public procurement" | "Prohibition & Ban" | "Planning & evaluation instruments" | "Obligation" | "Liability scheme"]
-}}
+Réponds OUI ou NON."""
 
-Texte légal:
-{article_text}
-"""
 
 def build_user_prompt(row: pd.Series, text_col: str) -> str:
     txt = "" if pd.isna(row.get(text_col)) else str(row[text_col]).strip()
