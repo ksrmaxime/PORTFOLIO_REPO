@@ -46,8 +46,9 @@ python scripts/run2_pipeline.py \
   --level_col level \
   --instrument_col instrument \
   --decision_col AI_RELEVANT \
+  --justif_col RUN2_JUSTIF \
   --batch_size 8 \
-  --max_new_tokens 16 \
+  --max_new_tokens 150 \
   --temperature 0.0
 
 # --- Archive: outputs + prompt/config/sbatch ---
