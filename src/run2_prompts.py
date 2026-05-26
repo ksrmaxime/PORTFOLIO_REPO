@@ -45,7 +45,9 @@ SYSTEM_PROMPT = (
     "suffit que le problème public qu'il adresse ait des conséquences "
     "directes sur le développement ou le déploiement de systèmes "
     "automatisés.\n\n"
-    "Réponds uniquement par OUI ou NON. Ne fournis aucune explication."
+    "Réponds en deux parties, dans cet ordre exact :\n"
+    "Justification: [1 à 2 phrases maximum, ancrées dans le texte]\n"
+    "Décision: OUI ou NON"
 )
 
 USER_TEMPLATE = """L'article suivant contient-il un instrument qui répond à un \
@@ -53,7 +55,9 @@ problème public en lien avec l'intelligence artificielle ?
 
 Article : {article_text}
 
-Réponds OUI ou NON."""
+Réponds en deux parties dans cet ordre exact :
+Justification: [1 à 2 phrases maximum]
+Décision: OUI ou NON"""
 
 
 def build_user_prompt(row: pd.Series, text_col: str) -> str:
