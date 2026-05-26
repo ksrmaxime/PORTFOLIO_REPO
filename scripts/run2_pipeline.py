@@ -65,10 +65,10 @@ def main() -> int:
         instrument_col=args.instrument_col,
     )
 
-    if args.decision_col not in df.columns:
-        df[args.decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
-    else:
-        df[args.decision_col] = df[args.decision_col].astype("boolean")
+    print(f"Rows total: {len(df):,} | instrument==True (level-6): {int(send_mask.sum()):,}")
+
+    # Always reset: the input may carry a stale AI_RELEVANT column from a prior run.
+    df[args.decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
 
     client = TransformersClient(
         LLMConfig(
