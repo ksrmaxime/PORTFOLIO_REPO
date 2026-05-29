@@ -51,14 +51,57 @@ python scripts/run2_pipeline.py \
   --max_new_tokens 150 \
   --temperature 0.0
 
-# --- Archive: outputs + prompt/config/sbatch ---
+# --- Évaluation ---
 PRED_CSV="${OUTBASE}_job${SLURM_JOB_ID}.csv"
 
-RUN_DIR="data/output/run2_job${SLURM_JOB_ID}"
+# fichier benchmark gold (colonnes instrument + AI_RELEVANT)
+GOLD_CSV="data/external/PORTFOLIO_GOLD.csv"
+
+# dossier temporaire pour l'évaluation
+TEMP_RUN_DIR="data/output/run2_job${SLURM_JOB_ID}"
+mkdir -p "$TEMP_RUN_DIR"
+
+# Ajouter row_id au gold (copie temporaire pour ne pas modifier l'original)
+GOLD_WITH_ID="${TEMP_RUN_DIR}/gold_with_row_id.csv"
+python scripts/add_row_id.py "$GOLD_CSV" --col row_id --out "$GOLD_WITH_ID"
+
+# run evaluation and capture stdout
+SCORE_LOG=$(python scripts/score.py \
+  --pred "$PRED_CSV" \
+  --gold "$GOLD_WITH_ID" \
+  --id_col row_id \
+  --cols AI_RELEVANT \
+  --col_kinds AI_RELEVANT=label \
+  --report_dir "$TEMP_RUN_DIR/eval")
+
+echo "$SCORE_LOG"
+
+# extract numeric similarity from stdout
+SCORE=$(echo "$SCORE_LOG" | awk '/^Similarity:/ {gsub(/%/,"",$2); print $2; exit}')
+SCORE=${SCORE:-NA}
+
+# normaliser pour nom de dossier (51.08 -> 51p08)
+if [ "$SCORE" = "NA" ]; then
+  RUN_DIR="data/output/run2_no_score_job${SLURM_JOB_ID}"
+else
+  SCORE_TAG=$(printf "%.2f" "$SCORE" | tr '.' 'p')
+  RUN_DIR="data/output/run2_${SCORE_TAG}_job${SLURM_JOB_ID}"
+fi
+
 mkdir -p "$RUN_DIR"
 
+# --- Archive: outputs + prompt ---
 cp "$PRED_CSV" "$RUN_DIR/" || true
-cp "src/run2_prompts.py" "$RUN_DIR/prompts_used.py"
-cp "$0" "$RUN_DIR/sbatch_used.sbatch"
+cp "src/run2_prompts.py" "$RUN_DIR/prompts_used.py" || true
+cp "$0" "$RUN_DIR/sbatch_used.sbatch" || true
+
+# move eval reports
+if [ -d "$TEMP_RUN_DIR/eval" ]; then
+  mv "$TEMP_RUN_DIR/eval" "$RUN_DIR/eval"
+fi
+
+# cleanup temp dir if empty
+rmdir "$TEMP_RUN_DIR" 2>/dev/null || true
 
 echo "Archived in: $RUN_DIR"
+echo "Score: ${SCORE}%"

@@ -130,6 +130,11 @@ def main() -> int:
 
     Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
 
+    # Canonical column order: base dataset (incl. instrument from run1) → AI_RELEVANT → RUN2_JUSTIF
+    ai_cols = [c for c in [args.decision_col, args.justif_col] if c in out.columns]
+    base_cols = [c for c in out.columns if c not in ai_cols]
+    out = out[base_cols + ai_cols]
+
     out.to_parquet(parquet_path, index=False)
     out.to_csv(csv_path, index=False)
 

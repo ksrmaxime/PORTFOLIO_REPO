@@ -46,7 +46,7 @@ def main() -> int:
     ap.add_argument("--text_col", default="text")
     ap.add_argument("--level_col", default="level")
 
-    ap.add_argument("--decision_col", default="RELEVANT_ART")
+    ap.add_argument("--decision_col", default="instrument")
 
     ap.add_argument("--batch_size", type=int, default=40)
     ap.add_argument("--temperature", type=float, default=0.0)
@@ -114,6 +114,11 @@ def main() -> int:
     csv_path = base + ".csv"
 
     Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
+
+    # Canonical column order: base dataset columns first, then AI-added column
+    ai_cols = [c for c in [args.decision_col] if c in out.columns]
+    base_cols = [c for c in out.columns if c not in ai_cols]
+    out = out[base_cols + ai_cols]
 
     out.to_parquet(parquet_path, index=False)
     out.to_csv(csv_path, index=False)
