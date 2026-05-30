@@ -58,7 +58,7 @@ mkdir -p "$TEMP_RUN_DIR"
 
 # Ajouter row_id au gold (copie temporaire pour ne pas modifier l'original)
 GOLD_WITH_ID="${TEMP_RUN_DIR}/gold_with_row_id.csv"
-python scripts/add_row_id.py "$GOLD_CSV" --col row_id --out "$GOLD_WITH_ID"
+python scripts/add_row_id.py "$GOLD_CSV" --col row_id --overwrite --out "$GOLD_WITH_ID"
 
 # run evaluation and capture stdout
 SCORE_LOG=$(python scripts/score.py \
