@@ -83,6 +83,11 @@ def main() -> int:
         default="",
         help="Rename gold columns before scoring, e.g. old_name=new_name",
     )
+    ap.add_argument(
+        "--extra_cols",
+        default="",
+        help="Comma-separated columns to carry from pred into the errors_*.csv files (e.g. text)",
+    )
 
     args = ap.parse_args()
 
@@ -128,11 +133,14 @@ def main() -> int:
         drop_na_pairs=(not args.keep_na),
     )
 
+    extra_cols = [c.strip() for c in args.extra_cols.split(",") if c.strip()]
+
     result, merged, confusion_tables, classification_reports, label_distributions = compare_frames(
         pred=pred,
         gold=gold,
         id_col=id_col,
         column_configs=column_configs,
+        extra_cols=extra_cols,
     )
 
     print("=== EVAL ===")
@@ -182,6 +190,7 @@ def main() -> int:
             label_distributions=label_distributions,
             column_configs=column_configs,
             id_col=id_col,
+            extra_cols=extra_cols,
         )
         print(f"\nReports saved to: {args.report_dir}")
 

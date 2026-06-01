@@ -70,6 +70,7 @@ SCORE_LOG=$(python scripts/score.py \
   --cols instrument \
   --col_kinds instrument=label \
   --rename_gold_cols Instrument=instrument \
+  --extra_cols text \
   --report_dir "$TEMP_RUN_DIR/eval")
 
 echo "$SCORE_LOG"
