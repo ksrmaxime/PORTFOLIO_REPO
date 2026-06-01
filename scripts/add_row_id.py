@@ -20,9 +20,11 @@ def add_row_id(path: Path, col: str = "row_id", overwrite: bool = False, out: Pa
     else:
         raise ValueError(f"Unsupported file type: {path.suffix}")
 
-    if col in df.columns and not overwrite:
-        print(f"Column '{col}' already exists in {path}. Use --overwrite to replace it.")
-        return df
+    if col in df.columns:
+        if not overwrite:
+            print(f"Column '{col}' already exists in {path}. Use --overwrite to replace it.")
+            return df
+        df = df.drop(columns=[col])
 
     df.insert(0, col, range(len(df)))
 

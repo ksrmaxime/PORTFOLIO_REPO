@@ -10,6 +10,8 @@
 #SBATCH --mail-user=maxime.kaiser@unil.ch
 #SBATCH --mail-type=END,FAIL
 
+dcsrsoft use 20241118
+
 set -euo pipefail
 
 module purge
