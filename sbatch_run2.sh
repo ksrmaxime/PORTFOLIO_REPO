@@ -20,8 +20,8 @@ OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 OUTBASE="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_ai_relevant"
 
 # Input = output du run 1 (remplacer JOB_ID par le job ID du run 1)
-RUN1_JOB_ID=61377822
-INPUT="${OUTDIR}/laws_structure_with_relart_job${RUN1_JOB_ID}.parquet"
+RUN1_JOB_ID=61407084
+INPUT="${OUTDIR}/laws_structure_with_relart_job61407084.parquet"
 
 cd "$WORKDIR"
 source .venv/bin/activate
