@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --job-name=run2_ai_relevant
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
