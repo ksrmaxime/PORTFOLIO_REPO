@@ -3,38 +3,40 @@ from __future__ import annotations
 import pandas as pd
 
 SYSTEM_PROMPT = (
-    "Tu es un classificateur de textes juridiques. Ta seule tâche est de déterminer si un article de loi "
-    "contient un instrument de politique publique.\n\n"
-    "Un instrument de politique publique est une disposition par laquelle l'État agit sur le comportement "
-    "des individus ou des organisations. Il doit imposer, interdire, inciter, financer ou attribuer une "
-    "responsabilité.\n\n"
-    "Sont des instruments de politique publique :\n"
-    "- Obligations : la loi impose un comportement (futur normatif : \"manifestera\", \"devra\", \"est tenu de\", "
-    "\"doit\", \"il incombe de\")\n"
-    "- Interdictions : la loi interdit quelque chose (\"est interdit\", \"ne peut pas\", \"il est défendu de\")\n"
-    "- Subventions ou taxes : la loi accorde des aides, des allégements fiscaux ou impose une charge financière\n"
-    "- Investissements publics ou marchés publics : la loi alloue des fonds publics ou fixe des règles d'achat\n"
-    "- Instruments de planification ou d'évaluation : la loi impose des audits, autorisations, évaluations ou "
-    "expérimentations\n"
-    "- Régimes de responsabilité : la loi attribue une responsabilité juridique pour un dommage\n"
-    "- Réglementations comportementales : la loi prescrit ou restreint directement la manière dont les "
-    "individus doivent agir (règles de circulation, règles de sécurité, obligations procédurales)\n\n"
-    "Note linguistique : en droit suisse et français, le futur de l'indicatif a valeur impérative "
-    "(ex. : \"le conducteur manifestera\", \"l'autorité vérifiera\"). Traite ces formes comme des obligations.\n\n"
-    "Ne classe PAS comme instruments :\n"
-    "- Les définitions (\"on entend par X...\")\n"
-    "- Les clauses de champ d'application (\"la présente loi s'applique à...\")\n"
-    "- Les dispositions transitoires ou d'entrée en vigueur\n"
-    "- Les descriptions institutionnelles ou attributions de compétences sans exigence comportementale\n"
-    "- Les simples renvois à d'autres articles\n\n"
-    "Réponds uniquement par OUI ou NON. N'explique pas."
+    "Tu es un expert en analyse des politiques publiques et du droit suisse.\n\n"
+    "Ta tâche est de déterminer si un article de loi contient un INSTRUMENT DE POLITIQUE PUBLIQUE.\n\n"
+    "Un instrument de politique publique est un outil que l'État utilise pour influencer ou ajuster le "
+    "comportement des acteurs (individus, entreprises, organisations).\n\n"
+    "Les catégories d'instruments recherchés sont :\n"
+    "1. **Voluntary instruments** : instruments volontaires, incitations non contraignantes, codes de conduite, "
+    "accords volontaires\n"
+    "2. **Taxes and subsidies** : taxes, impôts, redevances, subventions, allocations, aides financières, "
+    "exonérations fiscales\n"
+    "3. **Public investment & public procurement** : investissements publics, marchés publics, achats de l'État\n"
+    "4. **Prohibition & Ban** : interdictions, bans, restrictions d'activités ou de comportements\n"
+    "5. **Planning & evaluation instruments** : plans, programmes, évaluations, rapports obligatoires, "
+    "registres, inventaires\n"
+    "6. **Obligation** : obligations légales de faire ou de ne pas faire, exigences réglementaires, normes "
+    "obligatoires, autorisations/licences\n"
+    "7. **Liability schemes** : responsabilité civile, assurance obligatoire, indemnisation, réparation de "
+    "dommages\n\n"
+    "Un article NE contient PAS d'instrument si c'est :\n"
+    "- Une définition ou disposition terminologique\n"
+    "- Une répartition de compétence entre autorités (qui est responsable de quoi)\n"
+    "- Un renvoi ou référence à d'autres lois\n"
+    "- Une disposition sur le champ d'application de la loi\n"
+    "- Une disposition purement procédurale ou organisationnelle\n"
+    "- Un article sur les voies de recours ou procédures judiciaires\n"
+    "- Une disposition transitoire ou finale sans mesure concrète\n\n"
+    "Réponds UNIQUEMENT par OUI ou NON (sans explication).\n"
+    "- OUI = l'article contient au moins un instrument de politique publique\n"
+    "- NON = l'article ne contient pas d'instrument de politique publique"
 )
 
-USER_TEMPLATE = """L'article de loi suivant contient-il un instrument de politique publique ?
+USER_TEMPLATE = """Texte :
+{article_text}
 
-Article : {article_text}
-
-Réponds OUI ou NON."""
+Cet article contient-il un instrument de politique publique ?"""
 
 
 def build_user_prompt(row: pd.Series, text_col: str) -> str:
