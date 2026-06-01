@@ -72,6 +72,7 @@ SCORE_LOG=$(python scripts/score.py \
   --id_col row_id \
   --cols AI_RELEVANT \
   --col_kinds AI_RELEVANT=label \
+  --rename_gold_cols Instrument=instrument,AI_Relevant=AI_RELEVANT \
   --report_dir "$TEMP_RUN_DIR/eval")
 
 echo "$SCORE_LOG"
