@@ -15,33 +15,31 @@ from src import run3_prompts
 from src.run3_config import build_run3_mask
 
 
-def parse_output(raw: str, decision_col: str, audit_col: str) -> dict:
+def parse_output(raw: str, decision_col: str, justif_col: str) -> dict:
     if raw is None:
-        return {decision_col: pd.NA, audit_col: pd.NA}
+        return {decision_col: pd.NA, justif_col: pd.NA}
 
     text = str(raw).strip()
 
-    # Extract audit (everything after "Audit:" up to "Décision:")
-    audit = pd.NA
-    m_audit = re.search(r"Audit\s*:\s*(.+?)(?=Décision\s*:|$)", text, flags=re.IGNORECASE | re.DOTALL)
-    if m_audit:
-        audit = " ".join(m_audit.group(1).strip().split())
+    justif = pd.NA
+    m_justif = re.search(r"Justification\s*:\s*(.+?)(?=Décision\s*:|$)", text, flags=re.IGNORECASE | re.DOTALL)
+    if m_justif:
+        justif = " ".join(m_justif.group(1).strip().split())
 
-    # Extract decision — CONFIRME or INFIRME
     decision = pd.NA
-    m_dec = re.search(r"Décision\s*:\s*(CONFIRME|INFIRME)\b", text, flags=re.IGNORECASE)
+    m_dec = re.search(r"Décision\s*:\s*(OUI|NON|YES|NO)\b", text, flags=re.IGNORECASE)
     if m_dec:
-        decision = m_dec.group(1).upper() == "CONFIRME"
+        decision = m_dec.group(1).upper() in {"OUI", "YES"}
     else:
-        m_bare = re.search(r"\b(CONFIRME|INFIRME)\b", text, flags=re.IGNORECASE)
+        m_bare = re.search(r"\b(OUI|NON|YES|NO)\b", text, flags=re.IGNORECASE)
         if m_bare:
-            decision = m_bare.group(1).upper() == "CONFIRME"
+            decision = m_bare.group(1).upper() in {"OUI", "YES"}
 
     if decision is pd.NA:
         head = text[:300].replace("\n", "\\n")
         print(f"[RUN3 PARSE FAIL] raw_head={head}")
 
-    return {decision_col: bool(decision) if decision is not pd.NA else pd.NA, audit_col: audit}
+    return {decision_col: bool(decision) if decision is not pd.NA else pd.NA, justif_col: justif}
 
 
 def main() -> int:
@@ -56,11 +54,10 @@ def main() -> int:
     ap.add_argument("--trust_remote_code", action="store_true")
 
     ap.add_argument("--text_col", default="text")
-    ap.add_argument("--ai_relevant_col", default="AI_RELEVANT")
-    ap.add_argument("--justif_col", default="RUN2_JUSTIF")
+    ap.add_argument("--instrument_confirmed_col", default="INSTRUMENT_CONFIRMED")
 
-    ap.add_argument("--decision_col", default="AI_CONFIRMED")
-    ap.add_argument("--audit_col", default="RUN3_AUDIT")
+    ap.add_argument("--decision_col", default="AI_RELEVANT")
+    ap.add_argument("--justif_col", default="RUN3_JUSTIF")
 
     ap.add_argument("--batch_size", type=int, default=8)
     ap.add_argument("--temperature", type=float, default=0.0)
@@ -73,12 +70,12 @@ def main() -> int:
     if "row_id" not in df.columns:
         df.insert(0, "row_id", range(len(df)))
 
-    send_mask = build_run3_mask(df, ai_relevant_col=args.ai_relevant_col)
+    send_mask = build_run3_mask(df, instrument_confirmed_col=args.instrument_confirmed_col)
 
-    print(f"Rows total: {len(df):,} | AI_RELEVANT==True: {int(send_mask.sum()):,}")
+    print(f"Rows total: {len(df):,} | INSTRUMENT_CONFIRMED==True: {int(send_mask.sum()):,}")
 
     df[args.decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
-    df[args.audit_col] = pd.Series(pd.NA, index=df.index, dtype="string")
+    df[args.justif_col] = pd.Series(pd.NA, index=df.index, dtype="string")
 
     client = TransformersClient(
         LLMConfig(
@@ -100,10 +97,10 @@ def main() -> int:
         return send_mask
 
     def _build_prompt(row: pd.Series, text_col: str) -> str:
-        return run3_prompts.build_user_prompt(row, text_col=text_col, justif_col=args.justif_col)
+        return run3_prompts.build_user_prompt(row, text_col=text_col)
 
     def _parse(raw: str) -> dict:
-        return parse_output(raw, args.decision_col, args.audit_col)
+        return parse_output(raw, args.decision_col, args.justif_col)
 
     out = run_llm_dataframe(
         df=df,
@@ -113,8 +110,8 @@ def main() -> int:
         select_mask_fn=_select_mask,
         build_prompt_fn=_build_prompt,
         parse_fn=_parse,
-        output_cols=[args.decision_col, args.audit_col],
-        skip_if_already_filled=args.audit_col,
+        output_cols=[args.decision_col, args.justif_col],
+        skip_if_already_filled=args.justif_col,
     )
 
     job_id = os.environ.get("SLURM_JOB_ID") or args.job_id or "nojobid"
@@ -125,18 +122,18 @@ def main() -> int:
 
     Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
 
-    ai_cols = [c for c in [args.decision_col, args.audit_col] if c in out.columns]
+    ai_cols = [c for c in [args.decision_col, args.justif_col] if c in out.columns]
     base_cols = [c for c in out.columns if c not in ai_cols]
     out = out[base_cols + ai_cols]
 
     out.to_parquet(parquet_path, index=False)
     out.to_csv(csv_path, index=False)
 
-    n_confirme = int(out[args.decision_col].eq(True).sum())
-    n_infirme = int(out[args.decision_col].eq(False).sum())
+    n_oui = int(out[args.decision_col].eq(True).sum())
+    n_non = int(out[args.decision_col].eq(False).sum())
     n_na = int(out[args.decision_col].isna().sum())
     print(f"Saved: {parquet_path} and {csv_path}")
-    print(f"AI_CONFIRMED — CONFIRME: {n_confirme:,} | INFIRME: {n_infirme:,} | NA (parse fail): {n_na:,}")
+    print(f"AI_RELEVANT — OUI: {n_oui:,} | NON: {n_non:,} | NA (parse fail): {n_na:,}")
     return 0
 
 

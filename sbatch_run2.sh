@@ -1,12 +1,12 @@
 #!/bin/bash -l
-#SBATCH --job-name=run2_ai_relevant
+#SBATCH --job-name=run2_instrument_confirmed
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00
-#SBATCH --output=logs/run2_ai_relevant_%j.out
-#SBATCH --error=logs/run2_ai_relevant_%j.err
+#SBATCH --output=logs/run2_instrument_confirmed_%j.out
+#SBATCH --error=logs/run2_instrument_confirmed_%j.err
 #SBATCH --mail-user=maxime.kaiser@unil.ch
 #SBATCH --mail-type=END,FAIL
 
@@ -19,11 +19,11 @@ module load python/3.12.1
 
 WORKDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO
 OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
-OUTBASE="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_ai_relevant"
+OUTBASE="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_instrument_confirmed"
 
-# Input = output du run 1 (remplacer JOB_ID par le job ID du run 1)
+# Input = output du run 1
 RUN1_JOB_ID=61407084
-INPUT="${OUTDIR}/laws_structure_with_relart_job61407084.parquet"
+INPUT="${OUTDIR}/laws_structure_with_relart_job${RUN1_JOB_ID}.parquet"
 
 cd "$WORKDIR"
 source .venv/bin/activate
@@ -47,8 +47,8 @@ python scripts/run2_pipeline.py \
   --text_col text \
   --level_col level \
   --instrument_col instrument \
-  --decision_col AI_RELEVANT \
-  --justif_col RUN2_JUSTIF \
+  --decision_col INSTRUMENT_CONFIRMED \
+  --audit_col RUN2_AUDIT \
   --batch_size 8 \
   --max_new_tokens 150 \
   --temperature 0.0
@@ -56,35 +56,38 @@ python scripts/run2_pipeline.py \
 # --- Évaluation ---
 PRED_CSV="${OUTBASE}_job${SLURM_JOB_ID}.csv"
 
-# fichier benchmark gold (colonnes instrument + AI_RELEVANT)
 GOLD_CSV="data/external/PORTFOLIO_GOLD.csv"
 
-# dossier temporaire pour l'évaluation
 TEMP_RUN_DIR="data/output/run2_job${SLURM_JOB_ID}"
 mkdir -p "$TEMP_RUN_DIR"
 
-# Ajouter row_id au gold (copie temporaire pour ne pas modifier l'original)
 GOLD_WITH_ID="${TEMP_RUN_DIR}/gold_with_row_id.csv"
 python scripts/add_row_id.py "$GOLD_CSV" --col row_id --overwrite --out "$GOLD_WITH_ID"
 
-# run evaluation and capture stdout
+# Renommer INSTRUMENT_CONFIRMED → instrument dans une copie temporaire du pred pour le scoring
+PRED_FOR_SCORE="${TEMP_RUN_DIR}/pred_for_scoring.csv"
+python -c "
+import pandas as pd
+df = pd.read_csv('$PRED_CSV')
+df = df.rename(columns={'INSTRUMENT_CONFIRMED': 'instrument'})
+df.to_csv('$PRED_FOR_SCORE', index=False)
+"
+
 SCORE_LOG=$(python scripts/score.py \
-  --pred "$PRED_CSV" \
+  --pred "$PRED_FOR_SCORE" \
   --gold "$GOLD_WITH_ID" \
   --id_col row_id \
-  --cols AI_RELEVANT \
-  --col_kinds AI_RELEVANT=label \
-  --rename_gold_cols Instrument=instrument,AI_Relevant=AI_RELEVANT \
+  --cols instrument \
+  --col_kinds instrument=label \
+  --rename_gold_cols Instrument=instrument \
   --extra_cols text \
   --report_dir "$TEMP_RUN_DIR/eval")
 
 echo "$SCORE_LOG"
 
-# extract numeric similarity from stdout
 SCORE=$(echo "$SCORE_LOG" | awk '/^Similarity:/ {gsub(/%/,"",$2); print $2; exit}')
 SCORE=${SCORE:-NA}
 
-# normaliser pour nom de dossier (51.08 -> 51p08)
 if [ "$SCORE" = "NA" ]; then
   RUN_DIR="data/output/run2_no_score_job${SLURM_JOB_ID}"
 else
@@ -94,17 +97,14 @@ fi
 
 mkdir -p "$RUN_DIR"
 
-# --- Archive: outputs + prompt ---
 cp "$PRED_CSV" "$RUN_DIR/" || true
 cp "src/run2_prompts.py" "$RUN_DIR/prompts_used.py" || true
 cp "$0" "$RUN_DIR/sbatch_used.sbatch" || true
 
-# move eval reports
 if [ -d "$TEMP_RUN_DIR/eval" ]; then
   mv "$TEMP_RUN_DIR/eval" "$RUN_DIR/eval"
 fi
 
-# cleanup temp dir if empty
 rmdir "$TEMP_RUN_DIR" 2>/dev/null || true
 
 echo "Archived in: $RUN_DIR"

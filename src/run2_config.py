@@ -11,9 +11,8 @@ def build_run2_mask(
     instrument_col: str = "instrument",
 ) -> pd.Series:
     """
-    Run2 processes only:
-    - article text rows (level==6)
-    - where instrument == True (classified as policy instrument in run1)
+    Run2 processes all level-6 rows where instrument is not NA
+    (all articles classified by run1, both True and False).
     """
     if level_col not in df.columns:
         raise KeyError(f"Missing column: {level_col}")
@@ -23,4 +22,4 @@ def build_run2_mask(
     levels = pd.to_numeric(df[level_col], errors="coerce")
     instrument = df[instrument_col].astype("boolean")
 
-    return (levels == 6) & (instrument == True)
+    return (levels == 6) & instrument.notna()

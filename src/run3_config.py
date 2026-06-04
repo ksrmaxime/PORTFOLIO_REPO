@@ -7,13 +7,13 @@ import pandas as pd
 def build_run3_mask(
     df: pd.DataFrame,
     *,
-    ai_relevant_col: str = "AI_RELEVANT",
+    instrument_confirmed_col: str = "INSTRUMENT_CONFIRMED",
 ) -> pd.Series:
     """
-    Run3 processes only rows where AI_RELEVANT == True
-    (articles classified as AI-relevant by run2).
+    Run3 processes only rows where INSTRUMENT_CONFIRMED == True
+    (articles confirmed as policy instruments by run2).
     """
-    if ai_relevant_col not in df.columns:
-        raise KeyError(f"Missing column: {ai_relevant_col}")
+    if instrument_confirmed_col not in df.columns:
+        raise KeyError(f"Missing column: {instrument_confirmed_col}")
 
-    return df[ai_relevant_col].eq(True)
+    return df[instrument_confirmed_col].eq(True)

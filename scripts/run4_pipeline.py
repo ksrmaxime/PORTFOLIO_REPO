@@ -11,8 +11,8 @@ import pandas as pd
 
 from src.client import TransformersClient, LLMConfig
 from src.runner import run_llm_dataframe, RunConfig
-from src import run2_prompts
-from src.run2_config import build_run2_mask
+from src import run4_prompts
+from src.run4_config import build_run4_mask
 
 
 def parse_output(raw: str, decision_col: str, audit_col: str) -> dict:
@@ -37,7 +37,7 @@ def parse_output(raw: str, decision_col: str, audit_col: str) -> dict:
 
     if decision is pd.NA:
         head = text[:300].replace("\n", "\\n")
-        print(f"[RUN2 PARSE FAIL] raw_head={head}")
+        print(f"[RUN4 PARSE FAIL] raw_head={head}")
 
     return {decision_col: bool(decision) if decision is not pd.NA else pd.NA, audit_col: audit}
 
@@ -54,11 +54,11 @@ def main() -> int:
     ap.add_argument("--trust_remote_code", action="store_true")
 
     ap.add_argument("--text_col", default="text")
-    ap.add_argument("--level_col", default="level")
-    ap.add_argument("--instrument_col", default="instrument")
+    ap.add_argument("--ai_relevant_col", default="AI_RELEVANT")
+    ap.add_argument("--justif_col", default="RUN3_JUSTIF")
 
-    ap.add_argument("--decision_col", default="INSTRUMENT_CONFIRMED")
-    ap.add_argument("--audit_col", default="RUN2_AUDIT")
+    ap.add_argument("--decision_col", default="AI_CONFIRMED")
+    ap.add_argument("--audit_col", default="RUN4_AUDIT")
 
     ap.add_argument("--batch_size", type=int, default=8)
     ap.add_argument("--temperature", type=float, default=0.0)
@@ -71,13 +71,9 @@ def main() -> int:
     if "row_id" not in df.columns:
         df.insert(0, "row_id", range(len(df)))
 
-    send_mask = build_run2_mask(
-        df,
-        level_col=args.level_col,
-        instrument_col=args.instrument_col,
-    )
+    send_mask = build_run4_mask(df, ai_relevant_col=args.ai_relevant_col)
 
-    print(f"Rows total: {len(df):,} | instrument classified (True+False, level-6): {int(send_mask.sum()):,}")
+    print(f"Rows total: {len(df):,} | AI_RELEVANT classified (True+False): {int(send_mask.sum()):,}")
 
     df[args.decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
     df[args.audit_col] = pd.Series(pd.NA, index=df.index, dtype="string")
@@ -102,7 +98,7 @@ def main() -> int:
         return send_mask
 
     def _build_prompt(row: pd.Series, text_col: str) -> str:
-        return run2_prompts.build_user_prompt(row, text_col=text_col, instrument_col=args.instrument_col)
+        return run4_prompts.build_user_prompt(row, text_col=text_col, justif_col=args.justif_col)
 
     def _parse(raw: str) -> dict:
         return parse_output(raw, args.decision_col, args.audit_col)
@@ -111,7 +107,7 @@ def main() -> int:
         df=df,
         cfg=run_cfg,
         client=client,
-        system_prompt=run2_prompts.SYSTEM_PROMPT,
+        system_prompt=run4_prompts.SYSTEM_PROMPT,
         select_mask_fn=_select_mask,
         build_prompt_fn=_build_prompt,
         parse_fn=_parse,
@@ -138,7 +134,7 @@ def main() -> int:
     n_infirme = int(out[args.decision_col].eq(False).sum())
     n_na = int(out[args.decision_col].isna().sum())
     print(f"Saved: {parquet_path} and {csv_path}")
-    print(f"INSTRUMENT_CONFIRMED — CONFIRME: {n_confirme:,} | INFIRME: {n_infirme:,} | NA (parse fail): {n_na:,}")
+    print(f"AI_CONFIRMED — CONFIRME: {n_confirme:,} | INFIRME: {n_infirme:,} | NA (parse fail): {n_na:,}")
     return 0
 
 
