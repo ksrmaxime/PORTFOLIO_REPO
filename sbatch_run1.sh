@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 #SBATCH --job-name=run1_relart
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1
