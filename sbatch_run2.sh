@@ -47,6 +47,7 @@ python scripts/run2_pipeline.py \
   --text_col text \
   --level_col level \
   --instrument_col instrument \
+  --justif_col RUN1_JUSTIF \
   --decision_col INSTRUMENT_CONFIRMED \
   --audit_col RUN2_AUDIT \
   --batch_size 8 \

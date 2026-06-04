@@ -56,6 +56,7 @@ def main() -> int:
     ap.add_argument("--text_col", default="text")
     ap.add_argument("--level_col", default="level")
     ap.add_argument("--instrument_col", default="instrument")
+    ap.add_argument("--justif_col", default="RUN1_JUSTIF")
 
     ap.add_argument("--decision_col", default="INSTRUMENT_CONFIRMED")
     ap.add_argument("--audit_col", default="RUN2_AUDIT")
@@ -102,7 +103,7 @@ def main() -> int:
         return send_mask
 
     def _build_prompt(row: pd.Series, text_col: str) -> str:
-        return run2_prompts.build_user_prompt(row, text_col=text_col, instrument_col=args.instrument_col)
+        return run2_prompts.build_user_prompt(row, text_col=text_col, instrument_col=args.instrument_col, justif_col=args.justif_col)
 
     def _parse(raw: str) -> dict:
         return parse_output(raw, args.decision_col, args.audit_col)

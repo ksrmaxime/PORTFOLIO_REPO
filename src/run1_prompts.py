@@ -42,15 +42,19 @@ SYSTEM_PROMPT = (
     "l'article lui-même\n"
     "- Un article décrivant les pouvoirs de contrôle ou de surveillance d'un organe public sans créer "
     "de nouvelles obligations concrètes pour les entités surveillées\n\n"
-    "Réponds UNIQUEMENT par OUI ou NON (sans explication).\n"
-    "- OUI = l'article contient au moins un instrument de politique publique\n"
-    "- NON = l'article ne contient pas d'instrument de politique publique"
+    "Réponds en deux parties dans cet ordre exact :\n"
+    "Justification: [1 à 2 phrases maximum, ancrées dans le texte]\n"
+    "Décision: OUI ou NON"
 )
 
 USER_TEMPLATE = """Texte :
 {article_text}
 
-Cet article contient-il un instrument de politique publique ?"""
+Cet article contient-il un instrument de politique publique ?
+
+Réponds en deux parties dans cet ordre exact :
+Justification: [1 à 2 phrases maximum]
+Décision: OUI ou NON"""
 
 
 def build_user_prompt(row: pd.Series, text_col: str) -> str:

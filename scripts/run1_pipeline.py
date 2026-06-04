@@ -16,20 +16,31 @@ from src import run1_prompts
 from src.run1_config import build_articles_to_send_mask
 
 
-def parse_yes_no(raw: str) -> bool | None:
+def parse_output(raw: str, decision_col: str, justif_col: str) -> dict:
     if raw is None:
-        return None
-    m = re.search(r"\b(YES|NO|OUI|NON)\b", str(raw).strip(), flags=re.IGNORECASE)
-    if not m:
-        return None
-    return m.group(1).upper() in {"YES", "OUI"}
+        return {decision_col: pd.NA, justif_col: pd.NA}
 
+    text = str(raw).strip()
 
-def parse_output(raw: str, decision_col: str) -> dict:
-    decision = parse_yes_no(raw)
-    if decision is None:
-        return {decision_col: pd.NA}
-    return {decision_col: bool(decision)}
+    justif = pd.NA
+    m_justif = re.search(r"Justification\s*:\s*(.+?)(?=Décision\s*:|$)", text, flags=re.IGNORECASE | re.DOTALL)
+    if m_justif:
+        justif = " ".join(m_justif.group(1).strip().split())
+
+    decision = pd.NA
+    m_dec = re.search(r"Décision\s*:\s*(OUI|NON|YES|NO)\b", text, flags=re.IGNORECASE)
+    if m_dec:
+        decision = m_dec.group(1).upper() in {"OUI", "YES"}
+    else:
+        m_bare = re.search(r"\b(OUI|NON|YES|NO)\b", text, flags=re.IGNORECASE)
+        if m_bare:
+            decision = m_bare.group(1).upper() in {"OUI", "YES"}
+
+    if decision is pd.NA:
+        head = text[:300].replace("\n", "\\n")
+        print(f"[RUN1 PARSE FAIL] raw_head={head}")
+
+    return {decision_col: bool(decision) if decision is not pd.NA else pd.NA, justif_col: justif}
 
 
 def main() -> int:
@@ -47,10 +58,11 @@ def main() -> int:
     ap.add_argument("--level_col", default="level")
 
     ap.add_argument("--decision_col", default="instrument")
+    ap.add_argument("--justif_col", default="RUN1_JUSTIF")
 
-    ap.add_argument("--batch_size", type=int, default=40)
+    ap.add_argument("--batch_size", type=int, default=8)
     ap.add_argument("--temperature", type=float, default=0.0)
-    ap.add_argument("--max_new_tokens", type=int, default=16)
+    ap.add_argument("--max_new_tokens", type=int, default=150)
 
     args = ap.parse_args()
 
@@ -65,10 +77,8 @@ def main() -> int:
         text_col=args.text_col,
     )
 
-    if args.decision_col not in df.columns:
-        df[args.decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
-    else:
-        df[args.decision_col] = df[args.decision_col].astype("boolean")
+    df[args.decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
+    df[args.justif_col] = pd.Series(pd.NA, index=df.index, dtype="string")
 
     client = TransformersClient(
         LLMConfig(
@@ -93,7 +103,7 @@ def main() -> int:
         return run1_prompts.build_user_prompt(row, text_col=text_col)
 
     def _parse(raw: str) -> dict:
-        return parse_output(raw, args.decision_col)
+        return parse_output(raw, args.decision_col, args.justif_col)
 
     out = run_llm_dataframe(
         df=df,
@@ -103,8 +113,8 @@ def main() -> int:
         select_mask_fn=_select_mask,
         build_prompt_fn=_build_prompt,
         parse_fn=_parse,
-        output_cols=[args.decision_col],
-        skip_if_already_filled=args.decision_col,
+        output_cols=[args.decision_col, args.justif_col],
+        skip_if_already_filled=args.justif_col,
     )
 
     job_id = os.environ.get("SLURM_JOB_ID") or args.job_id or "nojobid"
@@ -115,15 +125,18 @@ def main() -> int:
 
     Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
 
-    # Canonical column order: base dataset columns first, then AI-added column
-    ai_cols = [c for c in [args.decision_col] if c in out.columns]
+    ai_cols = [c for c in [args.decision_col, args.justif_col] if c in out.columns]
     base_cols = [c for c in out.columns if c not in ai_cols]
     out = out[base_cols + ai_cols]
 
     out.to_parquet(parquet_path, index=False)
     out.to_csv(csv_path, index=False)
 
-    print(f"Saved: {parquet_path} and {csv_path} | Selected: {int(send_mask.sum()):,}")
+    n_oui = int(out[args.decision_col].eq(True).sum())
+    n_non = int(out[args.decision_col].eq(False).sum())
+    n_na = int(out[args.decision_col].isna().sum())
+    print(f"Saved: {parquet_path} and {csv_path}")
+    print(f"instrument — OUI: {n_oui:,} | NON: {n_non:,} | NA (parse fail): {n_na:,}")
     return 0
 
 

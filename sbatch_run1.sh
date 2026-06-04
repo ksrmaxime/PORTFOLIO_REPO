@@ -44,8 +44,9 @@ python scripts/run1_pipeline.py \
   --text_col text \
   --level_col level \
   --decision_col instrument \
+  --justif_col RUN1_JUSTIF \
   --batch_size 8 \
-  --max_new_tokens 16 \
+  --max_new_tokens 150 \
   --temperature 0.0
 
 # --- Évaluation ---
