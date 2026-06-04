@@ -67,14 +67,25 @@ mkdir -p "$TEMP_RUN_DIR"
 GOLD_WITH_ID="${TEMP_RUN_DIR}/gold_with_row_id.csv"
 python scripts/add_row_id.py "$GOLD_CSV" --col row_id --overwrite --out "$GOLD_WITH_ID"
 
+# score.py compare les colonnes par nom identique dans pred et gold.
+# On renomme AI_CONFIRMED → AI_RELEVANT dans une copie temporaire du pred
+# pour pouvoir réutiliser le même gold rename que run2.
+PRED_FOR_SCORE="${TEMP_RUN_DIR}/pred_for_scoring.csv"
+python -c "
+import pandas as pd
+df = pd.read_csv('$PRED_CSV')
+df = df.rename(columns={'AI_CONFIRMED': 'AI_RELEVANT'})
+df.to_csv('$PRED_FOR_SCORE', index=False)
+"
+
 # run evaluation and capture stdout
 SCORE_LOG=$(python scripts/score.py \
-  --pred "$PRED_CSV" \
+  --pred "$PRED_FOR_SCORE" \
   --gold "$GOLD_WITH_ID" \
   --id_col row_id \
-  --cols AI_CONFIRMED \
-  --col_kinds AI_CONFIRMED=label \
-  --rename_gold_cols Instrument=instrument,AI_Relevant=AI_CONFIRMED \
+  --cols AI_RELEVANT \
+  --col_kinds AI_RELEVANT=label \
+  --rename_gold_cols Instrument=instrument,AI_Relevant=AI_RELEVANT \
   --extra_cols text \
   --report_dir "$TEMP_RUN_DIR/eval")
 
