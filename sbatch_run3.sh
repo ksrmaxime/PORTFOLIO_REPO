@@ -22,7 +22,7 @@ OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 OUTBASE="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_ai_relevant"
 
 # Input = output du run 2 (remplacer JOB_ID par le job ID du run 2)
-RUN2_JOB_ID=61524405
+RUN2_JOB_ID=61525089
 INPUT="${OUTDIR}/laws_structure_with_instrument_confirmed_job${RUN2_JOB_ID}.parquet"
 
 cd "$WORKDIR"
@@ -45,6 +45,7 @@ python scripts/run3_pipeline.py \
   --dtype bf16 \
   --trust_remote_code \
   --text_col text \
+  --instrument_col instrument \
   --instrument_confirmed_col INSTRUMENT_CONFIRMED \
   --decision_col AI_RELEVANT \
   --justif_col RUN3_JUSTIF \

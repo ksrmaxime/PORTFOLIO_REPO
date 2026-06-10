@@ -54,6 +54,7 @@ def main() -> int:
     ap.add_argument("--trust_remote_code", action="store_true")
 
     ap.add_argument("--text_col", default="text")
+    ap.add_argument("--instrument_col", default="instrument")
     ap.add_argument("--instrument_confirmed_col", default="INSTRUMENT_CONFIRMED")
 
     ap.add_argument("--decision_col", default="AI_RELEVANT")
@@ -70,7 +71,11 @@ def main() -> int:
     if "row_id" not in df.columns:
         df.insert(0, "row_id", range(len(df)))
 
-    send_mask = build_run3_mask(df, instrument_confirmed_col=args.instrument_confirmed_col)
+    send_mask = build_run3_mask(
+        df,
+        instrument_col=args.instrument_col,
+        instrument_confirmed_col=args.instrument_confirmed_col,
+    )
 
     print(f"Rows total: {len(df):,} | INSTRUMENT_CONFIRMED==True: {int(send_mask.sum()):,}")
 
