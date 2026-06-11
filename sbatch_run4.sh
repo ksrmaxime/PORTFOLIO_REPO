@@ -64,12 +64,12 @@ mkdir -p "$TEMP_RUN_DIR"
 GOLD_WITH_ID="${TEMP_RUN_DIR}/gold_with_row_id.csv"
 python scripts/add_row_id.py "$GOLD_CSV" --col row_id --overwrite --out "$GOLD_WITH_ID"
 
-# Renommer AI_CONFIRMED → AI_RELEVANT dans une copie temporaire du pred pour le scoring
+# Renommer final_ai_relevant → AI_RELEVANT pour le scoring
 PRED_FOR_SCORE="${TEMP_RUN_DIR}/pred_for_scoring.csv"
 python -c "
 import pandas as pd
 df = pd.read_csv('$PRED_CSV')
-df = df.rename(columns={'AI_CONFIRMED': 'AI_RELEVANT'})
+df = df.rename(columns={'final_ai_relevant': 'AI_RELEVANT'})
 df.to_csv('$PRED_FOR_SCORE', index=False)
 "
 

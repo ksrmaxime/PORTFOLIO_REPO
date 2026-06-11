@@ -65,12 +65,12 @@ mkdir -p "$TEMP_RUN_DIR"
 GOLD_WITH_ID="${TEMP_RUN_DIR}/gold_with_row_id.csv"
 python scripts/add_row_id.py "$GOLD_CSV" --col row_id --overwrite --out "$GOLD_WITH_ID"
 
-# Renommer INSTRUMENT_CONFIRMED → instrument dans une copie temporaire du pred pour le scoring
+# Renommer final_instrument → instrument pour le scoring
 PRED_FOR_SCORE="${TEMP_RUN_DIR}/pred_for_scoring.csv"
 python -c "
 import pandas as pd
 df = pd.read_csv('$PRED_CSV')
-df = df.rename(columns={'INSTRUMENT_CONFIRMED': 'instrument'})
+df = df.rename(columns={'final_instrument': 'instrument'})
 df.to_csv('$PRED_FOR_SCORE', index=False)
 "
 

@@ -123,7 +123,14 @@ def main() -> int:
 
     Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
 
-    ai_cols = [c for c in [args.decision_col, args.audit_col] if c in out.columns]
+    # Colonne finale consolidée : pertinence IA confirmée ou infirmée
+    # final_ai_relevant = True si (AI_RELEVANT=T, CONFIRMED=T) ou (AI_RELEVANT=F, CONFIRMED=F)
+    ai_rel = out[args.ai_relevant_col].astype("boolean")
+    confirmed = out[args.decision_col].astype("boolean")
+    out["final_ai_relevant"] = (ai_rel.eq(True) & confirmed.eq(True)) | (ai_rel.eq(False) & confirmed.eq(False))
+    out["final_ai_relevant"] = out["final_ai_relevant"].astype("boolean")
+
+    ai_cols = [c for c in [args.decision_col, args.audit_col, "final_ai_relevant"] if c in out.columns]
     base_cols = [c for c in out.columns if c not in ai_cols]
     out = out[base_cols + ai_cols]
 
