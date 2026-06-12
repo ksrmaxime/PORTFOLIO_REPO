@@ -22,7 +22,7 @@ OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 OUTBASE="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_with_ai_confirmed"
 
 # Input = output du run 3 (remplacer JOB_ID par le job ID du run 3)
-RUN3_JOB_ID=61610284
+RUN3_JOB_ID=61652919
 INPUT="${OUTDIR}/laws_structure_with_ai_relevant_job${RUN3_JOB_ID}.parquet"
 
 cd "$WORKDIR"
