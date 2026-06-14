@@ -5,43 +5,52 @@ import pandas as pd
 
 SYSTEM_PROMPT = (
     "Tu es un auditeur critique chargé de valider des classifications automatiques.\n\n"
-    "Un modèle de langage a analysé des articles de loi pour déterminer si chacun "
-    "contient un instrument de politique publique ciblant un problème public lié à "
-    "l'intelligence artificielle. Il a produit une décision (OUI) et une justification.\n\n"
-    "RÈGLE ABSOLUE : tu dois lire l'article toi-même et vérifier que chaque affirmation "
-    "de la justification est directement vérifiable dans le texte. Une justification qui "
-    "mentionne l'IA, les algorithmes ou les systèmes automatisés sans que ces éléments "
-    "soient présents ou clairement impliqués dans l'article est une hallucination — "
-    "elle doit être rejetée même si elle semble bien rédigée.\n\n"
-    "Ton rôle est de détecter les faux positifs : les cas où le modèle a conclu OUI "
-    "mais s'est montré trop accommodant dans son raisonnement.\n\n"
-    "Une classification OUI est un FAUX POSITIF si :\n"
-    "- l'article ne contient aucune mention explicite de systèmes automatisés, "
-    "d'algorithmes, de décisions sans intervention humaine ou de traitement algorithmique "
-    "— quelle que soit la qualité apparente de la justification\n"
-    "- la justification cite un secteur sensible (santé, justice, sécurité) sans que "
-    "l'article cible spécifiquement des systèmes automatisés\n"
-    "- la justification confond « numérique » ou « électronique » avec « automatisé »\n"
-    "- la justification se fonde sur un lien hypothétique "
-    "(« ce domaine pourrait utiliser l'IA », « cela est compatible avec l'IA »)\n\n"
-    "Une classification OUI est CORRECTE uniquement si le texte de l'article lui-même "
-    "contient des termes ou mécanismes visant explicitement des systèmes automatisés, "
-    "des algorithmes ou des décisions prises sans intervention humaine.\n\n"
+    "Un modèle de langage a analysé des articles de loi pour déterminer si chacun est "
+    "lié à l'intelligence artificielle (systèmes automatisés, algorithmes, décisions "
+    "sans intervention humaine). Il a produit une décision (OUI ou NON) et une justification.\n\n"
+    "Ta tâche est de vérifier que la décision est correcte en lisant l'article toi-même.\n\n"
+    "RÈGLE ABSOLUE : chaque affirmation dans la justification doit être directement "
+    "vérifiable dans le texte de l'article. Une référence à l'IA, aux algorithmes ou "
+    "aux systèmes automatisés qui n'apparaît pas dans l'article est une hallucination.\n\n"
+    "Si la décision est OUI :\n"
+    "- INFIRME si l'article ne contient aucune mention explicite de systèmes automatisés, "
+    "d'algorithmes ou de décisions sans intervention humaine\n"
+    "- INFIRME si la justification confond « numérique » ou « électronique » avec « automatisé »\n"
+    "- INFIRME si la justification se fonde sur un lien hypothétique "
+    "(« pourrait utiliser l'IA », « compatible avec l'IA »)\n"
+    "- CONFIRME uniquement si le texte lui-même vise explicitement des systèmes automatisés\n\n"
+    "Si la décision est NON :\n"
+    "- INFIRME si l'article contient en réalité des références explicites à des systèmes "
+    "automatisés, des algorithmes ou des décisions sans intervention humaine que la "
+    "justification a ignorées\n"
+    "- CONFIRME si l'article traite effectivement d'un autre sujet sans lien avec l'IA\n\n"
     "Réponds en deux parties dans cet ordre exact :\n"
-    "Audit: [1 à 2 phrases ancrées dans le texte de l'article, pas dans la justification]\n"
+    "Audit: [1 à 2 phrases ancrées dans le texte de l'article]\n"
     "Décision: CONFIRME ou INFIRME"
 )
 
 USER_TEMPLATE = """Article :
 {article_text}
 
+Décision du classificateur : {ai_relevant_decision}
 Justification produite par le classificateur :
 {run3_justif}
 
-Cette justification est-elle solide, ou le classificateur a-t-il été chercher trop loin ?"""
+Cette décision est-elle correcte ?"""
 
 
-def build_user_prompt(row: pd.Series, text_col: str, justif_col: str = "RUN3_JUSTIF") -> str:
+def build_user_prompt(
+    row: pd.Series,
+    text_col: str,
+    justif_col: str = "RUN3_JUSTIF",
+    ai_relevant_col: str = "AI_RELEVANT",
+) -> str:
     txt = "" if pd.isna(row.get(text_col)) else str(row[text_col]).strip()
     justif = "" if pd.isna(row.get(justif_col)) else str(row[justif_col]).strip()
-    return USER_TEMPLATE.format(article_text=txt, run3_justif=justif)
+    val = row.get(ai_relevant_col)
+    decision = "OUI" if val is True or val == True else "NON"
+    return USER_TEMPLATE.format(
+        article_text=txt,
+        run3_justif=justif,
+        ai_relevant_decision=decision,
+    )
