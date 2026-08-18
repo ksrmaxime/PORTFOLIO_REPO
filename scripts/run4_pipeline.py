@@ -73,7 +73,7 @@ def main() -> int:
 
     send_mask = build_run4_mask(df, ai_relevant_col=args.ai_relevant_col)
 
-    print(f"Rows total: {len(df):,} | AI_RELEVANT classified (True+False): {int(send_mask.sum()):,}")
+    print(f"Rows total: {len(df):,} | AI_RELEVANT == True (sent to run4): {int(send_mask.sum()):,}")
 
     df[args.decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
     df[args.audit_col] = pd.Series(pd.NA, index=df.index, dtype="string")
@@ -129,11 +129,13 @@ def main() -> int:
     Path(parquet_path).parent.mkdir(parents=True, exist_ok=True)
 
     # Colonne finale consolidée : pertinence IA confirmée ou infirmée
-    # final_ai_relevant = True si (AI_RELEVANT=T, CONFIRMED=T) ou (AI_RELEVANT=F, CONFIRMED=F)
+    # - Articles envoyés au run4 (AI_RELEVANT=True) : True si CONFIRME, False si INFIRME
+    # - Articles non envoyés au run4 (AI_RELEVANT=False) : recopie telle quelle de AI_RELEVANT
     ai_rel = out[args.ai_relevant_col].astype("boolean")
     confirmed = out[args.decision_col].astype("boolean")
-    out["final_ai_relevant"] = (ai_rel.eq(True) & confirmed.eq(True)) | (ai_rel.eq(False) & confirmed.eq(False))
-    out["final_ai_relevant"] = out["final_ai_relevant"].astype("boolean")
+    final_ai_relevant = (ai_rel.eq(True) & confirmed.eq(True)).astype("boolean")
+    final_ai_relevant.loc[~send_mask] = ai_rel.loc[~send_mask]
+    out["final_ai_relevant"] = final_ai_relevant
 
     ai_cols = [c for c in [args.decision_col, args.audit_col, "final_ai_relevant"] if c in out.columns]
     base_cols = [c for c in out.columns if c not in ai_cols]
