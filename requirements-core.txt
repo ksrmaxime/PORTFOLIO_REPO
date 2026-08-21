@@ -3,6 +3,7 @@ pyarrow
 requests
 tqdm
 python-dotenv
+matplotlib
 
 tokenizers
 safetensors
