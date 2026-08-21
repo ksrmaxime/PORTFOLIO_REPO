@@ -32,7 +32,7 @@ RUN5_JOB_ID=63776857
 #   Option B : donner directement le chemin complet du fichier
 #   "*_entries_job*.parquet" (ou .csv) à utiliser. Si non vide, cette valeur
 #   est prioritaire sur RUN5_JOB_ID ci-dessus.
-INPUT_OVERRIDE=""
+INPUT_OVERRIDE="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/external/PORTFOLIO_GOLD.csv"
 # =============================================================================
 
 RUN5_OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
