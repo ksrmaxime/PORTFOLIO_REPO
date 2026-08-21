@@ -66,9 +66,9 @@ python scripts/run6_pipeline.py \
   --output_base "${OUTBASE}_job${SLURM_JOB_ID}" \
   --title "AI Regulation Portfolio — Switzerland (run5 job ${RUN5_JOB_ID})"
 
-RUN_DIR="output/portfolio/run6_job${SLURM_JOB_ID}"
+RUN_DIR="data/output/run6_job${SLURM_JOB_ID}"
 mkdir -p "$RUN_DIR"
-cp "${OUTBASE}_job${SLURM_JOB_ID}".* "$RUN_DIR/" 2>/dev/null || true
+cp "${OUTBASE}_job${SLURM_JOB_ID}"* "$RUN_DIR/" 2>/dev/null || true
 cp "src/run6_plot.py" "$RUN_DIR/run6_plot_used.py" || true
 cp "src/run6_config.py" "$RUN_DIR/run6_config_used.py" || true
 cp "$0" "$RUN_DIR/sbatch_used.sbatch" || true
