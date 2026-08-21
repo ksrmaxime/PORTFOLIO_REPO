@@ -27,7 +27,7 @@ OUTBASE="${OUTDIR}/portfolio_final"
 #   Option A (par défaut) : indiquer le job ID SLURM du run5 dont on veut
 #   visualiser la sortie. Le chemin est reconstruit automatiquement à partir
 #   du même OUTBASE que sbatch_run5.sh.
-RUN5_JOB_ID=00000000
+RUN5_JOB_ID=63776857
 
 #   Option B : donner directement le chemin complet du fichier
 #   "*_entries_job*.parquet" (ou .csv) à utiliser. Si non vide, cette valeur
