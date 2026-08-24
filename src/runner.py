@@ -32,6 +32,8 @@ def run_llm_dataframe(
     parse_fn: Callable[[str], Dict[str, object]],
     output_cols: List[str],
     skip_if_already_filled: Optional[str] = None,
+    required_cols: Optional[List[str]] = None,
+    max_retries: int = 2,
 ) -> pd.DataFrame:
     """
     - select_mask_fn(df) -> bool mask des lignes à traiter
@@ -39,6 +41,10 @@ def run_llm_dataframe(
     - parse_fn(raw_completion) -> dict {col: value, ...}
     - output_cols = colonnes qu'on garantit dans df
     - skip_if_already_filled: si défini, on saute les lignes où df[col] n'est pas NA
+    - required_cols: colonnes qui doivent être non-NA pour considérer une ligne comme complète ;
+      si une ligne reste incomplète après un appel, elle est retentée (jusqu'à max_retries fois de plus)
+      avant d'être abandonnée. Par défaut, égal à output_cols.
+    - max_retries: nombre de tentatives supplémentaires pour les lignes dont la réponse est incomplète.
     """
     df = df.copy()
     df = ensure_columns(df, output_cols)
@@ -55,24 +61,41 @@ def run_llm_dataframe(
     if not idx:
         return df
 
-    # batching
-    for start in range(0, len(idx), int(cfg.batch_size)):
-        batch_idx = idx[start:start + int(cfg.batch_size)]
-        batch_rows = df.loc[batch_idx]
+    required = required_cols or output_cols
 
-        user_prompts = [build_prompt_fn(row, cfg.text_col) for _, row in batch_rows.iterrows()]
-        raw = client.chat_many(
-            system_prompt=system_prompt,
-            user_prompts=user_prompts,
-            temperature=cfg.temperature,
-            max_new_tokens=cfg.max_new_tokens,
-        )
+    pending = idx
+    attempt = 0
+    while pending and attempt <= max_retries:
+        next_pending: List = []
 
-        # write back
-        for i, row_id in enumerate(batch_idx):
-            parsed = parse_fn(raw[i])
-            for k, v in parsed.items():
-                if k in df.columns:
-                    df.at[row_id, k] = v
+        # batching
+        for start in range(0, len(pending), int(cfg.batch_size)):
+            batch_idx = pending[start:start + int(cfg.batch_size)]
+            batch_rows = df.loc[batch_idx]
+
+            user_prompts = [build_prompt_fn(row, cfg.text_col) for _, row in batch_rows.iterrows()]
+            raw = client.chat_many(
+                system_prompt=system_prompt,
+                user_prompts=user_prompts,
+                temperature=cfg.temperature,
+                max_new_tokens=cfg.max_new_tokens,
+            )
+
+            # write back
+            for i, row_id in enumerate(batch_idx):
+                parsed = parse_fn(raw[i])
+                for k, v in parsed.items():
+                    if k in df.columns:
+                        df.at[row_id, k] = v
+
+                if any(pd.isna(df.at[row_id, c]) for c in required):
+                    next_pending.append(row_id)
+
+        if next_pending:
+            print(f"[RETRY] {len(next_pending)} ligne(s) incomplète(s) après tentative {attempt + 1}, "
+                  f"nouvelle tentative...")
+
+        pending = next_pending
+        attempt += 1
 
     return df

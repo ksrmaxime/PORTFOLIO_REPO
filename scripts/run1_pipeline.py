@@ -114,7 +114,9 @@ def main() -> int:
         build_prompt_fn=_build_prompt,
         parse_fn=_parse,
         output_cols=[args.decision_col, args.justif_col],
-        skip_if_already_filled=args.justif_col,
+        skip_if_already_filled=args.decision_col,
+        required_cols=[args.decision_col],
+        max_retries=2,
     )
 
     job_id = os.environ.get("SLURM_JOB_ID") or args.job_id or "nojobid"
