@@ -12,50 +12,75 @@ from src.run5_prompts import INSTRUMENT_CODES
 # Définitions détaillées par instrument : nom lisible, définition, critères
 # d'inclusion/exclusion (avec distinction explicite des autres instruments,
 # pour éviter que le LLM confonde des mécanismes voisins), et exemples.
+#
+# Ces définitions ont été resserrées après un premier essai qui produisait
+# trop de faux positifs (VOLUNTARY, TAXES_SUBSIDIES et PLANNING_EVALUATION
+# étaient définis de façon trop large ; LIABILITY était défini comme des
+# sanctions/enforcement au lieu d'une allocation de responsabilité, ce qui
+# contredisait la définition du PoC). Voir aussi les notes "Exclure" qui
+# précisent, catégorie par catégorie, ce qui ressemble à l'instrument sans en
+# être un.
 # ---------------------------------------------------------------------------
 
 INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
     "VOLUNTARY": {
         "name": "instruments volontaires",
         "definition": (
-            "Action de l'État qui encourage, facilite ou coordonne un comportement sans le "
-            "rendre juridiquement contraignant. L'acteur reste libre de suivre ou non la "
-            "démarche proposée : il n'existe ni obligation, ni interdiction, ni conséquence "
-            "juridique directe en cas de non-participation."
+            "Mécanisme FORMALISÉ de régulation non contraignante auquel des acteurs publics "
+            "et/ou privés sont invités à adhérer ou à se conformer volontairement : code de "
+            "conduite, charte, engagement volontaire, accord volontaire entre l'État et des "
+            "acteurs privés, standard ou label non contraignant utilisé comme mécanisme de "
+            "pilotage. La simple communication, information ou sensibilisation du public par "
+            "une autorité n'est PAS un instrument volontaire : il ne s'agit pas d'un mécanisme "
+            "auquel un acteur adhère ou se conforme, seulement d'un message diffusé."
         ),
         "include": [
-            "campagnes de sensibilisation ou d'information menées par une autorité publique ;",
-            "programmes d'encouragement, de promotion ou de coordination volontaire entre "
-            "acteurs, sans obligation légale de participer ;",
-            "recommandations, lignes directrices, chartes ou labels dont l'adhésion est "
-            "facultative ;",
-            "mise à disposition volontaire d'outils, de plateformes, de conseils ou d'un "
-            "accompagnement, sans obligation d'y recourir.",
+            "codes de conduite élaborés ou reconnus par une autorité, auxquels des acteurs "
+            "peuvent adhérer ;",
+            "chartes ou engagements volontaires formalisés, pris par des acteurs privés ou "
+            "publics ;",
+            "accords volontaires conclus entre une autorité et des acteurs privés (ex. "
+            "engagements sectoriels négociés) ;",
+            "standards, labels ou certifications réellement facultatifs, utilisés comme "
+            "mécanisme d'orientation d'un comportement (l'acteur choisit librement d'y "
+            "souscrire ou non, sans conséquence juridique en cas de non-adhésion).",
         ],
         "exclude": [
+            "une simple campagne d'information, de sensibilisation, de conseil ou "
+            "d'accompagnement, sans mécanisme formalisé d'adhésion, N'EST PAS un instrument de "
+            "ce portfolio (aucun des 7 codes) : il n'y a rien à quoi l'acteur adhère ou se "
+            "conforme ;",
             "toute mesure qui impose une obligation contraignante à un acteur relève de "
             "OBLIGATION, pas de VOLUNTARY ;",
             "tout mécanisme financier (subvention, aide, taxe, exonération) relève de "
             "TAXES_SUBSIDIES, même s'il vise à encourager un comportement ;",
             "toute interdiction relève de PROHIBITION_BAN ;",
-            "la simple création ou organisation d'une autorité sans pouvoir ni programme "
-            "d'encouragement concret n'est pas un instrument.",
+            "la simple création ou organisation d'une autorité, sans code, charte, accord ou "
+            "label concret, n'est pas un instrument.",
         ],
         "examples_oui": [
+            (
+                "Les fournisseurs de systèmes d'intelligence artificielle peuvent adhérer à un "
+                "code de conduite, élaboré en collaboration avec les associations "
+                "professionnelles, définissant des engagements volontaires en matière de "
+                "transparence.",
+                "code de conduite formalisé, adhésion volontaire.",
+            ),
+            (
+                "Les acteurs du secteur numérique peuvent conclure avec la Confédération des "
+                "accords volontaires portant sur la réduction de la consommation énergétique "
+                "des centres de données.",
+                "accord volontaire formalisé entre l'État et des acteurs privés.",
+            ),
+        ],
+        "examples_non": [
             (
                 "La Confédération peut soutenir des campagnes d'information visant à "
                 "sensibiliser le public aux risques liés à l'utilisation de l'intelligence "
                 "artificielle.",
-                "action de sensibilisation menée par l'État, sans obligation pour qui que "
-                "ce soit.",
+                "simple information/sensibilisation, sans mécanisme formalisé d'adhésion : ce "
+                "n'est pas un instrument de ce portfolio.",
             ),
-            (
-                "Les cantons encouragent la coordination volontaire entre acteurs privés pour "
-                "l'élaboration de bonnes pratiques en matière de protection des données.",
-                "encouragement à une démarche facultative, sans contrainte légale.",
-            ),
-        ],
-        "examples_non": [
             (
                 "Les exploitants doivent informer les autorités de tout incident grave dans un "
                 "délai de 24 heures.",
@@ -64,54 +89,68 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             ),
             (
                 "La présente loi a pour but de promouvoir l'innovation numérique.",
-                "énoncé de but général sans mécanisme concret d'encouragement.",
+                "énoncé de but général sans mécanisme concret.",
             ),
         ],
     },
     "TAXES_SUBSIDIES": {
         "name": "taxes et subventions",
         "definition": (
-            "Mécanisme financier par lequel l'État prélève (taxe, impôt, redevance, "
-            "contribution) ou verse (subvention, aide, allocation, exonération) des ressources "
-            "monétaires à des acteurs privés ou publics, afin d'influencer un comportement, de "
-            "compenser une externalité ou de soutenir une activité."
+            "Incitation ou désincitation FISCALE OU FINANCIÈRE utilisée par l'État comme "
+            "mécanisme pour orienter (encourager ou décourager) un comportement, un "
+            "investissement ou un choix de conformité — pas un simple financement du "
+            "fonctionnement de l'État, de ses procédures ou de ses institutions. Le transfert "
+            "financier doit lui-même constituer le mécanisme de pilotage, pas un effet "
+            "secondaire administratif."
         ),
         "include": [
-            "création ou modification d'une taxe, redevance, contribution ou d'un impôt "
-            "spécifique lié à une activité ou un secteur ;",
-            "subventions, aides financières, allocations ou prestations versées à des acteurs "
-            "privés ou publics ;",
+            "taxes, redevances ou impôts spécifiquement incitatifs, dont la fonction est "
+            "d'orienter un comportement (ex. taxe carbone, taxe incitative sur une "
+            "consommation) ;",
+            "subventions, aides financières ou allocations versées pour encourager un "
+            "comportement, un investissement ou une pratique donnée ;",
             "exonérations fiscales, réductions de charges ou crédits d'impôt conditionnés à un "
-            "comportement ;",
-            "primes ou incitations financières directes.",
+            "comportement.",
         ],
         "exclude": [
-            "le financement d'infrastructures, d'équipements ou de recherche directement pris "
-            "en charge et exploité par l'État relève de PUBLIC_INVESTMENT, pas de "
-            "TAXES_SUBSIDIES ;",
-            "les obligations non financières (documentation, notification, conformité) "
-            "relèvent de OBLIGATION ;",
-            "les sanctions pécuniaires punitives infligées pour non-respect d'une règle "
-            "(amendes) relèvent de LIABILITY, pas d'une taxe : une taxe est un prélèvement "
-            "régulier lié à une activité légale, une amende sanctionne une infraction.",
+            "les émoluments administratifs couvrant le coût d'une procédure (ex. frais de "
+            "traitement d'une demande d'autorisation) ne sont pas de la taxation incitative ;",
+            "les primes d'assurance obligatoire relèvent de LIABILITY (garantie d'une "
+            "responsabilité), pas de TAXES_SUBSIDIES ;",
+            "les contributions de financement institutionnel ou de fonctionnement d'un "
+            "organisme, le remboursement de frais et les dommages-intérêts ne sont pas des "
+            "instruments fiscaux de pilotage ;",
+            "les amendes et sanctions pécuniaires punitives infligées pour non-respect d'une "
+            "règle ne sont pas des taxes : une taxe est un prélèvement incitatif régulier lié à "
+            "une activité légale, une amende sanctionne une infraction et ne relève d'aucun des "
+            "7 instruments de ce portfolio ;",
+            "le financement direct d'infrastructures ou d'équipements exploités par l'État "
+            "lui-même relève de PUBLIC_INVESTMENT, pas de TAXES_SUBSIDIES.",
         ],
         "examples_oui": [
             (
-                "Une redevance annuelle est perçue sur les centres de données grands "
-                "consommateurs d'énergie.",
-                "création d'une redevance liée à une activité.",
+                "Une taxe incitative est perçue sur les centres de données à forte "
+                "consommation énergétique, dont le produit est redistribué aux exploitants qui "
+                "réduisent leur consommation.",
+                "taxe explicitement conçue pour orienter un comportement.",
             ),
             (
                 "Des subventions peuvent être octroyées aux entreprises qui investissent dans "
                 "la formation de leur personnel aux outils numériques.",
-                "versement d'une aide financière à des acteurs privés.",
+                "versement d'une aide financière destinée à encourager un comportement.",
             ),
         ],
         "examples_non": [
             (
+                "Un émolument est perçu pour le traitement de la demande d'autorisation "
+                "d'exploitation.",
+                "émolument administratif couvrant un coût de procédure, pas un mécanisme "
+                "d'orientation d'un comportement.",
+            ),
+            (
                 "Quiconque contrevient à l'art. 12 est puni d'une amende de 10 000 francs au "
                 "plus.",
-                "sanction pécuniaire punitive (LIABILITY), pas une taxe.",
+                "sanction pécuniaire punitive, pas une taxe.",
             ),
             (
                 "La Confédération finance la construction d'un centre de calcul public destiné "
@@ -124,20 +163,28 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
     "PUBLIC_INVESTMENT": {
         "name": "investissement et marchés publics",
         "definition": (
-            "L'État engage et gère lui-même des ressources publiques — infrastructures, "
-            "équipements, capacités, marchés publics, achats — plutôt que de transférer de "
-            "l'argent à des tiers. Le maître d'ouvrage ou l'acheteur est l'État lui-même."
+            "Investissement public destiné à CRÉER OU ACCROÎTRE UNE CAPACITÉ SUBSTANTIELLE — "
+            "infrastructure, équipement, programme, ressource ou service — financée et "
+            "exploitée par l'État lui-même ; ou acquisition publique (marché public) "
+            "explicitement utilisée comme mécanisme de politique publique. Le simple "
+            "financement du fonctionnement ordinaire d'une administration (budget courant, "
+            "salaires, frais de fonctionnement) n'est pas un investissement au sens de cette "
+            "catégorie."
         ),
         "include": [
-            "investissements publics dans des infrastructures, équipements ou capacités "
-            "(calcul, énergie, recherche, formation) exploités par ou pour l'État ;",
-            "marchés publics, appels d'offres ou achats de biens et services par une autorité ;",
-            "création ou financement direct d'institutions, d'instituts ou d'infrastructures "
-            "publiques.",
+            "investissement public créant ou accroissant une capacité substantielle "
+            "(infrastructure de calcul, équipement, programme de recherche, service public) "
+            "exploitée par ou pour l'État ;",
+            "marchés publics, appels d'offres ou achats de biens et services par une autorité, "
+            "utilisés explicitement comme mécanisme de politique publique (ex. critères "
+            "d'acquisition orientant le marché).",
         ],
         "exclude": [
             "le versement d'argent à des acteurs privés sous forme de subvention ou d'aide "
             "relève de TAXES_SUBSIDIES, même si l'objectif est similaire ;",
+            "le simple financement du fonctionnement administratif d'un organisme (budget de "
+            "fonctionnement, salaires, frais courants), sans création de capacité nouvelle, "
+            "n'est pas un instrument ;",
             "la simple organisation interne d'une autorité (compétence, structure interne) "
             "sans investissement concret n'est pas un instrument ;",
             "la réglementation de l'accès à une ressource sans investissement direct de l'État "
@@ -147,12 +194,13 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             (
                 "La Confédération investit dans la construction d'infrastructures de calcul à "
                 "haute performance destinées à la recherche publique.",
-                "investissement public direct dans une infrastructure.",
+                "investissement public créant une capacité nouvelle.",
             ),
             (
                 "Les marchés publics de la Confédération intègrent des critères d'acquisition "
-                "de systèmes d'intelligence artificielle sécurisés.",
-                "mécanisme de marché public.",
+                "de systèmes d'intelligence artificielle sécurisés, utilisés pour orienter "
+                "l'offre du marché.",
+                "marché public utilisé comme mécanisme de politique publique.",
             ),
         ],
         "examples_non": [
@@ -164,35 +212,41 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             ),
             (
                 "L'Office fédéral de la statistique est chargé de la coordination interne des "
-                "données numériques de l'administration.",
-                "organisation interne d'une autorité, sans investissement concret.",
+                "données numériques de l'administration et dispose d'un budget de "
+                "fonctionnement annuel.",
+                "financement du fonctionnement ordinaire d'une administration, pas création "
+                "d'une capacité nouvelle.",
             ),
         ],
     },
     "PROHIBITION_BAN": {
         "name": "interdiction",
         "definition": (
-            "Interdiction directe d'une activité, d'un comportement, d'un produit ou d'une "
-            "technologie — totale ou conditionnelle (« ne peut... que si ») —, ou droit "
-            "exclusif légal créant une interdiction implicite pour les tiers."
+            "Une conduite ou activité identifiable est-elle DIRECTEMENT déclarée interdite, "
+            "illicite ou juridiquement impossible ? Il s'agit du mécanisme le plus textuel : "
+            "l'article doit dire, en substance, qu'une activité ne peut pas avoir lieu — pas "
+            "qu'elle est soumise à des conditions pour avoir lieu."
         ),
         "include": [
-            "formulations « il est interdit de », « nul ne peut », « ne peut pas », « ne "
-            "peut... que si » (interdiction assortie d'une exception) ;",
-            "interdictions totales ou partielles d'une pratique, d'une technologie ou d'un "
-            "usage ;",
-            "droits exclusifs légaux (monopoles, exclusivités) créant une interdiction "
-            "implicite pour les tiers.",
+            "formulations « il est interdit de », « nul ne peut », « ne peut pas » énonçant une "
+            "interdiction directe ;",
+            "interdictions totales ou partielles, explicites, d'une pratique, d'une "
+            "technologie ou d'un usage.",
         ],
         "exclude": [
+            "une formulation « ne peut... que si » (ou équivalente) qui pose une CONDITION "
+            "d'accès à une activité par ailleurs autorisée relève d'une obligation/condition "
+            "d'accès (OBLIGATION), PAS d'une interdiction : l'activité reste possible si la "
+            "condition est remplie ;",
+            "un droit exclusif légal (monopole, exclusivité) n'est pas à coder ici, sauf si le "
+            "texte formule lui-même une interdiction explicite envers les tiers ;",
             "une obligation positive d'agir (mettre en œuvre, garantir, documenter) relève de "
             "OBLIGATION, pas d'une interdiction, même si son non-respect est indirectement "
             "sanctionné ;",
             "la sanction prévue en cas de violation d'une interdiction (amende, retrait de "
-            "permis) relève de LIABILITY : code ici uniquement l'interdiction elle-même, pas la "
-            "conséquence de sa violation ;",
-            "une simple condition procédurale d'obtention d'une autorisation, sans énoncé "
-            "explicite d'interdiction de principe, relève de OBLIGATION.",
+            "permis) est un mécanisme d'exécution distinct, qui ne relève d'aucun des 7 "
+            "instruments de ce portfolio : code ici uniquement l'interdiction elle-même, pas sa "
+            "sanction.",
         ],
         "examples_oui": [
             (
@@ -201,12 +255,18 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
                 "interdiction directe et explicite.",
             ),
             (
-                "Nul ne peut mettre sur le marché un système d'intelligence artificielle à "
-                "haut risque sans certification préalable.",
-                "interdiction conditionnelle (« ne peut... que si »).",
+                "La production, l'importation et la mise sur le marché de systèmes de notation "
+                "sociale par les autorités publiques sont interdites.",
+                "interdiction directe et explicite d'une pratique.",
             ),
         ],
         "examples_non": [
+            (
+                "Un système d'intelligence artificielle à haut risque ne peut être mis sur le "
+                "marché que s'il a été certifié conforme aux exigences applicables.",
+                "condition d'accès à une activité par ailleurs autorisée (OBLIGATION), pas une "
+                "interdiction directe.",
+            ),
             (
                 "Les exploitants doivent mettre en œuvre des mesures appropriées pour prévenir "
                 "le risque identifié.",
@@ -215,42 +275,49 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             (
                 "Quiconque contrevient à l'interdiction prévue à l'art. 8 est puni d'une "
                 "amende.",
-                "sanction associée à une interdiction (LIABILITY), pas l'interdiction "
-                "elle-même.",
+                "sanction associée à une interdiction, pas l'interdiction elle-même.",
             ),
         ],
     },
     "PLANNING_EVALUATION": {
         "name": "planification et évaluation",
         "definition": (
-            "Élaboration de plans ou de stratégies, évaluations et audits obligatoires, "
-            "rapports, registres ou inventaires officiels, bacs à sable réglementaires, "
-            "ou obligations d'évaluation et de gestion des risques imposées à des "
-            "organisations. Le mécanisme central est un exercice de planification, "
-            "d'évaluation ou de suivi — même lorsqu'il est rendu obligatoire."
+            "Mécanisme qui produit SYSTÉMATIQUEMENT une évaluation, une expérimentation, une "
+            "planification ou une surveillance STRUCTURÉE, destinée à éclairer, contrôler ou "
+            "adapter une politique, une activité ou un système (plan stratégique, audit, "
+            "analyse d'impact, évaluation périodique, bac à sable réglementaire, programme "
+            "pilote, dispositif de monitoring). Un simple registre, une base de données, un "
+            "inventaire administratif ou une obligation ponctuelle de rapport n'en font PAS "
+            "partie, sauf s'ils constituent eux-mêmes un exercice d'évaluation structuré."
         ),
         "include": [
-            "élaboration de plans, stratégies ou programmes officiels par une autorité ;",
-            "évaluations, audits ou analyses de risques obligatoires imposés à des "
-            "organisations ;",
-            "rapports périodiques, registres, inventaires ou bases de données officielles ;",
-            "bacs à sable réglementaires (sandboxes), projets pilotes encadrés ;",
-            "suivi, monitoring ou évaluation d'une politique publique.",
+            "élaboration d'un plan, d'une stratégie ou d'un programme officiel par une "
+            "autorité ;",
+            "audit obligatoire, analyse ou évaluation d'impact ;",
+            "évaluation périodique structurée d'une politique, d'une activité ou d'un système, "
+            "destinée à éclairer une décision ou une adaptation ;",
+            "bac à sable réglementaire (sandbox), projet pilote encadré ;",
+            "dispositif de monitoring structuré, avec objectif explicite de suivi et "
+            "d'ajustement.",
         ],
         "exclude": [
-            "une simple obligation de documentation technique liée à un produit (notice, "
-            "manuel d'utilisation) sans dimension d'évaluation ou de planification relève de "
-            "OBLIGATION ;",
-            "une obligation de conservation de données sans exercice d'évaluation ou d'analyse "
-            "relève de OBLIGATION ;",
+            "un simple registre, inventaire ou base de données administrative n'est pas, en "
+            "soi, un exercice d'évaluation ou de planification ; s'il est imposé comme une "
+            "exigence de tenue de registre, il relève plutôt de OBLIGATION ;",
+            "une obligation de transmettre un rapport ponctuel ne relève de cette catégorie que "
+            "si le rapport constitue lui-même une évaluation structurée (et non une simple "
+            "transmission d'informations) ; sinon elle relève de OBLIGATION ;",
+            "une collecte statistique ou administrative de routine n'est pas, par défaut, un "
+            "instrument de cette catégorie ;",
             "une interdiction ou une obligation de comportement sans dimension planificatrice "
             "relève de PROHIBITION_BAN ou OBLIGATION.",
         ],
         "examples_oui": [
             (
-                "Le Conseil fédéral établit tous les quatre ans un rapport sur l'état du "
-                "développement de l'intelligence artificielle en Suisse.",
-                "rapport périodique officiel.",
+                "Le Conseil fédéral établit tous les quatre ans un rapport d'évaluation sur "
+                "l'état du développement de l'intelligence artificielle en Suisse, destiné à "
+                "orienter la politique en la matière.",
+                "évaluation périodique structurée destinée à éclairer une politique publique.",
             ),
             (
                 "Les exploitants de systèmes à haut risque doivent réaliser une analyse "
@@ -259,6 +326,11 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             ),
         ],
         "examples_non": [
+            (
+                "Les exploitants tiennent un registre des systèmes qu'ils utilisent.",
+                "simple registre administratif, pas un exercice d'évaluation (relève de "
+                "OBLIGATION).",
+            ),
             (
                 "Les exploitants doivent conserver les données de fonctionnement du système "
                 "pendant cinq ans.",
@@ -274,29 +346,35 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
     "OBLIGATION": {
         "name": "obligation",
         "definition": (
-            "Obligation positive imposée directement à des acteurs privés ou à des "
-            "opérateurs : règle de comportement obligatoire, prescription technique, exigence "
-            "de documentation ou d'enregistrement, condition à remplir pour obtenir ou "
-            "conserver une autorisation, obligation de signalement ou de notification."
+            "Obligation positive imposée directement à un acteur réglementé, PUBLIC OU PRIVÉ "
+            "(opérateur, entreprise, mais aussi administration, canton, institution publique) "
+            ": règle de comportement obligatoire, prescription technique, exigence de "
+            "documentation ou d'enregistrement, obligation de signalement ou de notification. "
+            "Une condition juridiquement obligatoire à satisfaire pour pouvoir exercer une "
+            "activité compte comme une obligation, même si elle est formulée comme condition "
+            "d'autorisation ou de permis (ex. « ne peut... que si »)."
         ),
         "include": [
             "obligations positives de faire quelque chose (mettre en œuvre, garantir, "
-            "assurer, documenter) imposées à un acteur réglementé ;",
+            "assurer, documenter) imposées à un acteur réglementé, public ou privé ;",
             "prescriptions techniques ou normes de conformité obligatoires ;",
             "obligations de notification, de signalement ou d'information envers une "
             "autorité ;",
-            "conditions à remplir pour obtenir ou conserver une autorisation ou un permis ;",
+            "conditions substantielles à remplir pour pouvoir exercer une activité, obtenir ou "
+            "conserver une autorisation ou un permis (y compris formulées « ne peut... que "
+            "si ») ;",
             "exigences de documentation, d'enregistrement ou de tenue de registre directement "
             "liées à un produit ou une activité (sans dimension de planification stratégique).",
         ],
         "exclude": [
-            "une interdiction pure (« il est interdit de », « nul ne peut ») relève de "
-            "PROHIBITION_BAN, pas d'une obligation positive ;",
+            "une interdiction pure, sans condition qui permettrait de rendre l'activité licite "
+            "(« il est interdit de », « nul ne peut »), relève de PROHIBITION_BAN, pas d'une "
+            "obligation positive ;",
             "un exercice de planification, d'évaluation ou de suivi stratégique (rapport "
-            "périodique, analyse d'impact, registre officiel) relève de "
-            "PLANNING_EVALUATION ;",
+            "périodique structuré, analyse d'impact, plan) relève de PLANNING_EVALUATION ;",
             "un mécanisme financier (taxe, subvention) relève de TAXES_SUBSIDIES ;",
-            "une sanction pour non-respect d'une obligation relève de LIABILITY : code ici "
+            "une sanction pour non-respect d'une obligation est un mécanisme d'exécution "
+            "distinct, qui ne relève d'aucun des 7 instruments de ce portfolio : code ici "
             "uniquement l'obligation elle-même, pas sa sanction ;",
             "une règle purement procédurale régissant le déroulement d'une procédure "
             "administrative ou judiciaire n'est pas un instrument.",
@@ -308,9 +386,9 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
                 "obligation positive imposée à un acteur réglementé.",
             ),
             (
-                "Avant sa mise sur le marché, tout système doit être accompagné d'une "
-                "documentation technique complète.",
-                "exigence documentaire obligatoire.",
+                "Un système d'intelligence artificielle à haut risque ne peut être mis sur le "
+                "marché que s'il a été certifié conforme aux exigences applicables.",
+                "condition substantielle d'accès à une activité, imposée comme obligation.",
             ),
         ],
         "examples_non": [
@@ -321,65 +399,73 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
                 "comportement.",
             ),
             (
-                "Il est interdit de mettre sur le marché un système non conforme aux exigences "
-                "applicables.",
-                "interdiction (PROHIBITION_BAN), pas une obligation positive.",
+                "Il est interdit d'utiliser des systèmes d'identification biométrique à "
+                "distance dans les lieux accessibles au public.",
+                "interdiction pure, sans condition d'accès (PROHIBITION_BAN).",
             ),
         ],
     },
     "LIABILITY": {
         "name": "régime de responsabilité",
         "definition": (
-            "Mécanisme de responsabilité servant de levier d'application d'une obligation "
-            "réglementaire précise : saisie et confiscation, sanctions administratives ou "
-            "pécuniaires pour non-respect d'une règle, assurance obligatoire, retrait ou "
-            "suspension d'un permis en cas d'infraction. N'inclut PAS la répartition par "
-            "défaut de la responsabilité civile entre acteurs privés (détenteur, propriétaire, "
-            "tiers, lésé), ni les modalités générales d'indemnisation, qui relèvent du droit "
-            "privé."
+            "Allocation de la responsabilité JURIDIQUE d'un dommage lié à un système, une "
+            "activité ou une infrastructure réglementée : règle qui attribue ou modifie qui "
+            "répond d'un dommage, établit une obligation de réparation, aménage ou renverse le "
+            "fardeau de la preuve en matière de responsabilité, ou impose une assurance "
+            "obligatoire destinée à garantir cette responsabilité. N'inclut PAS les amendes, "
+            "sanctions pénales ou administratives, confiscations, ni les retraits ou "
+            "suspensions de permis en cas d'infraction : ce sont des mécanismes d'exécution / "
+            "sanction, pas une allocation de responsabilité civile. N'inclut pas non plus le "
+            "simple renvoi implicite aux règles générales du droit privé (CO, CC) sans régime "
+            "spécifique créé par la loi elle-même."
         ),
         "include": [
-            "amendes, sanctions administratives ou pénales pour non-respect d'une règle "
-            "réglementaire ;",
-            "saisie, confiscation, retrait ou suspension d'un permis ou d'une autorisation en "
-            "cas d'infraction ;",
-            "assurance obligatoire liée à l'exercice d'une activité réglementée ;",
-            "pouvoir d'exécution forcée ou mesures correctives imposées en cas de "
-            "non-conformité.",
+            "régime de responsabilité civile spécifique, créé ou modifié par la loi, pour une "
+            "activité, un produit ou un système donné (ex. responsabilité de l'exploitant, du "
+            "fabricant, du fournisseur) ;",
+            "obligation légale de réparer un dommage causé par un système ou une activité "
+            "réglementée, y compris un régime de responsabilité causale (sans faute) instauré "
+            "par la loi ;",
+            "aménagement ou renversement du fardeau de la preuve en matière de responsabilité ;",
+            "assurance obligatoire destinée à garantir la réparation d'un dommage lié à "
+            "l'activité réglementée.",
         ],
         "exclude": [
-            "la répartition par défaut de la responsabilité civile entre acteurs privés "
-            "(détenteur, propriétaire, tiers lésé) relève du droit privé général, PAS d'un "
-            "instrument de politique publique ;",
-            "les modalités générales d'indemnisation entre particuliers relèvent du droit "
-            "privé ;",
-            "l'obligation ou l'interdiction dont la violation est sanctionnée doit être codée "
-            "séparément sous OBLIGATION ou PROHIBITION_BAN, pas ici : code ici uniquement le "
-            "mécanisme de sanction ou de garantie lui-même.",
+            "les amendes, sanctions pénales ou administratives, confiscations, retraits ou "
+            "suspensions de permis en cas d'infraction sont des mécanismes d'exécution / "
+            "sanction, qui ne relèvent d'aucun des 7 instruments de ce portfolio — ce n'est PAS "
+            "un régime de responsabilité au sens de cette catégorie ;",
+            "un simple renvoi implicite aux règles générales de la responsabilité civile (CO, "
+            "CC), sans régime spécifique créé par la loi elle-même pour l'activité réglementée, "
+            "n'est pas à coder ici ;",
+            "l'obligation ou l'interdiction dont la violation est éventuellement sanctionnée "
+            "doit être codée séparément sous OBLIGATION ou PROHIBITION_BAN, pas ici.",
         ],
         "examples_oui": [
             (
-                "L'autorité compétente peut retirer l'autorisation d'exploitation en cas de "
-                "violation grave et répétée des exigences de sécurité.",
-                "retrait de permis en cas d'infraction.",
+                "L'exploitant du système répond, indépendamment de toute faute, du dommage "
+                "causé par un dysfonctionnement de celui-ci.",
+                "régime de responsabilité causale (sans faute) créé spécifiquement par la loi "
+                "pour cette activité.",
             ),
             (
                 "Les exploitants doivent souscrire une assurance couvrant les dommages causés "
                 "par le système avant sa mise en service.",
-                "assurance obligatoire liée à l'activité réglementée.",
+                "assurance obligatoire garantissant la responsabilité pour l'activité "
+                "réglementée.",
             ),
         ],
         "examples_non": [
             (
-                "Le détenteur du système répond du dommage causé, à moins qu'il ne prouve "
-                "qu'aucune faute ne lui est imputable.",
-                "répartition par défaut de la responsabilité civile entre particuliers, "
-                "explicitement exclue.",
+                "Quiconque contrevient intentionnellement aux dispositions de l'art. 15 est "
+                "puni d'une amende de 100 000 francs au plus.",
+                "sanction pénale/administrative (mécanisme d'exécution), pas une allocation de "
+                "responsabilité pour un dommage.",
             ),
             (
-                "Les parties peuvent convenir contractuellement des modalités de réparation du "
-                "dommage.",
-                "modalité générale d'indemnisation relevant du droit privé.",
+                "L'autorité compétente peut retirer l'autorisation d'exploitation en cas de "
+                "violation grave et répétée des exigences de sécurité.",
+                "mesure d'exécution (retrait de permis), pas un régime de responsabilité.",
             ),
         ],
     },
@@ -414,8 +500,14 @@ def build_system_prompt(code: str) -> str:
         "## Tâche\n\n"
         f"Détermine si l'article de loi contient spécifiquement l'instrument de politique "
         f"publique suivant : {d['name'].upper()} ({code}).\n\n"
-        f"Réponds uniquement à la question suivante : cet article contient-il l'instrument "
-        f"« {d['name']} » ?\n\n"
+        f"Réponds uniquement à la question suivante : le texte de l'article met-il lui-même en "
+        f"place le mécanisme « {d['name']} », ou habilite-t-il explicitement une autorité à "
+        f"utiliser précisément ce mécanisme ?\n\n"
+        "Ne déduis JAMAIS la présence de cet instrument à partir de ce qu'une autorité pourrait "
+        "faire dans l'exercice d'une compétence générale. Des formulations comme « peut prendre "
+        "les mesures nécessaires », « règle les modalités » ou « peut prévoir des exceptions » "
+        "ne suffisent PAS à elles seules, sauf si le mécanisme précis recherché y est "
+        "explicitement nommé.\n\n"
         "Un article de loi suisse est souvent composé de plusieurs alinéas. Examine CHAQUE "
         "alinéa séparément : il suffit qu'UN SEUL alinéa relève de cet instrument précis pour "
         "que l'article entier soit classé OUI, même si les autres alinéas relèvent d'autres "
@@ -423,33 +515,41 @@ def build_system_prompt(code: str) -> str:
         "## Définition\n\n"
         f"{d['definition']}\n\n"
         "## Inclure\n\n"
-        f"Classe l'article OUI lorsqu'il établit, modifie ou autorise lui-même au moins un "
-        f"mécanisme correspondant à {d['name']}, notamment :\n"
+        f"Classe l'article OUI lorsque le texte met en place lui-même, ou habilite "
+        f"explicitement une autorité à utiliser précisément, un mécanisme correspondant à "
+        f"{d['name']}, notamment :\n"
         f"{include_bullets}\n\n"
-        "Ces exemples sont illustratifs, pas exhaustifs. Détermine si la disposition remplit la "
-        "même fonction même si son mécanisme précis n'est pas listé ci-dessus.\n\n"
+        "Les formulations exactes peuvent varier, mais le mécanisme juridique doit être "
+        "clairement identifiable dans le texte. Une similarité générale de fonction ou "
+        "d'objectif ne suffit PAS.\n\n"
         "## Exclure\n\n"
         "Ne classe PAS l'article ici lorsque le mécanisme qu'il contient relève en réalité d'un "
-        "AUTRE instrument de politique publique, ou d'aucun instrument. En particulier :\n"
+        "AUTRE instrument de politique publique, n'est pas un instrument de ce portfolio, ou "
+        "n'est qu'une compétence générale non exercée dans le texte. En particulier :\n"
         f"{exclude_bullets}\n\n"
         "## Exemples\n\n"
         f"{examples_block}\n\n"
         "## Règle de décision\n\n"
-        f"Applique le test suivant : l'article établit-il, modifie-t-il ou autorise-t-il "
-        f"lui-même un mécanisme correspondant précisément à {d['name']}, tel que défini "
-        "ci-dessus ?\n"
+        f"Applique le test suivant : le texte de l'article met-il lui-même en place, ou "
+        f"habilite-t-il explicitement une autorité à utiliser précisément, un mécanisme "
+        f"correspondant à {d['name']}, tel que défini ci-dessus ?\n"
         "- Si l'article contient plusieurs alinéas ou dispositions, classe-le OUI dès qu'AU "
-        "MOINS UN d'entre eux établit, modifie ou autorise un tel mécanisme. Ne fais JAMAIS la "
-        "moyenne ni le vote majoritaire entre alinéas.\n"
+        "MOINS UN d'entre eux met en place un tel mécanisme. Ne fais JAMAIS la moyenne ni le "
+        "vote majoritaire entre alinéas.\n"
+        "- Un même article peut parfaitement contenir plusieurs instruments distincts. Pour "
+        "cette question, ne réponds OUI que si tu identifies dans le texte un mécanisme "
+        "distinct correspondant précisément à l'instrument recherché ici — indépendamment du "
+        "fait que d'autres mécanismes, relevant d'autres instruments, soient aussi présents "
+        "dans le même article.\n"
         "- Si le mécanisme identifié correspond mieux à un AUTRE instrument (voir section "
-        "\"Exclure\" ci-dessus), réponds NON : ne code jamais un même mécanisme sous plusieurs "
-        "instruments à la fois.\n"
+        "\"Exclure\" ci-dessus), réponds NON pour CET instrument-ci.\n"
         "- N'infère pas la présence de cet instrument à partir de l'objectif général de la loi, "
         "du titre de l'article, du secteur de politique publique, ou de mécanismes qui "
         "pourraient exister ailleurs dans la législation.\n"
         "- Fonde la décision uniquement sur le contenu de l'article fourni.\n"
-        "- En cas d'incertitude, privilégie NON, sauf si un mécanisme correspondant précisément "
-        "à cet instrument peut être identifié explicitement dans l'article lui-même.\n\n"
+        "- En cas d'incertitude, privilégie NON : ne réponds OUI que si le mécanisme "
+        "correspondant précisément à cet instrument est explicitement identifiable dans "
+        "l'article lui-même.\n\n"
         "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre texte avant, "
         "après ou entre les deux :\n"
         "Justification: [1 à 2 phrases maximum, ancrées dans le texte]\n"
