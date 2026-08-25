@@ -24,8 +24,19 @@ OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 INSTRUMENTS=(VOLUNTARY TAXES_SUBSIDIES PUBLIC_INVESTMENT PROHIBITION_BAN PLANNING_EVALUATION OBLIGATION LIABILITY)
 N_INSTRUMENTS=${#INSTRUMENTS[@]}
 
-# $1 = index d'instrument (1-7), $2 = fichier d'entrée (optionnel, seulement utile pour l'index 1)
-IDX="${1:?Usage: sbatch sbatch_run_inst.sh <instrument_index 1-7> [input_file]}"
+# Cette chaîne se lance manuellement APRÈS la chaîne run_target (sbatch_run_target.sh,
+# 12 étapes) : run_target tourne d'abord sur tout le corpus AI-relevant, puis run_inst
+# ne tourne que sur les articles retenus par au moins une cible (~1% du corpus), au
+# lieu de tout le corpus. C'est plus efficace car quasi tous les articles ont un
+# instrument, alors que très peu sont pertinents pour une cible donnée.
+#
+# $1 = index d'instrument (1-7)
+# $2 = pour IDX=1 : job id SLURM du dernier run_target terminé (ex: 61234567) — le
+#        script retrouve son fichier de sortie et le filtre aux articles ayant au
+#        moins une cible = True ; ou, alternativement, un chemin de fichier parquet
+#        déjà filtré à utiliser tel quel.
+#      pour IDX>1 : fichier d'entrée (fourni automatiquement par le chaînage interne).
+IDX="${1:?Usage: sbatch sbatch_run_inst.sh <instrument_index 1-7> <target_job_id|input_file>}"
 if [ "$IDX" -lt 1 ] || [ "$IDX" -gt "$N_INSTRUMENTS" ]; then
   echo "IDX must be between 1 and $N_INSTRUMENTS, got: $IDX" >&2
   exit 1
@@ -33,13 +44,41 @@ fi
 CODE="${INSTRUMENTS[$((IDX - 1))]}"
 CODE_LOWER=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
 
-DEFAULT_INPUT="/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed/laws_structure_selected_with_ai_relevant.parquet"
-INPUT="${2:-$DEFAULT_INPUT}"
+# Dernière cible de la chaîne run_target (voir TARGETS dans sbatch_run_target.sh) :
+# son fichier de sortie contient les 12 colonnes target_<CODE> nécessaires au filtrage.
+TARGET_LAST_CODE_LOWER="information_societal_harms"
 
 OUTBASE="${OUTDIR}/laws_structure_with_instrument_${CODE_LOWER}"
 
 cd "$WORKDIR"
 source .venv/bin/activate
+
+SECOND_ARG="${2:-}"
+
+if [ "$IDX" -eq 1 ]; then
+  if [ -z "$SECOND_ARG" ]; then
+    echo "Pour l'instrument 1, fournir soit le job id du dernier run_target (ex: 61234567), soit un chemin de fichier parquet déjà filtré." >&2
+    exit 1
+  fi
+  if [[ "$SECOND_ARG" =~ ^[0-9]+$ ]]; then
+    TARGET_JOB_ID="$SECOND_ARG"
+    TARGET_OUTPUT="${OUTDIR}/laws_structure_with_target_${TARGET_LAST_CODE_LOWER}_job${TARGET_JOB_ID}.parquet"
+    if [ ! -f "$TARGET_OUTPUT" ]; then
+      echo "Fichier de sortie run_target introuvable: $TARGET_OUTPUT (job id incorrect ?)" >&2
+      exit 1
+    fi
+    INPUT="${OUTDIR}/laws_structure_target_relevant_job${TARGET_JOB_ID}.parquet"
+    echo "Filtrage des articles avec >=1 cible = True depuis $TARGET_OUTPUT"
+    python scripts/filter_target_relevant.py \
+      --input "$TARGET_OUTPUT" \
+      --output "$INPUT" \
+      --level_col level
+  else
+    INPUT="$SECOND_ARG"
+  fi
+else
+  INPUT="$SECOND_ARG"
+fi
 
 export PYTORCH_ALLOC_CONF=expandable_segments:True
 
