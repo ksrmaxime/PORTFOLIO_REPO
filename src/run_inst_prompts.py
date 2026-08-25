@@ -24,85 +24,136 @@ from src.run5_prompts import INSTRUMENT_CODES
 
 INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
     "VOLUNTARY": {
-        "name": "instruments volontaires",
-        "definition": (
-            "Mécanisme FORMALISÉ de régulation non contraignante auquel des acteurs publics "
-            "et/ou privés sont invités à adhérer ou à se conformer volontairement : code de "
-            "conduite, charte, engagement volontaire, accord volontaire entre l'État et des "
-            "acteurs privés, standard ou label non contraignant utilisé comme mécanisme de "
-            "pilotage. La simple communication, information ou sensibilisation du public par "
-            "une autorité n'est PAS un instrument volontaire : il ne s'agit pas d'un mécanisme "
-            "auquel un acteur adhère ou se conforme, seulement d'un message diffusé."
+    "name": "instruments volontaires",
+    "definition": (
+        "Mécanisme FORMALISÉ de régulation non contraignante par lequel une autorité publique "
+        "cherche à orienter le comportement d'acteurs en les invitant à adopter, respecter ou "
+        "suivre volontairement une norme, un engagement, un accord ou un cadre de conduite "
+        "déterminé. Le caractère distinctif de cet instrument est que l'ADHÉSION ou la "
+        "CONFORMITÉ VOLONTAIRE constitue elle-même le mécanisme de politique publique. "
+        "Un instrument volontaire ne désigne donc PAS simplement une activité facultative, "
+        "permise ou autorisée. Le fait qu'un acteur soit libre d'exercer une activité, de "
+        "participer à un dispositif, de demander une autorisation ou qu'une autorité puisse "
+        "autoriser quelque chose ne constitue PAS un instrument volontaire."
+    ),
+    "include": [
+        "codes de conduite élaborés, reconnus ou soutenus par une autorité, auxquels des "
+        "acteurs sont invités à adhérer volontairement ;",
+        "chartes ou engagements volontaires formalisés par lesquels des acteurs s'engagent "
+        "librement à respecter certaines pratiques ou certains standards ;",
+        "accords volontaires conclus entre une autorité et des acteurs privés ou publics "
+        "(par exemple des engagements sectoriels négociés) ;",
+        "standards non contraignants que les acteurs sont explicitement encouragés à adopter "
+        "ou respecter volontairement ;",
+        "labels ou certifications réellement facultatifs lorsqu'ils sont utilisés comme "
+        "mécanisme de politique publique pour encourager l'adoption volontaire de pratiques "
+        "ou de standards déterminés.",
+    ],
+    "exclude": [
+        "IMPORTANT : le simple fait qu'une activité soit FACULTATIVE, PERMISE, AUTORISÉE ou "
+        "laissée au choix d'un acteur ne constitue PAS un instrument volontaire. "
+        "VOLUNTARY signifie que l'adhésion volontaire à une norme, un engagement ou un cadre "
+        "de conduite est elle-même utilisée comme mécanisme pour orienter les comportements ;",
+        "une disposition permettant ou autorisant une activité, un projet, un essai, une "
+        "expérimentation ou un projet pilote N'EST PAS un instrument volontaire, même si les "
+        "acteurs sont libres de participer ;",
+        "un régime d'autorisation, de permis ou d'admission N'EST PAS un instrument volontaire : "
+        "le fait qu'un acteur choisisse librement de demander une autorisation ne transforme "
+        "pas le régime juridique en mécanisme volontaire ;",
+        "un bac à sable réglementaire, un régime expérimental ou des essais encadrés ne "
+        "constituent PAS un instrument volontaire du seul fait que la participation est "
+        "facultative ; ils relèvent de PLANNING_EVALUATION lorsque les critères correspondants "
+        "sont remplis ;",
+        "une disposition indiquant qu'une autorité « peut » prendre une décision, accorder une "
+        "autorisation, prévoir une dérogation ou exercer une compétence N'EST PAS un instrument "
+        "volontaire : « peut » exprime ici un pouvoir ou une marge d'appréciation de "
+        "l'autorité, pas une adhésion volontaire à un mécanisme de régulation ;",
+        "une dérogation ou une exemption à une règle contraignante N'EST PAS un instrument "
+        "volontaire, même lorsqu'un acteur peut choisir d'en bénéficier ;",
+        "la possibilité pour un acteur d'exercer un droit, de déposer une demande, de recourir "
+        "à une procédure ou d'utiliser un service N'EST PAS un instrument volontaire ;",
+        "une simple campagne d'information, de sensibilisation, de conseil ou "
+        "d'accompagnement, sans mécanisme formalisé d'adhésion ou de conformité volontaire, "
+        "N'EST PAS un instrument volontaire de ce portfolio ;",
+        "toute mesure qui impose une obligation juridiquement contraignante à un acteur relève "
+        "de OBLIGATION, pas de VOLUNTARY ;",
+        "tout mécanisme financier (subvention, aide, taxe, exonération) relève de "
+        "TAXES_SUBSIDIES, même lorsque la participation au programme ou la demande d'aide est "
+        "facultative ;",
+        "toute interdiction relève de PROHIBITION_BAN ;",
+        "la simple création ou organisation d'une autorité, sans mécanisme formalisé "
+        "d'adhésion ou de conformité volontaire, n'est pas un instrument.",
+    ],
+    "examples_oui": [
+        (
+            "Les fournisseurs peuvent adhérer à un code de conduite élaboré en collaboration "
+            "avec l'autorité compétente et s'engager volontairement à respecter les standards "
+            "qu'il contient.",
+            "code de conduite formalisé dont l'adhésion et le respect volontaires constituent "
+            "le mécanisme utilisé pour orienter le comportement des acteurs.",
         ),
-        "include": [
-            "codes de conduite élaborés ou reconnus par une autorité, auxquels des acteurs "
-            "peuvent adhérer ;",
-            "chartes ou engagements volontaires formalisés, pris par des acteurs privés ou "
-            "publics ;",
-            "accords volontaires conclus entre une autorité et des acteurs privés (ex. "
-            "engagements sectoriels négociés) ;",
-            "standards, labels ou certifications réellement facultatifs, utilisés comme "
-            "mécanisme d'orientation d'un comportement (l'acteur choisit librement d'y "
-            "souscrire ou non, sans conséquence juridique en cas de non-adhésion).",
-        ],
-        "exclude": [
-            "une simple campagne d'information, de sensibilisation, de conseil ou "
-            "d'accompagnement, sans mécanisme formalisé d'adhésion, N'EST PAS un instrument de "
-            "ce portfolio (aucun des 7 codes) : il n'y a rien à quoi l'acteur adhère ou se "
-            "conforme ;",
-            "toute mesure qui impose une obligation contraignante à un acteur relève de "
-            "OBLIGATION, pas de VOLUNTARY ;",
-            "tout mécanisme financier (subvention, aide, taxe, exonération) relève de "
-            "TAXES_SUBSIDIES, même s'il vise à encourager un comportement ;",
-            "toute interdiction relève de PROHIBITION_BAN ;",
-            "la simple création ou organisation d'une autorité, sans code, charte, accord ou "
-            "label concret, n'est pas un instrument.",
-        ],
-        "examples_oui": [
-            (
-                "Les fournisseurs de systèmes d'intelligence artificielle peuvent adhérer à un "
-                "code de conduite, élaboré en collaboration avec les associations "
-                "professionnelles, définissant des engagements volontaires en matière de "
-                "transparence.",
-                "code de conduite formalisé, adhésion volontaire.",
-            ),
-            (
-                "Les acteurs du secteur numérique peuvent conclure avec la Confédération des "
-                "accords volontaires portant sur la réduction de la consommation énergétique "
-                "des centres de données.",
-                "accord volontaire formalisé entre l'État et des acteurs privés.",
-            ),
-        ],
-        "examples_non": [
-            (
-                "La Confédération peut soutenir des campagnes d'information visant à "
-                "sensibiliser le public aux risques liés à l'utilisation de l'intelligence "
-                "artificielle.",
-                "simple information/sensibilisation, sans mécanisme formalisé d'adhésion : ce "
-                "n'est pas un instrument de ce portfolio.",
-            ),
-            (
-                "Les exploitants doivent informer les autorités de tout incident grave dans un "
-                "délai de 24 heures.",
-                "obligation contraignante de notification (OBLIGATION), pas une démarche "
-                "volontaire.",
-            ),
-            (
-                "La présente loi a pour but de promouvoir l'innovation numérique.",
-                "énoncé de but général sans mécanisme concret.",
-            ),
-        ],
-    },
+        (
+            "Les entreprises du secteur peuvent conclure avec la Confédération des accords "
+            "volontaires par lesquels elles s'engagent à réduire leur consommation "
+            "énergétique selon des objectifs définis en commun.",
+            "accord volontaire formalisé : les acteurs adoptent volontairement des engagements "
+            "destinés à orienter leur comportement.",
+        ),
+        (
+            "L'autorité peut établir un label auquel les fournisseurs peuvent adhérer "
+            "volontairement lorsqu'ils respectent le standard non contraignant défini par "
+            "le programme.",
+            "label facultatif utilisé comme mécanisme formalisé pour encourager l'adoption "
+            "volontaire d'un standard.",
+        ),
+    ],
+    "examples_non": [
+        (
+            "L'autorité peut autoriser des essais de durée limitée avec des véhicules équipés "
+            "d'un système d'automatisation.",
+            "autorisation d'une expérimentation : le fait que l'essai soit facultatif ou "
+            "autorisé ne constitue pas une adhésion volontaire à une norme ou à un engagement.",
+        ),
+        (
+            "L'autorité peut prévoir des dérogations aux dispositions applicables dans le "
+            "cadre d'un projet pilote.",
+            "pouvoir discrétionnaire et régime de dérogation, pas mécanisme de régulation par "
+            "adhésion volontaire.",
+        ),
+        (
+            "Les exploitants peuvent demander une autorisation pour utiliser le système dans "
+            "les conditions prévues par la présente loi.",
+            "le dépôt facultatif d'une demande et l'existence d'un régime d'autorisation ne "
+            "constituent pas un instrument volontaire.",
+        ),
+        (
+            "La Confédération peut soutenir des campagnes d'information visant à sensibiliser "
+            "le public aux risques liés à une nouvelle technologie.",
+            "simple information ou sensibilisation, sans norme, engagement ou cadre de "
+            "conduite auquel des acteurs sont invités à adhérer volontairement.",
+        ),
+        (
+            "Les exploitants doivent informer les autorités de tout incident grave dans un "
+            "délai de 24 heures.",
+            "obligation juridiquement contraignante de notification (OBLIGATION), pas un "
+            "mécanisme de conformité volontaire.",
+        ),
+        (
+            "La présente loi a pour but de promouvoir l'innovation.",
+            "énoncé de but général sans mécanisme concret de régulation volontaire.",
+        ),
+    ],
+},
     "TAXES_SUBSIDIES": {
         "name": "taxes et subventions",
         "definition": (
-            "Incitation ou désincitation FISCALE OU FINANCIÈRE utilisée par l'État comme "
-            "mécanisme pour orienter (encourager ou décourager) un comportement, un "
-            "investissement ou un choix de conformité — pas un simple financement du "
-            "fonctionnement de l'État, de ses procédures ou de ses institutions. Le transfert "
-            "financier doit lui-même constituer le mécanisme de pilotage, pas un effet "
-            "secondaire administratif."
-        ),
+    "Mécanisme FINANCIER par lequel une autorité publique impose un prélèvement monétaire "
+    "(taxe ou impôt) ou accorde un avantage financier (subvention, aide financière, "
+    "exonération ou avantage fiscal) afin d'orienter ou de soutenir un comportement ou une "
+    "activité. Pour être classé OUI, l'article doit contenir un TRANSFERT, PRÉLÈVEMENT ou "
+    "AVANTAGE MONÉTAIRE identifiable. Une mesure qui encourage ou décourage un comportement "
+    "sans mécanisme financier n'est PAS une taxe ou une subvention."
+),
         "include": [
             "taxes, redevances ou impôts spécifiquement incitatifs, dont la fonction est "
             "d'orienter un comportement (ex. taxe carbone, taxe incitative sur une "
@@ -126,6 +177,16 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             "7 instruments de ce portfolio ;",
             "le financement direct d'infrastructures ou d'équipements exploités par l'État "
             "lui-même relève de PUBLIC_INVESTMENT, pas de TAXES_SUBSIDIES.",
+            "une interdiction, une obligation ou toute autre règle contraignante n'est PAS une "
+"taxe ou une subvention simplement parce qu'elle crée une incitation ou une "
+"désincitation comportementale ;",
+
+"les expressions telles que « but lucratif », « valeur commerciale », « activité "
+"économique », « commercialisation », « prix » ou « coût » ne constituent PAS en "
+"elles-mêmes un mécanisme financier public ;",
+
+"si aucun prélèvement, versement, avantage fiscal ou transfert monétaire par une "
+"autorité publique ne peut être identifié dans le texte, répondre NON ;",
         ],
         "examples_oui": [
             (
@@ -282,14 +343,13 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
     "PLANNING_EVALUATION": {
         "name": "planification et évaluation",
         "definition": (
-            "Mécanisme qui produit SYSTÉMATIQUEMENT une évaluation, une expérimentation, une "
-            "planification ou une surveillance STRUCTURÉE, destinée à éclairer, contrôler ou "
-            "adapter une politique, une activité ou un système (plan stratégique, audit, "
-            "analyse d'impact, évaluation périodique, bac à sable réglementaire, programme "
-            "pilote, dispositif de monitoring). Un simple registre, une base de données, un "
-            "inventaire administratif ou une obligation ponctuelle de rapport n'en font PAS "
-            "partie, sauf s'ils constituent eux-mêmes un exercice d'évaluation structuré."
-        ),
+    "Mécanisme formalisé dont l'objet DIRECT est de planifier, tester, surveiller ou "
+    "évaluer une politique, une activité, un système ou un risque. Il doit exister dans "
+    "l'article un exercice identifiable de planification, d'expérimentation, d'audit, "
+    "d'analyse d'impact, de monitoring systématique ou d'évaluation. Le simple fait qu'une "
+    "règle définisse, encadre ou contrôle un comportement ne constitue PAS une planification "
+    "ou une évaluation."
+),
         "include": [
             "élaboration d'un plan, d'une stratégie ou d'un programme officiel par une "
             "autorité ;",
@@ -311,6 +371,14 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             "instrument de cette catégorie ;",
             "une interdiction ou une obligation de comportement sans dimension planificatrice "
             "relève de PROHIBITION_BAN ou OBLIGATION.",
+            "une interdiction ou une obligation n'est PAS un instrument de planification ou "
+"d'évaluation simplement parce qu'elle vise à prévenir, contrôler ou réduire un risque ;",
+
+"une définition, une liste de critères, une exception ou la délimitation précise d'une "
+"règle ne constitue PAS une évaluation ;",
+
+"si aucun plan, audit, essai encadré, analyse d'impact, monitoring systématique ou "
+"évaluation identifiable n'est prévu par l'article, répondre NON ;",
         ],
         "examples_oui": [
             (
@@ -353,6 +421,10 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             "Une condition juridiquement obligatoire à satisfaire pour pouvoir exercer une "
             "activité compte comme une obligation, même si elle est formulée comme condition "
             "d'autorisation ou de permis (ex. « ne peut... que si »)."
+            "OBLIGATION désigne EXCLUSIVEMENT une obligation POSITIVE : un acteur est juridiquement "
+    "tenu de FAIRE, FOURNIR, METTRE EN PLACE, MAINTENIR, GARANTIR ou RESPECTER une exigence "
+    "positive déterminée. Une obligation de NE PAS FAIRE quelque chose est, dans cette "
+    "taxonomie, une PROHIBITION_BAN et doit toujours être classée NON ici."
         ),
         "include": [
             "obligations positives de faire quelque chose (mettre en œuvre, garantir, "
@@ -376,8 +448,17 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             "une sanction pour non-respect d'une obligation est un mécanisme d'exécution "
             "distinct, qui ne relève d'aucun des 7 instruments de ce portfolio : code ici "
             "uniquement l'obligation elle-même, pas sa sanction ;",
-            "une règle purement procédurale régissant le déroulement d'une procédure "
-            "administrative ou judiciaire n'est pas un instrument.",
+            "une tâche, compétence ou obligation imposée à une autorité uniquement pour organiser "
+"son activité administrative (consulter une autre autorité, obtenir son accord, transmettre "
+"un dossier, coordonner une procédure, prendre une décision) n'est PAS une OBLIGATION au "
+"sens de cet instrument. Une autorité publique peut toutefois être destinataire d'une "
+"OBLIGATION lorsqu'elle est elle-même soumise à une exigence substantielle de politique "
+"publique ;",
+            "une formulation « il est interdit de », « ne peut pas », « nul ne peut » ou toute "
+"autre obligation de s'abstenir relève exclusivement de PROHIBITION_BAN ;",
+
+"ne transforme JAMAIS une interdiction en obligation au motif qu'elle impose juridiquement "
+"à l'acteur de respecter l'interdiction ;",
         ],
         "examples_oui": [
             (
@@ -408,17 +489,12 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
     "LIABILITY": {
         "name": "régime de responsabilité",
         "definition": (
-            "Allocation de la responsabilité JURIDIQUE d'un dommage lié à un système, une "
-            "activité ou une infrastructure réglementée : règle qui attribue ou modifie qui "
-            "répond d'un dommage, établit une obligation de réparation, aménage ou renverse le "
-            "fardeau de la preuve en matière de responsabilité, ou impose une assurance "
-            "obligatoire destinée à garantir cette responsabilité. N'inclut PAS les amendes, "
-            "sanctions pénales ou administratives, confiscations, ni les retraits ou "
-            "suspensions de permis en cas d'infraction : ce sont des mécanismes d'exécution / "
-            "sanction, pas une allocation de responsabilité civile. N'inclut pas non plus le "
-            "simple renvoi implicite aux règles générales du droit privé (CO, CC) sans régime "
-            "spécifique créé par la loi elle-même."
-        ),
+    "Règle qui attribue explicitement la RESPONSABILITÉ JURIDIQUE pour un dommage ou un "
+    "préjudice et détermine qui doit en répondre, le réparer ou l'indemniser. L'article doit "
+    "lui-même établir ou modifier un mécanisme de responsabilité. L'existence d'une "
+    "obligation ou d'une interdiction dont la violation POURRAIT entraîner une responsabilité "
+    "ailleurs dans le droit ne suffit jamais."
+),
         "include": [
             "régime de responsabilité civile spécifique, créé ou modifié par la loi, pour une "
             "activité, un produit ou un système donné (ex. responsabilité de l'exploitant, du "
@@ -440,6 +516,17 @@ INSTRUMENT_DEFINITIONS: "dict[str, dict]" = {
             "n'est pas à coder ici ;",
             "l'obligation ou l'interdiction dont la violation est éventuellement sanctionnée "
             "doit être codée séparément sous OBLIGATION ou PROHIBITION_BAN, pas ici.",
+            "une interdiction ou une obligation n'établit PAS un régime de responsabilité simplement "
+"parce que sa violation pourrait entraîner des conséquences juridiques ;",
+
+"une exception à une interdiction ne constitue PAS une exonération de responsabilité au "
+"sens de cet instrument ;",
+
+"ne déduis JAMAIS une responsabilité causale, pour faute ou sans faute si l'article ne "
+"l'établit pas explicitement ;",
+
+"si l'article n'identifie aucun dommage, aucune obligation de réparation ou d'indemnisation, "
+"et aucune attribution explicite de responsabilité juridique, répondre NON ;",
         ],
         "examples_oui": [
             (
@@ -497,59 +584,82 @@ def build_system_prompt(code: str) -> str:
 
     return (
         "Tu es un expert en analyse des politiques publiques et du droit suisse.\n\n"
+
         "## Tâche\n\n"
         f"Détermine si l'article de loi contient spécifiquement l'instrument de politique "
         f"publique suivant : {d['name'].upper()} ({code}).\n\n"
-        f"Réponds uniquement à la question suivante : le texte de l'article met-il lui-même en "
-        f"place le mécanisme « {d['name']} », ou habilite-t-il explicitement une autorité à "
-        f"utiliser précisément ce mécanisme ?\n\n"
-        "Ne déduis JAMAIS la présence de cet instrument à partir de ce qu'une autorité pourrait "
-        "faire dans l'exercice d'une compétence générale. Des formulations comme « peut prendre "
-        "les mesures nécessaires », « règle les modalités » ou « peut prévoir des exceptions » "
-        "ne suffisent PAS à elles seules, sauf si le mécanisme précis recherché y est "
-        "explicitement nommé.\n\n"
+        f"Réponds uniquement à la question suivante : cet article contient-il l'instrument "
+        f"« {d['name']} » ?\n\n"
+
         "Un article de loi suisse est souvent composé de plusieurs alinéas. Examine CHAQUE "
         "alinéa séparément : il suffit qu'UN SEUL alinéa relève de cet instrument précis pour "
         "que l'article entier soit classé OUI, même si les autres alinéas relèvent d'autres "
         "instruments ou n'en contiennent aucun.\n\n"
+
         "## Définition\n\n"
         f"{d['definition']}\n\n"
+
         "## Inclure\n\n"
-        f"Classe l'article OUI lorsque le texte met en place lui-même, ou habilite "
-        f"explicitement une autorité à utiliser précisément, un mécanisme correspondant à "
-        f"{d['name']}, notamment :\n"
+        f"Classe l'article OUI lorsqu'il contient lui-même au moins un mécanisme correspondant "
+        f"précisément à {d['name']}, notamment :\n"
         f"{include_bullets}\n\n"
-        "Les formulations exactes peuvent varier, mais le mécanisme juridique doit être "
-        "clairement identifiable dans le texte. Une similarité générale de fonction ou "
-        "d'objectif ne suffit PAS.\n\n"
+        "Les formulations juridiques exactes peuvent varier. Réponds OUI uniquement si le "
+        "texte contient clairement le mécanisme défini ci-dessus. Une similarité générale "
+        "de fonction ou d'objectif ne suffit pas.\n\n"
+
         "## Exclure\n\n"
-        "Ne classe PAS l'article ici lorsque le mécanisme qu'il contient relève en réalité d'un "
-        "AUTRE instrument de politique publique, n'est pas un instrument de ce portfolio, ou "
-        "n'est qu'une compétence générale non exercée dans le texte. En particulier :\n"
+        "Ne classe PAS l'article ici lorsque le mécanisme qu'il contient relève en réalité "
+        "d'un AUTRE instrument de politique publique, ou d'aucun instrument. En particulier :\n"
         f"{exclude_bullets}\n\n"
+
+        "## Délégation du pouvoir réglementaire\n\n"
+        "Une loi peut déléguer au Conseil fédéral ou à une autre autorité le soin de préciser "
+        "ultérieurement une réglementation. Une telle délégation compte comme l'instrument "
+        "recherché UNIQUEMENT lorsque la loi identifie déjà clairement la NATURE de cet "
+        "instrument et délègue seulement sa précision ou sa mise en œuvre.\n\n"
+        "Par exemple, « le Conseil fédéral fixe les exigences auxquelles les exploitants "
+        "doivent satisfaire » établit déjà un régime d'exigences contraignantes : "
+        "OBLIGATION peut être OUI. De même, une disposition autorisant explicitement le "
+        "Conseil fédéral à interdire une pratique peut constituer PROHIBITION_BAN.\n\n"
+        "En revanche, une habilitation générale telle que « le Conseil fédéral règle les "
+        "modalités », « édicte les dispositions d'exécution » ou « peut prendre les mesures "
+        "nécessaires » ne permet PAS d'inférer un instrument précis.\n\n"
+        "RÈGLE : si la loi détermine clairement l'instrument mais délègue uniquement ses détails, "
+"considère que cet instrument est présent. Si le choix même de l'instrument est laissé à "
+"l'autorité, réponds NON.\n\n"
+
+        "## Ne pas raisonner par effet ou implication\n\n"
+        "Identifie uniquement le mécanisme juridique contenu dans l'article. Ne réponds PAS "
+        "OUI simplement parce que la disposition produit un effet similaire à l'instrument "
+        "recherché, encourage ou décourage un comportement, pourrait entraîner une sanction "
+        "ou une responsabilité, ou contribue à un objectif auquel cet instrument pourrait "
+        "également contribuer.\n\n"
+        "Une conséquence possible, un effet comportemental ou une implication juridique "
+        "indirecte ne suffit JAMAIS. Pour répondre OUI, un mécanisme correspondant précisément "
+        "à la définition de l'instrument recherché doit pouvoir être identifié dans le texte.\n\n"
+
         "## Exemples\n\n"
         f"{examples_block}\n\n"
+
         "## Règle de décision\n\n"
-        f"Applique le test suivant : le texte de l'article met-il lui-même en place, ou "
-        f"habilite-t-il explicitement une autorité à utiliser précisément, un mécanisme "
-        f"correspondant à {d['name']}, tel que défini ci-dessus ?\n"
+        f"Applique le test suivant : l'article contient-il lui-même, ou délègue-t-il "
+        f"explicitement, un mécanisme correspondant précisément à {d['name']}, tel que défini "
+        "ci-dessus ?\n"
         "- Si l'article contient plusieurs alinéas ou dispositions, classe-le OUI dès qu'AU "
-        "MOINS UN d'entre eux met en place un tel mécanisme. Ne fais JAMAIS la moyenne ni le "
-        "vote majoritaire entre alinéas.\n"
-        "- Un même article peut parfaitement contenir plusieurs instruments distincts. Pour "
-        "cette question, ne réponds OUI que si tu identifies dans le texte un mécanisme "
-        "distinct correspondant précisément à l'instrument recherché ici — indépendamment du "
-        "fait que d'autres mécanismes, relevant d'autres instruments, soient aussi présents "
-        "dans le même article.\n"
-        "- Si le mécanisme identifié correspond mieux à un AUTRE instrument (voir section "
-        "\"Exclure\" ci-dessus), réponds NON pour CET instrument-ci.\n"
+        "MOINS UN d'entre eux contient un tel mécanisme. Ne fais JAMAIS la moyenne ni le vote "
+        "majoritaire entre alinéas.\n"
+        "- Un même article peut contenir plusieurs instruments distincts. Pour ce prompt, "
+        "réponds OUI uniquement si tu peux identifier un mécanisme correspondant précisément "
+        "à l'instrument recherché.\n"
+        "- Ne déduis jamais cet instrument de ce qu'une autorité POURRAIT faire sur la base "
+        "d'une compétence générale. Une délégation ne compte que si le type d'instrument est "
+        "déjà identifiable dans le texte.\n"
         "- N'infère pas la présence de cet instrument à partir de l'objectif général de la loi, "
-        "du titre de l'article, du secteur de politique publique, ou de mécanismes qui "
-        "pourraient exister ailleurs dans la législation.\n"
+        "du titre de l'article, du secteur de politique publique ou d'un simple effet indirect.\n"
         "- Fonde la décision uniquement sur le contenu de l'article fourni.\n"
-        "- En cas d'incertitude, privilégie NON : ne réponds OUI que si le mécanisme "
-        "correspondant précisément à cet instrument est explicitement identifiable dans "
-        "l'article lui-même.\n\n"
+        "- En cas d'incertitude, privilégie NON, sauf si un mécanisme correspondant précisément "
+        "à cet instrument peut être identifié dans l'article lui-même.\n\n"
+
         "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre texte avant, "
         "après ou entre les deux :\n"
         "Justification: [1 à 2 phrases maximum, ancrées dans le texte]\n"
