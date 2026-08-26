@@ -8,27 +8,46 @@
 # taxonomie remplace celle de run5_prompts.TARGET_CODES (10 cibles, ancienne
 # version) — ne pas réutiliser run5_prompts pour ce pipeline.
 #
-# Cadrage des prompts : mise en situation, pas de liste de règles. Les
-# versions précédentes empilaient un gros bloc de règles générales
-# (anti-extrapolation, mots interdits, exemples, gestion des alinéas...) qui
-# prenait le dessus sur la question réellement posée pour la cible — le LLM
-# finissait par raisonner sur les règles plutôt que sur le texte. Le prompt
-# est maintenant réduit à : une mise en situation courte rappelant l'enjeu
-# IA visé par la cible, la norme à évaluer, et la question fermée. On laisse
-# la compréhension contextuelle au LLM plutôt que de la contraindre par une
-# liste de règles — c'est tout l'intérêt de passer par un LLM plutôt qu'une
-# recherche de mots-clés.
+# Cadrage des prompts : chaque cible a son propre récit, pas de phrase
+# générique remplie par un mot-clé. Une seule tournure ("nous savons que
+# l'IA soulève un enjeu majeur : X") appliquée aux 12 cibles ne veut rien
+# dire une fois X substitué par des cibles aussi différentes qu'un manque de
+# recherche ou un risque de désinformation. Les 4 cibles "Enabling" (l'État
+# agit pour permettre/encourager le développement de l'IA) et les 8 cibles
+# "Safeguarding" (l'IA fait peser un risque concret que l'État doit
+# encadrer) appellent des tournures différentes :
+#   - Enabling  : "Pour <objectif de politique publique>, un État doit
+#                 s'assurer qu'il existe <dispositif concret>. Est-ce que
+#                 la norme ci-dessous met en place un tel dispositif ?"
+#   - Safeguarding : "L'intelligence artificielle fait peser un risque de
+#                 <danger concret>. Est-ce que la norme ci-dessous protège
+#                 contre ce risque ?"
+# `context` (la mise en situation) et `question` (la question fermée) sont
+# donc écrits intégralement pour chaque cible. Seule la partie sur la forme
+# de la réponse (Justification/Décision) reste commune aux 12 prompts.
 from __future__ import annotations
 
 from collections import OrderedDict
+from textwrap import dedent
 
 import pandas as pd
 
+
+def _p(text: str) -> str:
+    """Aplatit un bloc triple-quoté multi-lignes en un seul paragraphe.
+
+    Permet d'écrire un texte long comme UNE chaîne continue et lisible dans
+    le source, sans le découper en fragments "..." "..." concaténés ligne
+    par ligne.
+    """
+    return " ".join(text.split())
+
+
 # ---------------------------------------------------------------------------
 # Les 12 cibles opérationnelles, dans l'ordre du tableau 2.3 du PDF.
-# Chaque entrée : nom, quadrant, et `probleme` — une description courte de
-# l'enjeu que l'intelligence artificielle pose pour cette cible, utilisée
-# dans la mise en situation du prompt.
+# `context` : la mise en situation spécifique à la cible (objectif de
+# politique publique pour les cibles Enabling, risque concret pour les
+# cibles Safeguarding). `question` : la question fermée correspondante.
 # ---------------------------------------------------------------------------
 
 TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
@@ -38,11 +57,23 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Recherche & Innovation",
                 "quadrant": "Enabling x Upstream",
-                "probleme": (
-                    "un manque de recherche et d'innovation en intelligence "
-                    "artificielle, faute de financement, de centres de recherche "
-                    "ou de collaboration scientifique dédiés"
-                ),
+                "context": _p("""
+                    Pour encourager l'innovation et le développement de
+                    l'intelligence artificielle, un État doit s'assurer
+                    qu'il existe des dispositifs de soutien à la recherche
+                    en intelligence artificielle : financement de projets
+                    de recherche, création de centres de recherche,
+                    collaborations scientifiques ou transfert de
+                    technologie portant sur l'intelligence artificielle.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous met en place un tel
+                    dispositif de soutien à la recherche ou à l'innovation
+                    en intelligence artificielle ? Un dispositif de soutien
+                    à la recherche ou à l'innovation en général, qui ne
+                    vise pas spécifiquement l'intelligence artificielle, ne
+                    répond pas à cet objectif.
+                """),
             },
         ),
         (
@@ -50,11 +81,24 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Compétences & Capital humain",
                 "quadrant": "Enabling x Upstream",
-                "probleme": (
-                    "un manque de compétences humaines pertinentes pour "
-                    "l'intelligence artificielle (formation, compétences en "
-                    "données ou en calcul, main-d'œuvre qualifiée)"
-                ),
+                "context": _p("""
+                    Pour permettre le développement de l'intelligence
+                    artificielle, un État doit s'assurer que la population
+                    et la main-d'œuvre disposent des compétences
+                    nécessaires : formations à l'intelligence artificielle,
+                    compétences en données ou en calcul, programmes
+                    universitaires spécialisés, requalification
+                    professionnelle.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous met en place un tel
+                    dispositif de formation ou de développement de
+                    compétences en intelligence artificielle ? Un
+                    dispositif d'éducation ou de formation générale, qui ne
+                    vise pas spécifiquement des compétences en intelligence
+                    artificielle, en données ou en calcul, ne répond pas à
+                    cet objectif.
+                """),
             },
         ),
         (
@@ -62,10 +106,23 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Accès aux données & Ressources",
                 "quadrant": "Enabling x Upstream",
-                "probleme": (
-                    "un accès insuffisant aux données nécessaires au "
-                    "développement de systèmes d'intelligence artificielle"
-                ),
+                "context": _p("""
+                    Le développement de systèmes d'intelligence
+                    artificielle dépend de la disponibilité de données pour
+                    leur entraînement et leur fonctionnement. Pour favoriser
+                    ce développement, un État peut faciliter l'accès, le
+                    partage ou la réutilisation de données destinées à
+                    l'intelligence artificielle.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous facilite un tel accès ou
+                    partage de données au service du développement de
+                    l'intelligence artificielle ? Une norme qui organise la
+                    collecte ou la gestion de données publiques,
+                    administratives ou statistiques en général, sans lien
+                    avec le développement de systèmes d'intelligence
+                    artificielle, ne répond pas à cet objectif.
+                """),
             },
         ),
         (
@@ -73,11 +130,23 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Calcul & Infrastructure",
                 "quadrant": "Enabling x Upstream",
-                "probleme": (
-                    "un accès insuffisant à des capacités de calcul ou à une "
-                    "infrastructure adaptée au développement de l'intelligence "
-                    "artificielle"
-                ),
+                "context": _p("""
+                    Le développement de systèmes d'intelligence
+                    artificielle nécessite un accès à des capacités de
+                    calcul et à une infrastructure adaptée : puces,
+                    matériel informatique, cloud, supercalcul, centres de
+                    données. Pour favoriser ce développement, un État peut
+                    faciliter cet accès.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous facilite l'accès à des
+                    capacités de calcul ou à une infrastructure destinée au
+                    développement de l'intelligence artificielle ? Une
+                    norme qui régule l'infrastructure ou l'énergie en
+                    général, sans lien avec le fonctionnement de systèmes
+                    d'intelligence artificielle, ne répond pas à cet
+                    objectif.
+                """),
             },
         ),
         (
@@ -85,11 +154,20 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Adoption & Diffusion",
                 "quadrant": "Enabling x Downstream",
-                "probleme": (
-                    "une adoption insuffisante de l'intelligence artificielle "
-                    "par les entreprises, les administrations publiques ou "
-                    "d'autres organisations"
-                ),
+                "context": _p("""
+                    Pour que l'intelligence artificielle produise des
+                    bénéfices concrets, un État doit encourager son adoption
+                    effective par les entreprises, les administrations
+                    publiques ou d'autres organisations, par exemple par des
+                    incitations, un accompagnement ou des programmes de
+                    déploiement.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous encourage l'adoption ou
+                    le déploiement effectif de l'intelligence artificielle
+                    par des entreprises, des administrations publiques ou
+                    d'autres organisations ?
+                """),
             },
         ),
         (
@@ -97,10 +175,20 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Expérimentation & Développement de marché",
                 "quadrant": "Enabling x Downstream",
-                "probleme": (
-                    "des difficultés à tester, expérimenter ou mettre sur le "
-                    "marché des systèmes d'intelligence artificielle"
-                ),
+                "context": _p("""
+                    Pour permettre à des systèmes d'intelligence
+                    artificielle d'arriver à maturité et d'entrer sur le
+                    marché, un État peut mettre en place des dispositifs
+                    d'expérimentation encadrée, comme un bac à sable
+                    réglementaire, permettant de tester ou de démontrer ces
+                    systèmes avant leur déploiement complet.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous met en place un tel
+                    dispositif d'expérimentation ou de facilitation de
+                    l'entrée sur le marché de systèmes d'intelligence
+                    artificielle ?
+                """),
             },
         ),
         (
@@ -108,10 +196,24 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Données & Vie privée",
                 "quadrant": "Safeguarding x Upstream",
-                "probleme": (
-                    "la protection des données utilisées, inférées ou traitées "
-                    "par des systèmes d'intelligence artificielle"
-                ),
+                "context": _p("""
+                    L'entraînement et le fonctionnement des systèmes
+                    d'intelligence artificielle reposent souvent sur de
+                    grandes quantités de données, ce qui expose les
+                    personnes concernées à un risque d'atteinte à leur vie
+                    privée : collecte excessive, réutilisation non
+                    consentie, ré-identification, ou inférences intrusives
+                    à partir de leurs données.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous protège les personnes
+                    contre ce risque, s'agissant spécifiquement de données
+                    utilisées, inférées ou traitées par l'intelligence
+                    artificielle ou des systèmes automatisés ? Une norme de
+                    protection des données qui ne vise pas spécifiquement un
+                    traitement automatisé ou l'intelligence artificielle ne
+                    répond pas à ce risque.
+                """),
             },
         ),
         (
@@ -119,12 +221,22 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Propriété intellectuelle & Droits créatifs",
                 "quadrant": "Safeguarding x Upstream",
-                "probleme": (
-                    "la protection des droits de propriété intellectuelle ou "
-                    "des droits d'auteur sur du contenu affecté par "
-                    "l'intelligence artificielle (données d'entraînement, "
-                    "œuvres protégées, contenu généré)"
-                ),
+                "context": _p("""
+                    L'intelligence artificielle, notamment lorsqu'elle est
+                    entraînée sur des œuvres protégées ou qu'elle génère
+                    elle-même du contenu, pose un risque pour les droits de
+                    propriété intellectuelle et les droits d'auteur :
+                    utilisation non autorisée d'œuvres protégées comme
+                    données d'entraînement, ou incertitude sur l'attribution
+                    des droits sur un contenu généré par l'intelligence
+                    artificielle.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous protège ou attribue des
+                    droits de propriété intellectuelle ou des droits
+                    d'auteur face à ce risque spécifique lié à
+                    l'intelligence artificielle ?
+                """),
             },
         ),
         (
@@ -132,10 +244,23 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Sécurité & Robustesse",
                 "quadrant": "Safeguarding x Upstream",
-                "probleme": (
-                    "la sécurité, l'intégrité ou la robustesse des systèmes, "
-                    "modèles ou infrastructures d'intelligence artificielle"
-                ),
+                "context": _p("""
+                    Des systèmes d'intelligence artificielle défaillants,
+                    non sécurisés ou peu robustes peuvent causer des
+                    dommages : failles de sécurité exploitables, erreurs non
+                    détectées, dérives de fonctionnement, vulnérabilité aux
+                    attaques ciblant les modèles ou les données
+                    d'entraînement.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous impose une exigence de
+                    sécurité, d'intégrité, de résilience ou de robustesse
+                    face à ce risque, s'agissant spécifiquement de systèmes,
+                    modèles, données ou infrastructures d'intelligence
+                    artificielle ? Une exigence de cybersécurité générale,
+                    sans lien avec l'intelligence artificielle, ne répond
+                    pas à ce risque.
+                """),
             },
         ),
         (
@@ -143,11 +268,21 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Responsabilité & Transparence",
                 "quadrant": "Safeguarding x Downstream",
-                "probleme": (
-                    "le manque de transparence, d'explicabilité, de "
-                    "traçabilité ou de supervision humaine des décisions "
-                    "prises par des systèmes d'intelligence artificielle"
-                ),
+                "context": _p("""
+                    Une décision prise ou assistée par un système
+                    d'intelligence artificielle peut rester incompréhensible
+                    ou invérifiable pour la personne concernée, qui risque
+                    alors de ne pas pouvoir comprendre, vérifier ou
+                    contester cette décision.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous protège les personnes
+                    contre ce risque, en exigeant de la transparence, de
+                    l'explicabilité, de la traçabilité, une supervision
+                    humaine ou une possibilité de contester une décision
+                    issue d'un système d'intelligence artificielle ou
+                    automatisé ?
+                """),
             },
         ),
         (
@@ -155,14 +290,21 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Usages à hauts enjeux & Droits fondamentaux",
                 "quadrant": "Safeguarding x Downstream",
-                "probleme": (
-                    "les conséquences lourdes que peuvent avoir, pour les "
-                    "individus et leurs droits fondamentaux, des décisions "
-                    "prises par des systèmes d'intelligence artificielle dans "
-                    "des domaines à hauts enjeux (mobilité, emploi, crédit, "
-                    "santé, éducation, police, justice, prestations sociales, "
-                    "migration, discrimination)"
-                ),
+                "context": _p("""
+                    Un système d'intelligence artificielle utilisé dans un
+                    domaine à hauts enjeux (mobilité, emploi, crédit, santé,
+                    éducation, police, justice, prestations sociales,
+                    migration) peut produire des décisions ayant de lourdes
+                    conséquences pour les individus, jusqu'à porter atteinte
+                    à leurs droits fondamentaux ou à leur intégrité, par
+                    exemple par des biais ou des discriminations.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous encadre spécifiquement
+                    l'utilisation de l'intelligence artificielle dans un tel
+                    contexte à hauts enjeux, pour protéger les individus
+                    face à ce risque ?
+                """),
             },
         ),
         (
@@ -170,12 +312,23 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Information & Préjudices sociétaux",
                 "quadrant": "Safeguarding x Downstream",
-                "probleme": (
-                    "les préjudices sociétaux créés ou amplifiés par la "
-                    "génération, la recommandation, le ciblage ou la diffusion "
-                    "automatisée d'information (désinformation, deepfakes, "
-                    "manipulation)"
-                ),
+                "context": _p("""
+                    La génération, la recommandation, le ciblage ou la
+                    diffusion automatisée d'information par des systèmes
+                    d'intelligence artificielle peut amplifier des
+                    préjudices sociétaux : désinformation, deepfakes,
+                    manipulation automatisée des opinions ou des
+                    comportements.
+                """),
+                "question": _p("""
+                    Est-ce que la norme ci-dessous protège la société contre
+                    ce risque, s'agissant spécifiquement d'un contenu
+                    généré, recommandé, ciblé ou diffusé de manière
+                    automatisée ? Une régulation générale des médias ou de
+                    la désinformation, sans lien structurel avec
+                    l'automatisation ou l'intelligence artificielle, ne
+                    répond pas à ce risque.
+                """),
             },
         ),
     ]
@@ -192,23 +345,21 @@ def build_system_prompt(code: str) -> str:
 
     d = TARGET_DEFINITIONS[code]
 
-    return (
-        "Tu es un expert en analyse des politiques publiques et du droit suisse.\n\n"
+    return dedent(f"""\
+        Tu es un expert en analyse des politiques publiques et du droit suisse.
 
-        f"Nous savons que l'intelligence artificielle soulève un enjeu majeur : "
-        f"{d['probleme']}.\n\n"
+        {d['context']}
 
-        "Voici ci-dessous une norme légale, sélectionnée aléatoirement parmi des "
-        "textes qui ont, ou n'ont rien à voir, avec cette problématique.\n\n"
+        Voici ci-dessous une norme légale, sélectionnée aléatoirement parmi des textes qui ont, ou n'ont rien à voir, avec cette problématique.
 
-        "Dis-moi si, oui ou non, cette norme répond à ce problème.\n\n"
+        {d['question']}
 
-        "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre "
-        "texte avant, après ou entre les deux :\n"
-        "Justification: [une phrase maximum]\n"
-        "Décision: OUI ou NON\n\n"
-        "La ligne \"Décision:\" est OBLIGATOIRE et doit toujours être présente."
-    )
+        Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre texte avant, après ou entre les deux :
+        Justification: [une phrase maximum]
+        Décision: OUI ou NON
+
+        La ligne "Décision:" est OBLIGATOIRE et doit toujours être présente.
+        """)
 
 
 USER_TEMPLATE = """Texte :
