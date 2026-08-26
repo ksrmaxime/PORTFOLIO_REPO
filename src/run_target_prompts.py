@@ -19,6 +19,18 @@ import pandas as pd
 # exclusions/pièges propres à cette cible).
 # ---------------------------------------------------------------------------
 
+def _p(text: str) -> str:
+    """Normalise un bloc de texte multi-lignes en un seul paragraphe.
+
+    Permet d'écrire question/note comme UNE chaîne continue dans le source
+    (repliée sur plusieurs lignes pour la lisibilité), sans risquer les bugs
+    de concaténation implicite entre fragments "" (espaces manquants/en trop,
+    ponctuation collée) qui font que le LLM lit chaque ligne comme une
+    consigne séparée au lieu d'une seule phrase.
+    """
+    return " ".join(text.split())
+
+
 TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
     [
         (
@@ -26,11 +38,16 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Recherche & Innovation",
                 "quadrant": "Enabling x Upstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une action de l'État "
-                    "augmentant la capacité à créer ou améliorer l'intelligence artificielle (financement de "
-                    "recherche, centres de recherche, collaboration scientifique, "
-                    "transfert de technologie) ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement des mesures augmentant la
+                    recherche ou l'innovation en intelligence artificielle (comme le
+                    financement de recherche, centres de recherche, collaboration
+                    scientifique, transfert de technologie portant directement sur
+                    l'intelligence artificielle) ? Si l'article prévoit des mesures
+                    soutenant l'innovation en général, mais pas explicitement
+                    l'intelligence artificielle, la réponse est NON.
+                    """
                 ),
             },
         ),
@@ -39,17 +56,22 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Compétences & Capital humain",
                 "quadrant": "Enabling x Upstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une action de l'État "
-                    "développant des compétences humaines pertinentes pour l'intelligence artificielle "
-                    "(formation à l'intelligence artificielle, compétences en données ou en calcul, "
-                    "formation spécialisée, développement de la main-d'œuvre, "
-                    "programmes universitaires) ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement des mesures développant
+                    des compétences humaines pertinentes pour l'intelligence
+                    artificielle (comme des formations à l'intelligence artificielle,
+                    compétences en données ou en calcul, formation spécialisée,
+                    développement de la main-d'œuvre, programmes universitaires en lien
+                    avec l'intelligence artificielle) ?
+                    """
                 ),
-                "note": (
-                    "L'éducation générale est exclue, sauf si le contenu ou la "
-                    "compétence visée est explicitement lié à l'intelligence artificielle, aux données, au "
-                    "calcul ou aux systèmes automatisés."
+                "note": _p(
+                    """
+                    L'éducation générale est exclue, sauf si le contenu ou la
+                    compétence visée est explicitement lié à l'intelligence
+                    artificielle, aux données, au calcul ou aux systèmes automatisés.
+                    """
                 ),
             },
         ),
@@ -58,15 +80,20 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Accès aux données & Ressources",
                 "quadrant": "Enabling x Upstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement de faciliter l'accès, "
-                    "le partage, la disponibilité ou la réutilisation de données pour "
-                    "le développement de l'intelligence artificielle ou le traitement automatisé ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement de faciliter l'accès, le
+                    partage, la disponibilité ou la réutilisation de données pour le
+                    développement de l'intelligence artificielle ou le traitement
+                    automatisé ?
+                    """
                 ),
-                "note": (
-                    "La simple collecte de données publiques, administratives ou "
-                    "statistiques générales, sans lien explicite avec l'intelligence artificielle ou le "
-                    "traitement automatisé, ne suffit pas."
+                "note": _p(
+                    """
+                    La simple collecte de données publiques, administratives ou
+                    statistiques générales, sans lien explicite avec l'intelligence
+                    artificielle ou le traitement automatisé, ne suffit pas pour répondre OUI.
+                    """
                 ),
             },
         ),
@@ -75,16 +102,20 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Calcul & Infrastructure",
                 "quadrant": "Enabling x Upstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une mesure facilitant "
-                    "l'accès à des capacités de calcul ou à une infrastructure "
-                    "physique pertinente pour l'intelligence artificielle (puces, matériel, cloud, "
-                    "supercalcul, centres de données) ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement une mesure facilitant
+                    l'accès à des capacités de calcul ou à une infrastructure physique
+                    pertinente pour l'intelligence artificielle (puces, matériel,
+                    cloud, supercalcul, centres de données) ?
+                    """
                 ),
-                "note": (
-                    "Les règles générales d'infrastructure ou d'énergie sont exclues, "
-                    "sauf si elles conditionnent matériellement le fonctionnement de "
-                    "systèmes d'intelligence artificielle."
+                "note": _p(
+                    """
+                    Les règles générales d'infrastructure ou d'énergie sont exclues,
+                    sauf si elles conditionnent matériellement le fonctionnement de
+                    systèmes d'intelligence artificielle.
+                    """
                 ),
             },
         ),
@@ -93,11 +124,14 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Adoption & Diffusion",
                 "quadrant": "Enabling x Downstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une mesure "
-                    "encourageant l'adoption ou le déploiement effectif de l'intelligence artificielle par "
-                    "des entreprises, des administrations publiques ou d'autres "
-                    "organisations ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement une mesure encourageant
+                    l'adoption ou le déploiement effectif de l'intelligence
+                    artificielle par des entreprises, des administrations publiques ou
+                    d'autres organisations ?
+                    Le but de l'article doit être la facilitation de l'adoption de l'intelligence artificielle pour répondre OUI. 
+                    """
                 ),
             },
         ),
@@ -106,11 +140,14 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Expérimentation & Développement de marché",
                 "quadrant": "Enabling x Downstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement un dispositif "
-                    "permettant de tester, d'expérimenter, de démontrer ou de "
-                    "faciliter l'entrée sur le marché de systèmes d'intelligence artificielle (par exemple "
-                    "un bac à sable réglementaire) ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement un dispositif permettant
+                    de tester, d'expérimenter, de démontrer ou de faciliter l'entrée
+                    sur le marché de systèmes d'intelligence artificielle (par exemple
+                    un bac à sable réglementaire) ?
+                    le but de l'expérimentation doit être de faciliter l'entrée sur le marché de l'intelligence artificielle pour répondre OUI.
+                    """
                 ),
             },
         ),
@@ -119,15 +156,21 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Données & Vie privée",
                 "quadrant": "Safeguarding x Upstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une protection des "
-                    "droits ou intérêts liés à des données utilisées, inférées, "
-                    "réutilisées ou traitées par l'intelligence artificielle ou des systèmes automatisés ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement une protection des
+                    droits ou intérêts liés à des données utilisées, inférées,
+                    réutilisées ou traitées par l'intelligence artificielle ou des
+                    systèmes automatisés ?
+                    Le but de la protection des données doit être lié à l'intelligence artificielle pour répondre OUI.
+                    """
                 ),
-                "note": (
-                    "La protection générale des données n'est incluse que si elle "
-                    "concerne matériellement un traitement automatisé ou des "
-                    "pratiques de données liées à l'intelligence artificielle."
+                "note": _p(
+                    """
+                    La protection générale des données n'est incluse que si elle
+                    concerne matériellement un traitement automatisé ou des pratiques
+                    de données liées à l'intelligence artificielle.
+                    """
                 ),
             },
         ),
@@ -136,11 +179,14 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Propriété intellectuelle & Droits créatifs",
                 "quadrant": "Safeguarding x Upstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une protection ou "
-                    "une attribution de droits de propriété intellectuelle ou de "
-                    "droits d'auteur concernant du contenu affecté par l'intelligence artificielle (données "
-                    "d'entraînement, œuvres protégées, contenu généré par l'intelligence artificielle) ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement une protection ou une
+                    attribution de droits de propriété intellectuelle ou de droits
+                    d'auteur concernant du contenu affecté par l'intelligence
+                    artificielle (données d'entraînement, œuvres protégées, contenu
+                    généré par l'intelligence artificielle) ?
+                    """
                 ),
             },
         ),
@@ -149,14 +195,20 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Sécurité & Robustesse",
                 "quadrant": "Safeguarding x Upstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une exigence de "
-                    "sécurité, d'intégrité, de résilience ou de robustesse pour des "
-                    "systèmes, modèles, données ou infrastructures d'intelligence artificielle ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement une exigence de
+                    sécurité, d'intégrité, de résilience ou de robustesse pour des
+                    systèmes, modèles, données ou infrastructures d'intelligence
+                    artificielle ?
+                    """
                 ),
-                "note": (
-                    "La cybersécurité générale est exclue, sauf si elle concerne "
-                    "matériellement l'intelligence artificielle ou des systèmes automatisés."
+                "note": _p(
+                    """
+                    La cybersécurité générale est exclue, sauf si elle concerne
+                    matériellement l'intelligence artificielle ou des systèmes
+                    automatisés.
+                    """
                 ),
             },
         ),
@@ -165,11 +217,13 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Responsabilité & Transparence",
                 "quadrant": "Safeguarding x Downstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une exigence de "
-                    "transparence, d'explicabilité, de traçabilité, de supervision "
-                    "humaine ou de possibilité de contester une décision issue d'un "
-                    "système d'intelligence artificielle ou automatisé ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement une exigence de
+                    transparence, d'explicabilité, de traçabilité, de supervision
+                    humaine ou de possibilité de contester une décision issue d'un
+                    système d'intelligence artificielle ou automatisé ?
+                    """
                 ),
             },
         ),
@@ -178,12 +232,14 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Usages à hauts enjeux & Droits fondamentaux",
                 "quadrant": "Safeguarding x Downstream",
-                "question": (
-                    "Est-ce que l'article encadre explicitement l'utilisation de "
-                    "l'intelligence artificielle dans un contexte où les décisions affectent fortement des "
-                    "individus, leurs droits, leurs opportunités ou leur accès à des "
-                    "services essentiels (emploi, crédit, santé, éducation, police, "
-                    "justice, prestations sociales, migration, discrimination) ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article encadre explicitement l'utilisation de
+                    l'intelligence artificielle dans un contexte où les décisions produites par ces systemes automatisés
+                    peuvent avoir de lourdes conséquences pour les individus, leurs intérêts et intégrité physique (mobilité, emploi, crédit, santé,
+                    éducation, police, justice, prestations sociales, migration,
+                    discrimination) ?
+                    """
                 ),
             },
         ),
@@ -192,17 +248,21 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Information & Préjudices sociétaux",
                 "quadrant": "Safeguarding x Downstream",
-                "question": (
-                    "Est-ce que l'article prévoit explicitement une mesure contre "
-                    "des préjudices créés ou amplifiés par la génération, la "
-                    "recommandation, le ciblage ou la diffusion automatisée "
-                    "d'information (désinformation, deepfakes, manipulation "
-                    "automatisée) ?"
+                "question": _p(
+                    """
+                    Est-ce que l'article prévoit explicitement une mesure contre des
+                    préjudices créés ou amplifiés par la génération, la
+                    recommandation, le ciblage ou la diffusion automatisée
+                    d'information (désinformation, deepfakes, manipulation
+                    automatisée) ?
+                    """
                 ),
-                "note": (
-                    "La régulation générale des médias ou de la désinformation est "
-                    "exclue en l'absence de lien structurel explicite avec "
-                    "l'automatisation ou l'intelligence artificielle."
+                "note": _p(
+                    """
+                    La régulation générale des médias ou de la désinformation est
+                    exclue en l'absence de lien structurel explicite avec
+                    l'automatisation ou l'intelligence artificielle.
+                    """
                 ),
             },
         ),
