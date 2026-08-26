@@ -359,6 +359,8 @@ def build_system_prompt(code: str) -> str:
         Décision: OUI ou NON
 
         La ligne "Décision:" est OBLIGATOIRE et doit toujours être présente.
+        
+        Attention ne répond OUI qui quand tu es sur que la norme a été introduite pour répondre à l'objectif de politique publique ou au risque concret décrit ci-dessus. Soit conservateur !
         """)
 
 
