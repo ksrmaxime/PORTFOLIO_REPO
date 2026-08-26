@@ -7,6 +7,16 @@
 # grille à 4 quadrants Enabling/Safeguarding x Upstream/Downstream). Cette
 # taxonomie remplace celle de run5_prompts.TARGET_CODES (10 cibles, ancienne
 # version) — ne pas réutiliser run5_prompts pour ce pipeline.
+#
+# Cadrage des questions : question de BUT, pas de thème. La première version
+# demandait "est-ce que l'article prévoit une mesure X" — une question
+# thématique à laquelle le LLM pouvait rattacher presque n'importe quel
+# article par un lien alambiqué (toute mention de données -> DATA_ACCESS,
+# toute mention de sécurité -> SECURITY_ROBUSTNESS, etc.), d'où un taux de
+# OUI proche de 100%. La question posée porte maintenant sur l'INTENTION de
+# l'article : a-t-il été écrit dans le but de réguler l'intelligence
+# artificielle pour atteindre l'objectif de la cible ? Un article qui
+# s'applique incidemment à l'IA sans avoir été conçu pour elle répond NON.
 from __future__ import annotations
 
 from collections import OrderedDict
@@ -15,8 +25,9 @@ import pandas as pd
 
 # ---------------------------------------------------------------------------
 # Les 12 cibles opérationnelles, dans l'ordre du tableau 2.3 du PDF.
-# Chaque entrée : (nom, quadrant, question fermée, note optionnelle sur les
-# exclusions/pièges propres à cette cible).
+# Chaque entrée : (nom, quadrant, objectif de la cible, question fermée
+# posée en termes de BUT, note optionnelle sur les exclusions/pièges propres
+# à cette cible).
 # ---------------------------------------------------------------------------
 
 def _p(text: str) -> str:
@@ -31,6 +42,28 @@ def _p(text: str) -> str:
     return " ".join(text.split())
 
 
+def _purpose_question(objectif: str) -> str:
+    """Construit la question fermée de BUT commune à toutes les cibles.
+
+    `objectif` décrit ce que l'article doit viser (le "pour quoi") pour
+    répondre OUI. La question isole explicitement le but de l'article de son
+    thème ou de ses effets possibles, pour éviter que le LLM ne réponde OUI
+    sur la seule base d'une mention incidente de l'IA.
+    """
+    return _p(
+        f"""
+        Est-ce que cet article a été écrit dans le BUT de réguler
+        l'intelligence artificielle pour {objectif} ? Il ne s'agit pas de
+        savoir si l'article pourrait un jour s'appliquer à un système
+        d'intelligence artificielle, ni s'il mentionne un thème connexe
+        (données, calcul, algorithme, automatisation) en passant. Il s'agit
+        de savoir si l'objet même de la disposition — la raison pour
+        laquelle elle a été écrite — est de réguler l'intelligence
+        artificielle pour cette fin précise.
+        """
+    )
+
+
 TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
     [
         (
@@ -38,15 +71,19 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Recherche & Innovation",
                 "quadrant": "Enabling x Upstream",
-                "question": _p(
+                "question": _purpose_question(
+                    "augmenter la recherche ou l'innovation en intelligence "
+                    "artificielle (financement de recherche, centres de "
+                    "recherche, collaboration scientifique, transfert de "
+                    "technologie portant directement sur l'intelligence "
+                    "artificielle)"
+                ),
+                "note": _p(
                     """
-                    Est-ce que l'article prévoit explicitement des mesures augmentant la
-                    recherche ou l'innovation en intelligence artificielle (comme le
-                    financement de recherche, centres de recherche, collaboration
-                    scientifique, transfert de technologie portant directement sur
-                    l'intelligence artificielle) ? Si l'article prévoit des mesures
-                    soutenant l'innovation en général, mais pas explicitement
-                    l'intelligence artificielle, la réponse est NON.
+                    Si le but de l'article est de soutenir l'innovation ou la
+                    recherche en général, sans que l'intelligence artificielle
+                    soit l'objet visé, la réponse est NON — même si l'IA
+                    pourrait en bénéficier accessoirement.
                     """
                 ),
             },
@@ -56,21 +93,20 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Compétences & Capital humain",
                 "quadrant": "Enabling x Upstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement des mesures développant
-                    des compétences humaines pertinentes pour l'intelligence
-                    artificielle (comme des formations à l'intelligence artificielle,
-                    compétences en données ou en calcul, formation spécialisée,
-                    développement de la main-d'œuvre, programmes universitaires en lien
-                    avec l'intelligence artificielle) ?
-                    """
+                "question": _purpose_question(
+                    "développer des compétences humaines pertinentes pour "
+                    "l'intelligence artificielle (formations à l'intelligence "
+                    "artificielle, compétences en données ou en calcul, "
+                    "formation spécialisée, développement de la main-d'œuvre, "
+                    "programmes universitaires en lien avec l'intelligence "
+                    "artificielle)"
                 ),
                 "note": _p(
                     """
-                    L'éducation générale est exclue, sauf si le contenu ou la
-                    compétence visée est explicitement lié à l'intelligence
-                    artificielle, aux données, au calcul ou aux systèmes automatisés.
+                    Si le but de l'article est l'éducation ou la formation en
+                    général, sans que l'intelligence artificielle, les données,
+                    le calcul ou les systèmes automatisés soient l'objet
+                    explicitement visé, la réponse est NON.
                     """
                 ),
             },
@@ -80,19 +116,18 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Accès aux données & Ressources",
                 "quadrant": "Enabling x Upstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement de faciliter l'accès, le
-                    partage, la disponibilité ou la réutilisation de données pour le
-                    développement de l'intelligence artificielle ou le traitement
-                    automatisé ?
-                    """
+                "question": _purpose_question(
+                    "faciliter l'accès, le partage, la disponibilité ou la "
+                    "réutilisation de données pour le développement de "
+                    "l'intelligence artificielle ou le traitement automatisé"
                 ),
                 "note": _p(
                     """
-                    La simple collecte de données publiques, administratives ou
-                    statistiques générales, sans lien explicite avec l'intelligence
-                    artificielle ou le traitement automatisé, ne suffit pas pour répondre OUI.
+                    Si le but de l'article est la collecte ou la gestion de
+                    données publiques, administratives ou statistiques en
+                    général, sans que le développement de l'intelligence
+                    artificielle ou le traitement automatisé soit l'objectif
+                    visé, la réponse est NON.
                     """
                 ),
             },
@@ -102,19 +137,18 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Calcul & Infrastructure",
                 "quadrant": "Enabling x Upstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement une mesure facilitant
-                    l'accès à des capacités de calcul ou à une infrastructure physique
-                    pertinente pour l'intelligence artificielle (puces, matériel,
-                    cloud, supercalcul, centres de données) ?
-                    """
+                "question": _purpose_question(
+                    "faciliter l'accès à des capacités de calcul ou à une "
+                    "infrastructure physique pertinente pour l'intelligence "
+                    "artificielle (puces, matériel, cloud, supercalcul, "
+                    "centres de données)"
                 ),
                 "note": _p(
                     """
-                    Les règles générales d'infrastructure ou d'énergie sont exclues,
-                    sauf si elles conditionnent matériellement le fonctionnement de
-                    systèmes d'intelligence artificielle.
+                    Si le but de l'article est de régler l'infrastructure ou
+                    l'énergie en général, sans que le fonctionnement de
+                    systèmes d'intelligence artificielle soit l'objectif
+                    visé, la réponse est NON.
                     """
                 ),
             },
@@ -124,14 +158,10 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Adoption & Diffusion",
                 "quadrant": "Enabling x Downstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement une mesure encourageant
-                    l'adoption ou le déploiement effectif de l'intelligence
-                    artificielle par des entreprises, des administrations publiques ou
-                    d'autres organisations ?
-                    Le but de l'article doit être la facilitation de l'adoption de l'intelligence artificielle pour répondre OUI. 
-                    """
+                "question": _purpose_question(
+                    "encourager l'adoption ou le déploiement effectif de "
+                    "l'intelligence artificielle par des entreprises, des "
+                    "administrations publiques ou d'autres organisations"
                 ),
             },
         ),
@@ -140,14 +170,11 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Expérimentation & Développement de marché",
                 "quadrant": "Enabling x Downstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement un dispositif permettant
-                    de tester, d'expérimenter, de démontrer ou de faciliter l'entrée
-                    sur le marché de systèmes d'intelligence artificielle (par exemple
-                    un bac à sable réglementaire) ?
-                    le but de l'expérimentation doit être de faciliter l'entrée sur le marché de l'intelligence artificielle pour répondre OUI.
-                    """
+                "question": _purpose_question(
+                    "permettre de tester, d'expérimenter, de démontrer ou de "
+                    "faciliter l'entrée sur le marché de systèmes "
+                    "d'intelligence artificielle (par exemple un bac à sable "
+                    "réglementaire)"
                 ),
             },
         ),
@@ -156,20 +183,17 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Données & Vie privée",
                 "quadrant": "Safeguarding x Upstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement une protection des
-                    droits ou intérêts liés à des données utilisées, inférées,
-                    réutilisées ou traitées par l'intelligence artificielle ou des
-                    systèmes automatisés ?
-                    Le but de la protection des données doit être lié à l'intelligence artificielle pour répondre OUI.
-                    """
+                "question": _purpose_question(
+                    "protéger des droits ou intérêts liés à des données "
+                    "utilisées, inférées, réutilisées ou traitées par "
+                    "l'intelligence artificielle ou des systèmes automatisés"
                 ),
                 "note": _p(
                     """
-                    La protection générale des données n'est incluse que si elle
-                    concerne matériellement un traitement automatisé ou des pratiques
-                    de données liées à l'intelligence artificielle.
+                    Si le but de l'article est la protection des données en
+                    général, sans que le traitement automatisé ou des
+                    pratiques de données liées à l'intelligence artificielle
+                    soient l'objectif visé, la réponse est NON.
                     """
                 ),
             },
@@ -179,14 +203,12 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Propriété intellectuelle & Droits créatifs",
                 "quadrant": "Safeguarding x Upstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement une protection ou une
-                    attribution de droits de propriété intellectuelle ou de droits
-                    d'auteur concernant du contenu affecté par l'intelligence
-                    artificielle (données d'entraînement, œuvres protégées, contenu
-                    généré par l'intelligence artificielle) ?
-                    """
+                "question": _purpose_question(
+                    "protéger ou attribuer des droits de propriété "
+                    "intellectuelle ou des droits d'auteur concernant du "
+                    "contenu affecté par l'intelligence artificielle (données "
+                    "d'entraînement, œuvres protégées, contenu généré par "
+                    "l'intelligence artificielle)"
                 ),
             },
         ),
@@ -195,19 +217,16 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Sécurité & Robustesse",
                 "quadrant": "Safeguarding x Upstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement une exigence de
-                    sécurité, d'intégrité, de résilience ou de robustesse pour des
-                    systèmes, modèles, données ou infrastructures d'intelligence
-                    artificielle ?
-                    """
+                "question": _purpose_question(
+                    "garantir la sécurité, l'intégrité, la résilience ou la "
+                    "robustesse de systèmes, modèles, données ou "
+                    "infrastructures d'intelligence artificielle"
                 ),
                 "note": _p(
                     """
-                    La cybersécurité générale est exclue, sauf si elle concerne
-                    matériellement l'intelligence artificielle ou des systèmes
-                    automatisés.
+                    Si le but de l'article est la cybersécurité en général,
+                    sans que l'intelligence artificielle ou des systèmes
+                    automatisés soient l'objectif visé, la réponse est NON.
                     """
                 ),
             },
@@ -217,13 +236,11 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Responsabilité & Transparence",
                 "quadrant": "Safeguarding x Downstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement une exigence de
-                    transparence, d'explicabilité, de traçabilité, de supervision
-                    humaine ou de possibilité de contester une décision issue d'un
-                    système d'intelligence artificielle ou automatisé ?
-                    """
+                "question": _purpose_question(
+                    "garantir la transparence, l'explicabilité, la "
+                    "traçabilité, la supervision humaine ou la possibilité de "
+                    "contester une décision issue d'un système d'intelligence "
+                    "artificielle ou automatisé"
                 ),
             },
         ),
@@ -232,14 +249,14 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Usages à hauts enjeux & Droits fondamentaux",
                 "quadrant": "Safeguarding x Downstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article encadre explicitement l'utilisation de
-                    l'intelligence artificielle dans un contexte où les décisions produites par ces systemes automatisés
-                    peuvent avoir de lourdes conséquences pour les individus, leurs intérêts et intégrité physique (mobilité, emploi, crédit, santé,
-                    éducation, police, justice, prestations sociales, migration,
-                    discrimination) ?
-                    """
+                "question": _purpose_question(
+                    "encadrer l'utilisation de l'intelligence artificielle "
+                    "dans un contexte où les décisions produites par ces "
+                    "systèmes automatisés peuvent avoir de lourdes "
+                    "conséquences pour les individus, leurs intérêts et leur "
+                    "intégrité physique (mobilité, emploi, crédit, santé, "
+                    "éducation, police, justice, prestations sociales, "
+                    "migration, discrimination)"
                 ),
             },
         ),
@@ -248,20 +265,18 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             {
                 "name": "Information & Préjudices sociétaux",
                 "quadrant": "Safeguarding x Downstream",
-                "question": _p(
-                    """
-                    Est-ce que l'article prévoit explicitement une mesure contre des
-                    préjudices créés ou amplifiés par la génération, la
-                    recommandation, le ciblage ou la diffusion automatisée
-                    d'information (désinformation, deepfakes, manipulation
-                    automatisée) ?
-                    """
+                "question": _purpose_question(
+                    "prévenir des préjudices créés ou amplifiés par la "
+                    "génération, la recommandation, le ciblage ou la "
+                    "diffusion automatisée d'information (désinformation, "
+                    "deepfakes, manipulation automatisée)"
                 ),
                 "note": _p(
                     """
-                    La régulation générale des médias ou de la désinformation est
-                    exclue en l'absence de lien structurel explicite avec
-                    l'automatisation ou l'intelligence artificielle.
+                    Si le but de l'article est la régulation des médias ou de
+                    la désinformation en général, sans que l'automatisation ou
+                    l'intelligence artificielle soient l'objectif visé, la
+                    réponse est NON.
                     """
                 ),
             },
@@ -288,15 +303,31 @@ def build_system_prompt(code: str) -> str:
         f"{d['question']}\n"
         f"{note_block}\n"
 
+        "## Ce qui compte : le BUT de l'article, pas son thème\n\n"
+        "- La question ne porte PAS sur le thème de l'article ni sur ses effets "
+        "possibles, mais sur son BUT explicite : cet article a-t-il été écrit POUR "
+        "réguler l'intelligence artificielle et atteindre l'objectif ci-dessus ?\n"
+        "- Un article qui mentionne l'intelligence artificielle, les données, le "
+        "calcul, les algorithmes ou l'automatisation seulement en passant — sans que "
+        "ce soit l'objet de la disposition — ne répond PAS OUI à la question. Le "
+        "fait qu'un article puisse, en pratique, s'appliquer à un système d'IA ne "
+        "signifie pas qu'il a été écrit dans ce but.\n"
+        "- Teste-toi ainsi : si l'intelligence artificielle n'existait pas, cet "
+        "article aurait-il été écrit de la même façon, pour la même raison ? Si "
+        "oui, la réponse est NON — l'article ne vise pas l'intelligence "
+        "artificielle comme objectif, il la couvre seulement incidemment.\n\n"
+
         "## Règle générale\n\n"
         "- Base ta réponse UNIQUEMENT sur ce qui est écrit explicitement dans le "
-        "texte. Il est interdit d'extrapoler : soit la réponse à la question est "
-        "explicitement dans le texte, soit la réponse est NON.\n"
+        "texte. Il est interdit d'extrapoler : soit le BUT de l'article correspond "
+        "explicitement à la question posée, soit la réponse est NON.\n"
         "- Un OUI n'est valide QUE si le texte contient, en toutes lettres, un "
         "terme explicite lié au sujet de la question (p. ex. « intelligence "
         "artificielle », « IA », « système automatisé », « algorithme », selon le "
-        "cas). L'absence de ce terme signifie NON, même si le sujet de l'article "
-        "pourrait, en théorie, un jour concerner l'intelligence artificielle.\n"
+        "cas) ET que ce terme désigne l'objet même de la disposition — pas un "
+        "exemple parmi d'autres, ni un cas d'application possible parmi tant "
+        "d'autres. L'absence de ce terme, ou sa présence purement incidente, "
+        "signifie NON.\n"
         "- Il est STRICTEMENT INTERDIT de justifier un OUI par un raisonnement "
         "conditionnel ou hypothétique du type « cela peut/pourrait inclure X si "
         "Y », « dans la mesure où cela concerne aussi... », « ce qui pourrait "
@@ -305,10 +336,10 @@ def build_system_prompt(code: str) -> str:
         "avec l'intelligence artificielle, c'est que tu extrapoles : corrige ta "
         "réponse en NON.\n"
         "- Un article de loi suisse contient souvent plusieurs alinéas : il suffit "
-        "qu'UN SEUL alinéa réponde explicitement OUI à la question pour que "
-        "l'article entier soit classé OUI. Mais chaque alinéa doit être évalué "
-        "selon les mêmes règles strictes ci-dessus — un alinéa sans lien explicite "
-        "avec l'intelligence artificielle ne compte pas.\n"
+        "qu'UN SEUL alinéa ait explicitement pour BUT de répondre OUI à la question "
+        "pour que l'article entier soit classé OUI. Mais chaque alinéa doit être "
+        "évalué selon les mêmes règles strictes ci-dessus — un alinéa dont "
+        "l'intelligence artificielle n'est pas l'objet explicite ne compte pas.\n"
         "- En cas de doute, réponds NON.\n\n"
 
         "## Exemple d'erreur à éviter\n\n"
@@ -320,17 +351,20 @@ def build_system_prompt(code: str) -> str:
         "Réponse INTERDITE (extrapolation) : Décision OUI, avec la justification "
         "« ce qui peut inclure des mesures soutenant l'innovation en intelligence "
         "artificielle si ces caractéristiques sont liées à l'IA ». Cette réponse "
-        "est fausse : le texte ne mentionne ni l'intelligence artificielle ni "
-        "aucune technologie numérique, et le raisonnement « peut inclure... si... »"
-        " est un raisonnement hypothétique interdit.\n"
-        "Réponse correcte : Décision NON, car le texte ne mentionne pas "
-        "explicitement l'intelligence artificielle.\n\n"
+        "est fausse : le but de cet article est la circulation routière et la "
+        "protection de l'environnement, pas l'intelligence artificielle — le texte "
+        "ne mentionne d'ailleurs ni l'intelligence artificielle ni aucune "
+        "technologie numérique, et le raisonnement « peut inclure... si... » est un "
+        "raisonnement hypothétique interdit.\n"
+        "Réponse correcte : Décision NON, car l'article n'a pas été écrit dans le "
+        "but de réguler l'intelligence artificielle et ne la mentionne pas "
+        "explicitement.\n\n"
 
         "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre "
         "texte avant, après ou entre les deux :\n"
         "Justification: [une phrase maximum, citant le passage exact du texte qui "
-        "contient le terme explicite justifiant la décision — pas de paraphrase "
-        "spéculative]\n"
+        "montre que le BUT de l'article correspond à la question — pas de "
+        "paraphrase spéculative]\n"
         "Décision: OUI ou NON\n\n"
         "La ligne \"Décision:\" est OBLIGATOIRE et doit toujours être présente."
     )
