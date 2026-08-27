@@ -216,13 +216,19 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     droits ou intérêts liés à des données dont le traitement
                     (collecte, réutilisation, ré-identification, inférence)
                     est spécifiquement effectué par l'intelligence
-                    artificielle. Une norme de protection des données qui ne
-                    vise pas spécifiquement un tel traitement ne satisfait
-                    pas cette cible.
+                    artificielle OU par un système automatisé de traitement
+                    de données (logiciel, système informatique de
+                    traitement de données à caractère personnel). Une norme
+                    de protection des données qui ne vise pas spécifiquement
+                    un tel traitement — par exemple une règle sur la
+                    collecte ou la conservation de documents papier, ou sur
+                    une procédure purement administrative sans système
+                    informatique — ne satisfait pas cette cible.
                 """),
                 "examples": [
                     "Une obligation d'anonymiser les données utilisées pour entraîner un système d'intelligence artificielle avant leur réutilisation.",
                     "Un droit pour toute personne de connaître les données ayant servi à entraîner un modèle d'intelligence artificielle qui la concerne.",
+                    "Une procédure de certification indépendante pour les systèmes ou logiciels de traitement de données personnelles.",
                 ],
             },
         ),
@@ -235,11 +241,12 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     Cette cible est satisfaite si la norme protège ou
                     attribue des droits de propriété intellectuelle ou des
                     droits d'auteur sur un contenu dont le lien avec
-                    l'intelligence artificielle est explicite : données
-                    d'entraînement, œuvres protégées utilisées pour
-                    entraîner un système d'intelligence artificielle, ou
-                    contenu généré par un système d'intelligence
-                    artificielle.
+                    l'intelligence artificielle ou un système de traitement
+                    automatisé est explicite : données d'entraînement,
+                    œuvres protégées utilisées pour entraîner un système
+                    d'intelligence artificielle, ou contenu généré par un
+                    système d'intelligence artificielle ou par un traitement
+                    automatisé.
                 """),
                 "examples": [
                     "Une règle attribuant les droits d'auteur sur un contenu généré par un système d'intelligence artificielle.",
@@ -257,13 +264,17 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     exigence de sécurité, d'intégrité, de résilience ou de
                     robustesse dont l'objet est spécifiquement des systèmes,
                     modèles, données ou infrastructures d'intelligence
-                    artificielle. Une exigence de cybersécurité générale,
-                    sans lien avec l'intelligence artificielle, ne satisfait
-                    pas cette cible.
+                    artificielle OU des systèmes automatisés de traitement
+                    de données. Une exigence de cybersécurité générale, sans
+                    lien avec un système informatique de traitement de
+                    données (par exemple une exigence de sécurité physique
+                    d'un bâtiment ou d'un coffre-fort), ne satisfait pas
+                    cette cible.
                 """),
                 "examples": [
                     "Une exigence de test de robustesse avant la mise en service d'un système d'intelligence artificielle utilisé dans un contexte critique.",
                     "Une obligation de certification de sécurité pour les systèmes d'intelligence artificielle utilisés dans une infrastructure critique.",
+                    "Une obligation de certification de sécurité pour les systèmes automatisés de traitement de données personnelles.",
                 ],
             },
         ),
@@ -277,7 +288,8 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     transparence, de l'explicabilité, de la traçabilité, une
                     supervision humaine ou une possibilité de contester une
                     décision, dont l'objet est spécifiquement une décision
-                    issue d'un système d'intelligence artificielle.
+                    issue d'un système d'intelligence artificielle ou d'un
+                    traitement automatisé de données.
                 """),
                 "examples": [
                     "Une obligation d'informer une personne qu'une décision la concernant a été prise par un système d'intelligence artificielle.",
@@ -314,8 +326,9 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     des préjudices créés ou amplifiés par la génération, la
                     recommandation, le ciblage ou la diffusion automatisée
                     d'information par un système d'intelligence
-                    artificielle. Une régulation générale des médias ou de
-                    la désinformation, sans lien structurel avec
+                    artificielle ou par un système automatisé. Une
+                    régulation générale des médias ou de la désinformation,
+                    sans lien structurel avec l'automatisation ou
                     l'intelligence artificielle, ne satisfait pas cette
                     cible.
                 """),
