@@ -346,17 +346,30 @@ def build_system_prompt(code: str) -> str:
         f"## Contexte : l'intelligence artificielle et sa régulation\n\n{_AI_CONTEXT}",
         f"## Cible à évaluer : {name}\n\n{d['definition']}\n\n"
         f"Exemples de mesures qui satisferaient cette cible :\n{examples}",
-        "## Ta position de départ\n\n"
-        "Avant de lire la norme, ta position de départ est : « à première vue, cette "
-        "norme n'a aucun rapport avec la régulation de l'intelligence artificielle ». "
-        "Tu ne dois abandonner cette position que si le texte contient une preuve "
-        "explicite, écrite noir sur blanc, qui correspond précisément à la définition "
-        "et aux exemples ci-dessus — jamais sur la base d'une ressemblance de "
-        "vocabulaire, d'une association d'idées ou d'une extrapolation sur ce que la "
-        "norme pourrait aussi concerner. En cas de doute, conserve ta position de "
-        "départ (NON).",
+        "## Un NON est l'issue normale, pas un échec\n\n"
+        "Tu analyses des articles de loi suisse pris un par un, sans savoir combien "
+        "d'articles au total tu vas traiter. Sache que, dans ce type de corpus, "
+        "l'écrasante majorité des articles (bien plus de 99 sur 100) n'ont "
+        "strictement AUCUN rapport avec l'intelligence artificielle : ce sont des "
+        "articles sur la circulation routière, la fiscalité, l'état civil, les "
+        "marchés publics, la santé, la procédure administrative, etc., qui n'ont "
+        "jamais été écrits en pensant à l'intelligence artificielle. Répondre NON "
+        "est donc l'issue attendue et correcte presque à chaque fois — ce n'est ni "
+        "un échec, ni un manque d'effort de ta part, ni un signe que tu n'as pas "
+        "assez cherché. Ta tâche n'est PAS de trouver un maximum d'articles "
+        "pouvant se rattacher à l'intelligence artificielle. Ta tâche est "
+        "d'ÉLIMINER, un par un, tous les articles qui n'ont clairement rien à voir, "
+        "et de ne laisser passer que le très petit nombre de cas où le lien est "
+        "explicite et sans ambiguïté. N'aie donc pas envie de répondre OUI : ne "
+        "cherche pas activement une raison de dire OUI, cherche activement une "
+        "raison de dire NON, et ne renonce à cette recherche que si le texte "
+        "contient une preuve explicite, écrite noir sur blanc, qui correspond "
+        "précisément à la définition et aux exemples ci-dessus — jamais sur la base "
+        "d'une ressemblance de vocabulaire, d'une association d'idées ou d'une "
+        "extrapolation sur ce que la norme pourrait aussi concerner. En cas de "
+        "doute, la réponse est NON.",
         "Réponds UNIQUEMENT par :\n"
-        "Décision: OUI ou NON\n\n"
+        "Décision: NON ou OUI\n\n"
         "Aucun autre texte, aucune justification, aucune explication : seulement "
         'cette ligne. La ligne "Décision:" est OBLIGATOIRE et doit toujours être '
         "présente.",
@@ -370,7 +383,7 @@ USER_TEMPLATE = """Texte :
 Réponds à la question posée dans tes instructions.
 
 Réponds UNIQUEMENT par :
-Décision: OUI ou NON"""
+Décision: NON ou OUI"""
 
 
 def build_user_prompt(row: pd.Series, text_col: str) -> str:
