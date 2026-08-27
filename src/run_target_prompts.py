@@ -60,9 +60,11 @@ _AI_CONTEXT = _p("""
     semi-autonome — par exemple des modèles de traitement du langage, des
     systèmes de vision par ordinateur, des systèmes de recommandation, des
     systèmes de décision automatisée fondés sur des données, ou des
-    systèmes robotiques dotés d'une capacité de décision autonome. Cela
-    exclut une simple automatisation mécanique ou électronique qui suit une
-    règle fixe sans apprentissage ni capacité d'adaptation.
+    systèmes robotiques dotés d'une capacité de décision autonome. Selon la
+    cible évaluée (voir sa définition ci-dessous), un système automatisé de
+    traitement de données peut aussi être concerné, même sans apprentissage
+    automatique à proprement parler — la définition de la cible précise
+    exactement ce qui compte pour elle.
 """) + " " + _p("""
     Face à cette technologie, un État régule selon deux logiques
     distinctes. D'une part, il cherche à PROMOUVOIR le développement et
@@ -359,28 +361,15 @@ def build_system_prompt(code: str) -> str:
         f"## Contexte : l'intelligence artificielle et sa régulation\n\n{_AI_CONTEXT}",
         f"## Cible à évaluer : {name}\n\n{d['definition']}\n\n"
         f"Exemples de mesures qui satisferaient cette cible :\n{examples}",
-        "## Un NON est l'issue normale, pas un échec\n\n"
-        "Tu analyses des articles de loi suisse pris un par un, sans savoir combien "
-        "d'articles au total tu vas traiter. Sache que, dans ce type de corpus, "
-        "l'écrasante majorité des articles (bien plus de 99 sur 100) n'ont "
-        "strictement AUCUN rapport avec l'intelligence artificielle : ce sont des "
-        "articles sur la circulation routière, la fiscalité, l'état civil, les "
-        "marchés publics, la santé, la procédure administrative, etc., qui n'ont "
-        "jamais été écrits en pensant à l'intelligence artificielle. Répondre NON "
-        "est donc l'issue attendue et correcte presque à chaque fois — ce n'est ni "
-        "un échec, ni un manque d'effort de ta part, ni un signe que tu n'as pas "
-        "assez cherché. Ta tâche n'est PAS de trouver un maximum d'articles "
-        "pouvant se rattacher à l'intelligence artificielle. Ta tâche est "
-        "d'ÉLIMINER, un par un, tous les articles qui n'ont clairement rien à voir, "
-        "et de ne laisser passer que le très petit nombre de cas où le lien est "
-        "explicite et sans ambiguïté. N'aie donc pas envie de répondre OUI : ne "
-        "cherche pas activement une raison de dire OUI, cherche activement une "
-        "raison de dire NON, et ne renonce à cette recherche que si le texte "
-        "contient une preuve explicite, écrite noir sur blanc, qui correspond "
-        "précisément à la définition et aux exemples ci-dessus — jamais sur la base "
-        "d'une ressemblance de vocabulaire, d'une association d'idées ou d'une "
-        "extrapolation sur ce que la norme pourrait aussi concerner. En cas de "
-        "doute, la réponse est NON.",
+        "## Calibration\n\n"
+        "La plupart des articles de loi n'ont aucun rapport avec l'intelligence "
+        "artificielle : ce sont des articles sur la circulation routière, la "
+        "fiscalité, l'état civil, les marchés publics, la santé, etc. Pour ces "
+        "articles-là, NON est la bonne réponse, et ce n'est pas un échec de répondre "
+        "NON. Mais évalue chaque article sur ses propres mérites, à partir de la "
+        "définition et des exemples ci-dessus : si le texte correspond clairement à "
+        "la cible, réponds OUI, même si ce cas est rare. Ne rejette pas un article "
+        "juste parce que la plupart des articles sont à rejeter.",
         "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre "
         "texte avant, après ou entre les deux :\n"
         "Justification: [une phrase maximum]\n"
