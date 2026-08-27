@@ -8,25 +8,28 @@
 # taxonomie remplace celle de run5_prompts.TARGET_CODES (10 cibles, ancienne
 # version) — ne pas réutiliser run5_prompts pour ce pipeline.
 #
-# Cadrage des prompts : un LLM à qui l'on demande directement "est-ce que
-# cette norme fait X ?" a tendance à répondre OUI par similarité de
-# vocabulaire avec le domaine de la cible (p. ex. "sécurité routière" ->
-# SECURITY_ROBUSTNESS) sans jamais vérifier que la norme parle d'un objet
-# numérique/algorithmique. Le prompt est donc structuré en deux tests
-# séquentiels, dans cet ordre :
-#   1. PREMIER TEST (partagé, identique pour les 12 cibles) : la norme
-#      régule-t-elle, elle-même, un objet pertinent pour l'IA (traitement
-#      automatisé, calcul/infrastructure numérique, système ou processus
-#      algorithmique, compétences numériques) ? Si non -> NON immédiat, sans
-#      poursuivre.
-#   2. SECOND TEST (spécifique à la cible) : seulement si le premier test
-#      est réussi, la définition précise de la cible s'applique-t-elle ?
-# Cette structure force le LLM à écarter d'abord les normes qui n'ont rien
-# de numérique/algorithmique, avant même de considérer la cible spécifique.
+# Cadrage des prompts : éviter les correctifs lexicaux propres à un domaine
+# (ex. "véhicule automobile" != "automatisé"). Le corpus couvre des domaines
+# beaucoup trop variés (circulation routière, analyses génétiques, marchés
+# publics...) pour qu'un correctif pensé pour un domaine particulier
+# généralise aux autres — au mieux inutile, au pire un nouveau piège. La
+# structure retenue est donc :
+#   1. Un bloc de CONTEXTE partagé, identique pour les 12 cibles, qui
+#      explique en détail et avec un vocabulaire riche ce qu'est
+#      l'intelligence artificielle et selon quelle logique les États la
+#      régulent (Enabling : promouvoir son développement ; Safeguarding :
+#      encadrer les risques qu'elle pose). Ce bloc ancre le lexique de l'IA
+#      sans jamais s'appuyer sur un domaine d'application particulier.
+#   2. Un bloc CIBLE, propre à chaque code, avec une définition précise et
+#      des exemples concrets ILLUSTRANT des mesures qui satisferaient
+#      réellement cette cible (pas des pièges négatifs d'un domaine tiers).
+#   3. Un ANCRAGE par défaut sceptique : le LLM part de la position "à
+#      première vue, cet article n'a aucun rapport avec l'IA" et ne doit en
+#      changer que sur preuve explicite — ce qui est plus difficile à
+#      renverser qu'une question neutre invitant à chercher un lien.
 from __future__ import annotations
 
 from collections import OrderedDict
-from textwrap import dedent
 
 import pandas as pd
 
@@ -42,27 +45,45 @@ def _p(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Test partagé par les 12 cibles : avant même de considérer la cible
-# spécifique, la norme doit réguler elle-même au moins un objet pertinent
-# pour l'IA. Ce test est identique pour toutes les cibles — c'est un filtre
-# de pertinence générique, pas une définition de cible.
+# Bloc de contexte partagé par les 12 cibles : ce qu'est l'IA, et la logique
+# Enabling / Safeguarding qui structure la régulation étatique de l'IA. Pas
+# de domaine d'application concret ici — uniquement du vocabulaire et des
+# concepts liés à l'IA elle-même.
 # ---------------------------------------------------------------------------
 
-_AI_RELEVANT_OBJECT_TEST = _p("""
-    le traitement de données par des systèmes automatisés ou
-    algorithmiques ; des capacités de calcul, de stockage de données, ou
-    une infrastructure numérique pertinente pour des systèmes
-    informatiques ; un système, processus, décision, résultat,
-    développement ou usage algorithmique ou automatisé ; des compétences
-    numériques, informatiques, en automatisation, ou liées à
-    l'intelligence artificielle
+_AI_CONTEXT = _p("""
+    On entend par intelligence artificielle des systèmes informatiques
+    capables, à partir de données, d'apprendre (apprentissage automatique /
+    machine learning), de raisonner, de faire des prédictions, de prendre
+    des décisions ou de produire un résultat (texte, image, son,
+    classification, recommandation, prédiction) de façon autonome ou
+    semi-autonome — par exemple des modèles de traitement du langage, des
+    systèmes de vision par ordinateur, des systèmes de recommandation, des
+    systèmes de décision automatisée fondés sur des données, ou des
+    systèmes robotiques dotés d'une capacité de décision autonome. Cela
+    exclut une simple automatisation mécanique ou électronique qui suit une
+    règle fixe sans apprentissage ni capacité d'adaptation.
+""") + " " + _p("""
+    Face à cette technologie, un État régule selon deux logiques
+    distinctes. D'une part, il cherche à PROMOUVOIR le développement et
+    l'adoption de l'intelligence artificielle, parce qu'elle représente une
+    opportunité économique et sociale : il finance la recherche, développe
+    les compétences nécessaires, facilite l'accès aux données et aux
+    capacités de calcul, encourage son adoption par les organisations, et
+    facilite son expérimentation et son entrée sur le marché. D'autre part,
+    il cherche à ENCADRER les risques concrets que l'intelligence
+    artificielle fait peser sur les personnes et la société : atteintes à
+    la vie privée, atteintes aux droits de propriété intellectuelle,
+    défaillances de sécurité, décisions inexplicables ou incontestables,
+    conséquences lourdes pour les droits fondamentaux, ou préjudices
+    sociétaux liés à la diffusion automatisée d'information.
 """)
 
 # ---------------------------------------------------------------------------
 # Les 12 cibles opérationnelles, dans l'ordre du tableau 2.3 du PDF.
-# `definition` : le second test, propre à chaque cible — la définition
-# précise qui s'applique uniquement si le premier test (objet pertinent
-# pour l'IA) est déjà réussi.
+# `definition` : ce que doit faire la norme pour satisfaire cette cible.
+# `examples` : 2 exemples concrets ILLUSTRANT des mesures qui satisferaient
+# réellement cette cible (pas des contre-exemples d'un domaine tiers).
 # ---------------------------------------------------------------------------
 
 TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
@@ -76,16 +97,15 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     Cette cible est satisfaite si la norme prévoit un
                     dispositif de soutien à la recherche ou à l'innovation
                     dont l'objet est spécifiquement l'intelligence
-                    artificielle : financement de projets de recherche en
-                    intelligence artificielle, création de centres de
-                    recherche en intelligence artificielle, collaborations
-                    scientifiques sur l'intelligence artificielle, ou
-                    transfert de technologie portant sur l'intelligence
                     artificielle. Un dispositif de soutien à la recherche ou
                     à l'innovation en général, qui ne vise pas
                     spécifiquement l'intelligence artificielle, ne satisfait
                     pas cette cible.
                 """),
+                "examples": [
+                    "Un fonds public finançant des projets de recherche en intelligence artificielle dans les universités.",
+                    "La création d'un centre national de recherche dédié à l'intelligence artificielle.",
+                ],
             },
         ),
         (
@@ -97,15 +117,15 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     Cette cible est satisfaite si la norme prévoit un
                     dispositif de formation ou de développement de
                     compétences dont l'objet est spécifiquement
-                    l'intelligence artificielle, les données, le calcul ou
-                    les systèmes automatisés : formations à l'intelligence
-                    artificielle, compétences en données ou en calcul,
-                    programmes universitaires spécialisés, requalification
-                    professionnelle liée à l'intelligence artificielle. Un
-                    dispositif d'éducation ou de formation générale, qui ne
-                    vise pas spécifiquement ces compétences, ne satisfait
+                    l'intelligence artificielle, les données ou le calcul.
+                    Un dispositif d'éducation ou de formation générale, qui
+                    ne vise pas spécifiquement ces compétences, ne satisfait
                     pas cette cible.
                 """),
+                "examples": [
+                    "Un programme de formation continue en science des données et en intelligence artificielle pour des employés de l'administration.",
+                    "La création d'une filière universitaire spécialisée en apprentissage automatique.",
+                ],
             },
         ),
         (
@@ -117,13 +137,16 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     Cette cible est satisfaite si la norme facilite l'accès,
                     le partage ou la réutilisation de données dont l'objet
                     est spécifiquement le développement de systèmes
-                    d'intelligence artificielle ou le traitement automatisé.
-                    Une norme qui organise la collecte ou la gestion de
-                    données publiques, administratives ou statistiques en
-                    général, sans lien avec le développement de systèmes
-                    d'intelligence artificielle, ne satisfait pas cette
-                    cible.
+                    d'intelligence artificielle. Une norme qui organise la
+                    collecte ou la gestion de données publiques,
+                    administratives ou statistiques en général, sans lien
+                    avec le développement de systèmes d'intelligence
+                    artificielle, ne satisfait pas cette cible.
                 """),
+                "examples": [
+                    "Une obligation faite aux administrations de mettre à disposition des jeux de données ouvertes utilisables pour entraîner des systèmes d'intelligence artificielle.",
+                    "Un cadre légal facilitant le partage de données de santé anonymisées à des fins de recherche en intelligence artificielle.",
+                ],
             },
         ),
         (
@@ -142,6 +165,10 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     le fonctionnement de systèmes d'intelligence
                     artificielle, ne satisfait pas cette cible.
                 """),
+                "examples": [
+                    "Un investissement public dans un centre de calcul destiné à l'entraînement de modèles d'intelligence artificielle.",
+                    "Une subvention pour l'achat de puces spécialisées dans le calcul pour l'intelligence artificielle par des PME.",
+                ],
             },
         ),
         (
@@ -155,6 +182,10 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     d'intelligence artificielle par des entreprises, des
                     administrations publiques ou d'autres organisations.
                 """),
+                "examples": [
+                    "Un programme incitant les PME à adopter des outils d'intelligence artificielle dans leur processus de production.",
+                    "Une obligation pour les administrations publiques d'intégrer des outils d'intelligence artificielle dans le traitement de certains dossiers.",
+                ],
             },
         ),
         (
@@ -169,6 +200,10 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     l'entrée sur le marché, dont l'objet est spécifiquement
                     des systèmes d'intelligence artificielle.
                 """),
+                "examples": [
+                    "Un bac à sable réglementaire permettant de tester un système d'intelligence artificielle médicale avant sa mise sur le marché.",
+                    "Une procédure d'autorisation temporaire simplifiée pour tester un dispositif fondé sur l'intelligence artificielle.",
+                ],
             },
         ),
         (
@@ -181,11 +216,14 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     droits ou intérêts liés à des données dont le traitement
                     (collecte, réutilisation, ré-identification, inférence)
                     est spécifiquement effectué par l'intelligence
-                    artificielle ou des systèmes automatisés. Une norme de
-                    protection des données qui ne vise pas spécifiquement un
-                    traitement automatisé ou l'intelligence artificielle ne
-                    satisfait pas cette cible.
+                    artificielle. Une norme de protection des données qui ne
+                    vise pas spécifiquement un tel traitement ne satisfait
+                    pas cette cible.
                 """),
+                "examples": [
+                    "Une obligation d'anonymiser les données utilisées pour entraîner un système d'intelligence artificielle avant leur réutilisation.",
+                    "Un droit pour toute personne de connaître les données ayant servi à entraîner un modèle d'intelligence artificielle qui la concerne.",
+                ],
             },
         ),
         (
@@ -203,6 +241,10 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     contenu généré par un système d'intelligence
                     artificielle.
                 """),
+                "examples": [
+                    "Une règle attribuant les droits d'auteur sur un contenu généré par un système d'intelligence artificielle.",
+                    "Une obligation de rémunérer les titulaires de droits dont les œuvres ont servi de données d'entraînement à un modèle d'intelligence artificielle.",
+                ],
             },
         ),
         (
@@ -219,6 +261,10 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     sans lien avec l'intelligence artificielle, ne satisfait
                     pas cette cible.
                 """),
+                "examples": [
+                    "Une exigence de test de robustesse avant la mise en service d'un système d'intelligence artificielle utilisé dans un contexte critique.",
+                    "Une obligation de certification de sécurité pour les systèmes d'intelligence artificielle utilisés dans une infrastructure critique.",
+                ],
             },
         ),
         (
@@ -231,9 +277,12 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     transparence, de l'explicabilité, de la traçabilité, une
                     supervision humaine ou une possibilité de contester une
                     décision, dont l'objet est spécifiquement une décision
-                    issue d'un système d'intelligence artificielle ou
-                    automatisé.
+                    issue d'un système d'intelligence artificielle.
                 """),
+                "examples": [
+                    "Une obligation d'informer une personne qu'une décision la concernant a été prise par un système d'intelligence artificielle.",
+                    "Un droit de recours contre une décision administrative rendue à l'aide d'un système d'intelligence artificielle.",
+                ],
             },
         ),
         (
@@ -249,6 +298,10 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     police, justice, prestations sociales, migration,
                     discrimination).
                 """),
+                "examples": [
+                    "Un encadrement spécifique de l'utilisation de systèmes d'intelligence artificielle pour évaluer l'éligibilité à des prestations sociales.",
+                    "Une interdiction d'utiliser un système d'intelligence artificielle pour prendre seul une décision de refus de crédit.",
+                ],
             },
         ),
         (
@@ -260,13 +313,16 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     Cette cible est satisfaite si la norme protège contre
                     des préjudices créés ou amplifiés par la génération, la
                     recommandation, le ciblage ou la diffusion automatisée
-                    d'information par un système d'intelligence artificielle
-                    (désinformation, deepfakes, manipulation automatisée).
-                    Une régulation générale des médias ou de la
-                    désinformation, sans lien structurel avec
-                    l'automatisation ou l'intelligence artificielle, ne
-                    satisfait pas cette cible.
+                    d'information par un système d'intelligence
+                    artificielle. Une régulation générale des médias ou de
+                    la désinformation, sans lien structurel avec
+                    l'intelligence artificielle, ne satisfait pas cette
+                    cible.
                 """),
+                "examples": [
+                    "Une obligation d'étiqueter le contenu généré ou modifié par intelligence artificielle (deepfake) diffusé publiquement.",
+                    "Une règle limitant l'usage de systèmes de recommandation automatisés qui amplifient la désinformation.",
+                ],
             },
         ),
     ]
@@ -283,36 +339,34 @@ def build_system_prompt(code: str) -> str:
 
     d = TARGET_DEFINITIONS[code]
     name = d["name"]
+    examples = "\n".join(f"- {ex}" for ex in d["examples"])
 
-    return dedent(f"""\
-        Tu es un expert en analyse des politiques publiques et du droit suisse.
-
-        ## Tâche
-
-        Détermine si la norme ci-dessous régule la cible « {name} », qui relève de la régulation de l'intelligence artificielle.
-
-        NON est la réponse par défaut.
-
-        ## Premier test — objet pertinent pour l'IA
-
-        Avant même d'examiner la cible « {name} », détermine si la norme régule elle-même au moins un des éléments suivants : {_AI_RELEVANT_OBJECT_TEST}.
-
-        Si la norme elle-même ne régule aucun de ces éléments, réponds NON immédiatement. Ne poursuis pas vers le second test.
-
-        ## Second test — {name}
-
-        Seulement si le premier test est réussi :
-
-        {d['definition']}
-
-        Si la norme satisfait cette définition, réponds OUI. Sinon, réponds NON.
-
-        Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre texte avant, après ou entre les deux :
-        Justification: [une phrase maximum]
-        Décision: OUI ou NON
-
-        La ligne "Décision:" est OBLIGATOIRE et doit toujours être présente.
-        """)
+    blocks = [
+        "Tu es un expert en analyse des politiques publiques et du droit suisse.",
+        f"## Contexte : l'intelligence artificielle et sa régulation\n\n{_AI_CONTEXT}",
+        f"## Cible à évaluer : {name}\n\n{d['definition']}\n\n"
+        f"Exemples de mesures qui satisferaient cette cible :\n{examples}",
+        "## Ta position de départ\n\n"
+        "Avant de lire la norme, ta position de départ est : « à première vue, cette "
+        "norme n'a aucun rapport avec la régulation de l'intelligence artificielle ». "
+        "Tu ne dois abandonner cette position que si le texte contient une preuve "
+        "explicite, écrite noir sur blanc, qui correspond précisément à la définition "
+        "et aux exemples ci-dessus — jamais sur la base d'une ressemblance de "
+        "vocabulaire, d'une association d'idées ou d'une extrapolation sur ce que la "
+        "norme pourrait aussi concerner. En cas de doute, conserve ta position de "
+        "départ (NON).",
+        "## Exigence de preuve\n\n"
+        "Ta justification doit citer, entre guillemets, le passage EXACT du texte qui "
+        "prouve ta réponse — pas une reformulation, pas une déduction, pas un exemple "
+        "que tu imagines. Si tu ne peux pas citer un passage réellement présent dans "
+        "le texte pour justifier un OUI, la réponse est NON.",
+        "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre "
+        "texte avant, après ou entre les deux :\n"
+        'Justification: ["citation exacte tirée du texte"]\n'
+        "Décision: OUI ou NON\n\n"
+        'La ligne "Décision:" est OBLIGATOIRE et doit toujours être présente.',
+    ]
+    return "\n\n".join(blocks)
 
 
 USER_TEMPLATE = """Texte :
