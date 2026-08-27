@@ -355,16 +355,11 @@ def build_system_prompt(code: str) -> str:
         "vocabulaire, d'une association d'idées ou d'une extrapolation sur ce que la "
         "norme pourrait aussi concerner. En cas de doute, conserve ta position de "
         "départ (NON).",
-        "## Exigence de preuve\n\n"
-        "Ta justification doit citer, entre guillemets, le passage EXACT du texte qui "
-        "prouve ta réponse — pas une reformulation, pas une déduction, pas un exemple "
-        "que tu imagines. Si tu ne peux pas citer un passage réellement présent dans "
-        "le texte pour justifier un OUI, la réponse est NON.",
-        "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre "
-        "texte avant, après ou entre les deux :\n"
-        'Justification: ["citation exacte tirée du texte"]\n'
+        "Réponds UNIQUEMENT par :\n"
         "Décision: OUI ou NON\n\n"
-        'La ligne "Décision:" est OBLIGATOIRE et doit toujours être présente.',
+        "Aucun autre texte, aucune justification, aucune explication : seulement "
+        'cette ligne. La ligne "Décision:" est OBLIGATOIRE et doit toujours être '
+        "présente.",
     ]
     return "\n\n".join(blocks)
 
@@ -374,8 +369,7 @@ USER_TEMPLATE = """Texte :
 
 Réponds à la question posée dans tes instructions.
 
-Réponds en deux parties dans cet ordre exact :
-Justification: [une phrase maximum]
+Réponds UNIQUEMENT par :
 Décision: OUI ou NON"""
 
 
