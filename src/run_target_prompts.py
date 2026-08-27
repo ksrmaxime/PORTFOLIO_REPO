@@ -368,11 +368,11 @@ def build_system_prompt(code: str) -> str:
         "d'une ressemblance de vocabulaire, d'une association d'idées ou d'une "
         "extrapolation sur ce que la norme pourrait aussi concerner. En cas de "
         "doute, la réponse est NON.",
-        "Réponds UNIQUEMENT par :\n"
+        "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans aucun autre "
+        "texte avant, après ou entre les deux :\n"
+        "Justification: [une phrase maximum]\n"
         "Décision: NON ou OUI\n\n"
-        "Aucun autre texte, aucune justification, aucune explication : seulement "
-        'cette ligne. La ligne "Décision:" est OBLIGATOIRE et doit toujours être '
-        "présente.",
+        'La ligne "Décision:" est OBLIGATOIRE et doit toujours être présente.',
     ]
     return "\n\n".join(blocks)
 
@@ -382,7 +382,8 @@ USER_TEMPLATE = """Texte :
 
 Réponds à la question posée dans tes instructions.
 
-Réponds UNIQUEMENT par :
+Réponds en deux parties dans cet ordre exact :
+Justification: [une phrase maximum]
 Décision: NON ou OUI"""
 
 
