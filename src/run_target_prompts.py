@@ -96,40 +96,63 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                 "name": "Recherche & Innovation",
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
-                    Cette cible est satisfaite si la norme prévoit un
-                    dispositif concret de soutien à la recherche, à
-                    l'expérimentation ou à l'innovation — financement,
-                    création d'une infrastructure ou d'un centre de
-                    recherche dédié, régime d'autorisation d'essais ou de
-                    phase pilote, ou fonction d'évaluation et de conseil sur
-                    les risques et opportunités de nouvelles technologies —
-                    dont l'objet est spécifiquement l'intelligence
-                    artificielle, un système automatisé de traitement de
-                    données, ou les nouvelles technologies en général. Un
-                    dispositif de soutien à la recherche ou à l'innovation
-                    qui vise un autre domaine scientifique ou technique
-                    (génétique, médecine, énergie, etc.) sans lien avec
-                    l'intelligence artificielle ou l'automatisation ne
-                    satisfait pas cette cible.
+                    Cette cible relève de la logique PROMOUVOIR (Enabling)
+                    définie dans le contexte partagé ci-dessus, pas de la
+                    logique ENCADRER (Safeguarding). Elle n'est satisfaite
+                    que si l'article, par lui-même, finance, crée une
+                    capacité nouvelle, ou autorise une expérimentation ou un
+                    usage pilote qui n'existerait pas sans cette disposition
+                    — pour l'intelligence artificielle ou pour un système
+                    automatisé de traitement de données. Une fonction
+                    d'évaluation ou de conseil sur les risques et
+                    opportunités de nouvelles technologies satisfait aussi
+                    cette cible, mais seulement quand le contexte de la
+                    disposition est sans ambiguïté celui des systèmes
+                    informatiques, numériques ou de traitement de données
+                    (par exemple un service de sécurité de l'information
+                    appelé à évaluer de nouvelles technologies numériques) —
+                    pas lorsque « nouvelles technologies » désigne un autre
+                    domaine (diffusion audiovisuelle, biotechnologie,
+                    énergie, etc.). Un dispositif de soutien à la recherche
+                    ou à l'innovation qui vise un autre domaine scientifique
+                    ou technique sans lien avec l'intelligence artificielle
+                    ou l'automatisation ne satisfait pas cette cible.
                 """) + " " + _p("""
-                    Un article qui se contente d'attribuer un droit, de
-                    définir des notions juridiques, d'instituer un organe de
-                    surveillance, de médiation ou de traitement de plaintes,
-                    ou d'encadrer une activité existante (radiodiffusion,
-                    protection des données, surveillance policière,
-                    accessibilité des œuvres pour personnes handicapées)
-                    n'est PAS un dispositif de soutien à la recherche ou à
-                    l'innovation — même s'il emploie incidemment des mots
-                    comme « innovation », « technologie » ou « mise à
-                    disposition ». Ce rapprochement lexical superficiel ne
-                    suffit pas : il faut un mécanisme concret de soutien
-                    dont l'objet porte explicitement sur l'intelligence
-                    artificielle, un système automatisé, ou les nouvelles
-                    technologies. Si le texte ne mentionne ni l'intelligence
-                    artificielle, ni un système automatisé ou informatique,
-                    ni les nouvelles technologies, la réponse est NON — même
-                    si le domaine régulé semble par ailleurs moderne ou
-                    technique.
+                    Ne satisfont PAS cette cible, même quand leur objet
+                    touche à un système automatisé, à des données ou à une
+                    technologie : une obligation de sécurité, de traçabilité
+                    ou d'enregistrement imposée à un système déjà autorisé
+                    ou déployé (boîte noire, journal d'événements), une
+                    obligation de notification ou d'analyse d'incident, les
+                    règles générales déterminant la base légale requise
+                    pour traiter des données personnelles (hors dispositif
+                    d'essai ou de phase pilote), une procédure de contrôle
+                    de sécurité de personnes, l'attribution d'un droit, une
+                    définition juridique, l'institution ou l'organisation
+                    d'une autorité (nomination, statut, budget, organe de
+                    surveillance, de médiation ou de traitement de
+                    plaintes), ou une exception au droit d'auteur (usage
+                    privé, accessibilité aux personnes handicapées, durée de
+                    protection, mesures anti-contournement). Ces
+                    dispositions relèvent d'une logique ENCADRER ou d'un
+                    autre domaine du droit, pas d'un soutien actif à la
+                    recherche ou à l'innovation — même si le texte emploie
+                    incidemment des mots comme « innovation », «
+                    technologie », « automatisé » ou « nouvelles
+                    technologies ». En cas de doute, demande-toi : cet
+                    article sert-il d'abord à autoriser, financer ou créer
+                    quelque chose de nouveau (OUI), ou d'abord à imposer une
+                    contrainte, un contrôle ou une formalité sur un système
+                    ou un traitement déjà existant ou déjà autorisé (NON) ?
+                    Un rapprochement lexical avec le vocabulaire de cette
+                    cible ne suffit jamais : ta justification doit citer
+                    l'élément précis du texte qui finance, crée ou autorise
+                    quelque chose de nouveau — jamais reformuler la
+                    définition de la cible elle-même. Si tu ne peux pas
+                    pointer cet élément précis, ou si le texte ne mentionne
+                    ni l'intelligence artificielle, ni un système automatisé
+                    ou informatique, ni les nouvelles technologies au sens
+                    ci-dessus, la réponse est NON.
                 """),
                 "examples": [
                     "Un fonds public finançant des projets de recherche en intelligence artificielle dans les universités.",
@@ -185,6 +208,32 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     d'apprentissage dont l'objet explicite est
                     l'intelligence artificielle, la science des données ou
                     le calcul informatique, la réponse est NON.
+                """) + " " + _p("""
+                    Procédure de vérification obligatoire avant de répondre
+                    OUI : identifie dans le texte une phrase précise décrivant
+                    une activité de formation, d'enseignement ou
+                    d'apprentissage (verbe ou substantif du type « former »,
+                    « enseigner », « programme », « cursus », « cours », «
+                    bourse d'études »), et vérifie que cette phrase porte
+                    explicitement sur l'IA, les données ou le calcul. Ta
+                    justification doit citer cet élément précis — jamais
+                    reformuler la définition de la cible elle-même, et jamais
+                    invoquer un lien indirect, analogique ou hypothétique du
+                    type « cela pourrait concerner l'IA », « cela pourrait
+                    s'appliquer à des créations générées par IA » ou « cela
+                    relève indirectement du calcul ». Le seul fait qu'un
+                    article porte sur un sujet numérique, technique ou lié
+                    aux données — définir une notion juridique (l'auteur,
+                    un design), poser une exception ou une limite au droit
+                    d'auteur (citation, non-protection des textes officiels,
+                    mesure technique anti-contournement), encadrer le
+                    traitement de données personnelles ou l'évaluation d'une
+                    solvabilité, ou régler une procédure judiciaire — n'est
+                    JAMAIS en soi un dispositif de formation ou de
+                    développement de compétences. Si tu ne peux pas citer la
+                    phrase exacte décrivant l'activité de formation dont
+                    l'objet est l'IA, les données ou le calcul, la réponse
+                    est NON.
                 """),
                 "examples": [
                     "Un programme de formation continue en science des données et en intelligence artificielle pour des employés de l'administration.",
@@ -199,18 +248,74 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                 "name": "Accès aux données & Ressources",
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
-                    Cette cible est satisfaite si la norme facilite l'accès,
-                    le partage ou la réutilisation de données dont l'objet
-                    est spécifiquement le développement de systèmes
-                    d'intelligence artificielle. Une norme qui organise la
-                    collecte ou la gestion de données publiques,
-                    administratives ou statistiques en général, sans lien
-                    avec le développement de systèmes d'intelligence
-                    artificielle, ne satisfait pas cette cible.
+                    Cette cible est satisfaite dans deux cas précis. Premier
+                    cas : la norme facilite l'accès, le partage ou la
+                    réutilisation de données dont l'objet est spécifiquement
+                    le développement de systèmes d'intelligence artificielle
+                    (jeu de données ouvertes destiné à l'entraînement de
+                    modèles, cadre de partage de données à des fins de
+                    recherche en IA). Second cas : la norme pose une règle
+                    générale et transversale — de droit d'auteur ou de
+                    protection des données — qui détermine, pour l'ensemble
+                    d'un secteur ou du territoire, les conditions dans
+                    lesquelles des données ou des œuvres peuvent être
+                    licitement collectées, reproduites ou traitées par un
+                    tiers, même sans mentionner l'IA. C'est le cas d'une
+                    exception au droit d'auteur qui rend une catégorie de
+                    contenus librement réutilisables sans autorisation de
+                    l'auteur (domaine public légal, usage privé, courte
+                    citation, fouille de textes et de données), ou de
+                    l'article qui fixe le champ d'application général d'une
+                    loi sur la protection des données et détermine quels
+                    traitements de données — y compris le traitement
+                    automatisé ou le moissonnage de données (scraping) par
+                    des tiers, dont des développeurs de systèmes d'IA — sont
+                    soumis à cette protection. Une telle règle générale
+                    s'applique nécessairement à toute collecte de données
+                    par un système automatisé ou une IA, ce qui justifie
+                    qu'elle satisfasse cette cible même sans référence
+                    explicite à l'IA.
+                """) + " " + _p("""
+                    Ne satisfont PAS cette cible : une norme qui confère à
+                    une autorité, un organe ou un secteur déterminé
+                    (assurance, police, renseignement, télécommunications,
+                    armes, génétique, santé, essais de véhicules, etc.) le
+                    pouvoir de traiter, collecter, transmettre ou accéder à
+                    des données pour l'accomplissement de SA tâche propre —
+                    même si le texte emploie « traiter des données »,
+                    « données sensibles » ou « accès aux données ». Une
+                    habilitation sectorielle à traiter des données pour une
+                    mission administrative, policière, d'enquête,
+                    d'assurance ou de recherche médicale n'est pas une
+                    facilitation générale de l'accès aux données pour l'IA —
+                    à distinguer de la règle générale de champ d'application
+                    décrite ci-dessus. Ne satisfont pas non plus cette
+                    cible : une obligation de transmission ou de
+                    documentation de données propre à un dispositif
+                    particulier (transmettre à une autorité les données d'un
+                    essai pilote, les résultats d'une étude, un rapport
+                    d'enquête) ; une norme qui met des données à disposition
+                    de tiers dans un cadre sectoriel précis et à une fin
+                    déterminée qui n'est pas l'IA (données d'audience à la
+                    recherche universitaire, données de localisation à un
+                    service d'urgence, données médicales à un assureur) ; ou
+                    un pouvoir d'enquête ponctuel d'une autorité de
+                    surveillance donnant accès aux documents d'une
+                    entreprise particulière dans le cadre d'un contrôle. La
+                    simple mention de « données », « vie privée » ou
+                    « sécurité » dans un texte qui régule un domaine sans
+                    rapport avec l'IA (circulation routière, armes,
+                    génétique, assurance) ne suffit pas : si le texte ne
+                    relève d'aucun des deux cas positifs décrits plus haut,
+                    la réponse est NON.
                 """),
                 "examples": [
                     "Une obligation faite aux administrations de mettre à disposition des jeux de données ouvertes utilisables pour entraîner des systèmes d'intelligence artificielle.",
                     "Un cadre légal facilitant le partage de données de santé anonymisées à des fins de recherche en intelligence artificielle.",
+                    "Une exception au droit d'auteur qui exclut les lois, ordonnances et actes officiels de la protection du droit d'auteur, rendant ces textes librement réutilisables par quiconque.",
+                    "Une exception au droit d'auteur autorisant la reproduction d'œuvres pour l'usage privé ou la documentation interne, y compris une exception pour la fouille de textes et de données sur des œuvres déjà licitement accessibles.",
+                    "Une exception au droit d'auteur autorisant la reproduction de courts extraits d'articles de presse à des fins d'information sur l'actualité.",
+                    "L'article qui fixe le champ d'application général d'une loi sur la protection des données et détermine quels traitements de données, y compris automatisés, sont soumis à la surveillance de l'autorité compétente.",
                 ],
             },
         ),
