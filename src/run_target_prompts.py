@@ -97,16 +97,45 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
                     Cette cible est satisfaite si la norme prévoit un
-                    dispositif de soutien à la recherche ou à l'innovation
+                    dispositif concret de soutien à la recherche, à
+                    l'expérimentation ou à l'innovation — financement,
+                    création d'une infrastructure ou d'un centre de
+                    recherche dédié, régime d'autorisation d'essais ou de
+                    phase pilote, ou fonction d'évaluation et de conseil sur
+                    les risques et opportunités de nouvelles technologies —
                     dont l'objet est spécifiquement l'intelligence
-                    artificielle. Un dispositif de soutien à la recherche ou
-                    à l'innovation en général, qui ne vise pas
-                    spécifiquement l'intelligence artificielle, ne satisfait
-                    pas cette cible.
+                    artificielle, un système automatisé de traitement de
+                    données, ou les nouvelles technologies en général. Un
+                    dispositif de soutien à la recherche ou à l'innovation
+                    qui vise un autre domaine scientifique ou technique
+                    (génétique, médecine, énergie, etc.) sans lien avec
+                    l'intelligence artificielle ou l'automatisation ne
+                    satisfait pas cette cible.
+                """) + " " + _p("""
+                    Un article qui se contente d'attribuer un droit, de
+                    définir des notions juridiques, d'instituer un organe de
+                    surveillance, de médiation ou de traitement de plaintes,
+                    ou d'encadrer une activité existante (radiodiffusion,
+                    protection des données, surveillance policière,
+                    accessibilité des œuvres pour personnes handicapées)
+                    n'est PAS un dispositif de soutien à la recherche ou à
+                    l'innovation — même s'il emploie incidemment des mots
+                    comme « innovation », « technologie » ou « mise à
+                    disposition ». Ce rapprochement lexical superficiel ne
+                    suffit pas : il faut un mécanisme concret de soutien
+                    dont l'objet porte explicitement sur l'intelligence
+                    artificielle, un système automatisé, ou les nouvelles
+                    technologies. Si le texte ne mentionne ni l'intelligence
+                    artificielle, ni un système automatisé ou informatique,
+                    ni les nouvelles technologies, la réponse est NON — même
+                    si le domaine régulé semble par ailleurs moderne ou
+                    technique.
                 """),
                 "examples": [
                     "Un fonds public finançant des projets de recherche en intelligence artificielle dans les universités.",
                     "La création d'un centre national de recherche dédié à l'intelligence artificielle.",
+                    "Une autorisation d'essais pilotes de durée limitée pour des systèmes automatisés ou pour un traitement automatisé de données, assortie d'un suivi et d'un rapport d'évaluation avant leur généralisation.",
+                    "Un service spécialisé chargé, à la demande des autorités, d'évaluer les risques et les opportunités liés à l'utilisation de nouvelles technologies, y compris l'intelligence artificielle.",
                 ],
             },
         ),
