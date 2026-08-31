@@ -145,17 +145,51 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                 "name": "Compétences & Capital humain",
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
-                    Cette cible est satisfaite si la norme prévoit un
-                    dispositif de formation ou de développement de
-                    compétences dont l'objet est spécifiquement
-                    l'intelligence artificielle, les données ou le calcul.
-                    Un dispositif d'éducation ou de formation générale, qui
-                    ne vise pas spécifiquement ces compétences, ne satisfait
-                    pas cette cible.
+                    Cette cible est satisfaite si la norme met en place un
+                    dispositif concret de formation, d'enseignement ou de
+                    développement de compétences dont le CONTENU pédagogique
+                    porte explicitement et spécifiquement sur l'intelligence
+                    artificielle, la science des données ou le calcul
+                    informatique (par exemple : apprentissage automatique,
+                    programmation, analyse de données, infrastructure de
+                    calcul) — un programme de formation continue, une
+                    filière ou un cursus universitaire, un module de
+                    formation professionnelle, ou une bourse d'études, dont
+                    l'objet affiché est l'acquisition de ces compétences.
+                """) + " " + _p("""
+                    Un dispositif de formation, d'éducation ou de
+                    qualification professionnelle NE satisfait PAS cette
+                    cible dès lors que son contenu ne porte pas sur l'IA, les
+                    données ou le calcul — même s'il emploie les mots «
+                    formation », « compétences » ou « apprentissage ». C'est
+                    notamment le cas : de la formation à la conduite d'un
+                    véhicule (permis probatoire, cours de sensibilisation aux
+                    dangers de la route) ; de la formation professionnelle
+                    continue dans un autre domaine (santé, sécurité,
+                    comptabilité, journalisme, etc.) ; des procédures
+                    d'agrément, d'habilitation ou de qualification d'un
+                    laboratoire, d'une entreprise ou d'un expert (certificat
+                    de sécurité, accréditation qualité) ; d'une expertise ou
+                    évaluation psychologique ou médicale d'un individu ; ou
+                    plus largement de toute exigence de compétence,
+                    d'expérience ou de qualification professionnelle
+                    mentionnée dans un texte qui ne porte pas sur l'IA. Le
+                    seul fait qu'un article organise le fonctionnement d'un
+                    organe, définisse un droit ou une notion juridique,
+                    encadre une procédure de surveillance ou de traitement
+                    de données, ou porte sur des statistiques sectorielles,
+                    n'est pas non plus un dispositif de formation ou de
+                    développement de compétences, même si le domaine régulé
+                    paraît technique ou numérique. Si le texte ne décrit pas
+                    une activité de formation, d'enseignement ou
+                    d'apprentissage dont l'objet explicite est
+                    l'intelligence artificielle, la science des données ou
+                    le calcul informatique, la réponse est NON.
                 """),
                 "examples": [
                     "Un programme de formation continue en science des données et en intelligence artificielle pour des employés de l'administration.",
                     "La création d'une filière universitaire spécialisée en apprentissage automatique.",
+                    "Une bourse d'études destinée à financer un cursus de troisième cycle en intelligence artificielle.",
                 ],
             },
         ),
