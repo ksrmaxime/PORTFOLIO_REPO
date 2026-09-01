@@ -45,8 +45,8 @@ CODE="${INSTRUMENTS[$((IDX - 1))]}"
 CODE_LOWER=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
 
 # Dernière cible de la chaîne run_target (voir TARGETS dans sbatch_run_target.sh) :
-# son fichier de sortie contient les 12 colonnes target_<CODE> nécessaires au filtrage.
-TARGET_LAST_CODE_LOWER="information_societal_harms"
+# son fichier de sortie contient les 10 colonnes target_<CODE> nécessaires au filtrage.
+TARGET_LAST_CODE_LOWER="high_stakes_risks"
 
 OUTBASE="${OUTDIR}/laws_structure_with_instrument_${CODE_LOWER}"
 

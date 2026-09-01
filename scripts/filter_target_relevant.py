@@ -1,8 +1,8 @@
 """Filter a run_target output parquet down to articles relevant to at least
-one of the 12 targets.
+one of the 10 targets.
 
 Handoff point between the target-classification chain (sbatch_run_target.sh,
-12 stages) and the instrument-classification chain (sbatch_run_inst.sh, 7
+10 stages) and the instrument-classification chain (sbatch_run_inst.sh, 7
 stages): running instrument prompts on the full AI-relevant corpus is
 wasteful since only a small fraction of articles end up target-relevant,
 while essentially every article carries at least one instrument. Filtering
