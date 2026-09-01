@@ -25,16 +25,22 @@ INSTRUMENTS=(VOLUNTARY TAXES_SUBSIDIES PUBLIC_INVESTMENT PROHIBITION_BAN PLANNIN
 N_INSTRUMENTS=${#INSTRUMENTS[@]}
 
 # Cette chaîne se lance manuellement APRÈS la chaîne run_target (sbatch_run_target.sh,
-# 12 étapes) : run_target tourne d'abord sur tout le corpus AI-relevant, puis run_inst
+# 10 étapes) — ou, si un run de contrôle a été effectué, après la chaîne
+# run_target_control (sbatch_run_target_control.sh, 10 étapes elle aussi) : run_target
+# (ou run_target_control) tourne d'abord sur tout le corpus AI-relevant, puis run_inst
 # ne tourne que sur les articles retenus par au moins une cible (~1% du corpus), au
 # lieu de tout le corpus. C'est plus efficace car quasi tous les articles ont un
 # instrument, alors que très peu sont pertinents pour une cible donnée.
 #
 # $1 = index d'instrument (1-7)
-# $2 = pour IDX=1 : job id SLURM du dernier run_target terminé (ex: 61234567) — le
-#        script retrouve son fichier de sortie et le filtre aux articles ayant au
-#        moins une cible = True ; ou, alternativement, un chemin de fichier parquet
-#        déjà filtré à utiliser tel quel.
+# $2 = pour IDX=1 : job id SLURM de la dernière étape terminée, run_target OU
+#        run_target_control (ex: 61234567) — le script détecte automatiquement de
+#        quelle chaîne il s'agit (en cherchant d'abord le fichier de sortie
+#        run_target, puis celui de run_target_control) et filtre aux articles ayant
+#        au moins une cible = True, sur la base des colonnes target_<CODE> (run_target)
+#        ou control_target_<CODE> (run_target_control, décisions confirmées) selon le
+#        cas ; ou, alternativement, un chemin de fichier parquet déjà filtré à
+#        utiliser tel quel.
 #      pour IDX>1 : fichier d'entrée (fourni automatiquement par le chaînage interne).
 IDX="${1:?Usage: sbatch sbatch_run_inst.sh <instrument_index 1-7> <target_job_id|input_file>}"
 if [ "$IDX" -lt 1 ] || [ "$IDX" -gt "$N_INSTRUMENTS" ]; then
@@ -44,8 +50,10 @@ fi
 CODE="${INSTRUMENTS[$((IDX - 1))]}"
 CODE_LOWER=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
 
-# Dernière cible de la chaîne run_target (voir TARGETS dans sbatch_run_target.sh) :
-# son fichier de sortie contient les 10 colonnes target_<CODE> nécessaires au filtrage.
+# Dernière cible des chaînes run_target / run_target_control (voir TARGETS dans
+# sbatch_run_target.sh / sbatch_run_target_control.sh) : son fichier de sortie contient
+# les colonnes target_<CODE> (et, pour la chaîne de contrôle, control_target_<CODE>)
+# nécessaires au filtrage.
 TARGET_LAST_CODE_LOWER="high_stakes_risks"
 
 OUTBASE="${OUTDIR}/laws_structure_with_instrument_${CODE_LOWER}"
@@ -57,22 +65,35 @@ SECOND_ARG="${2:-}"
 
 if [ "$IDX" -eq 1 ]; then
   if [ -z "$SECOND_ARG" ]; then
-    echo "Pour l'instrument 1, fournir soit le job id du dernier run_target (ex: 61234567), soit un chemin de fichier parquet déjà filtré." >&2
+    echo "Pour l'instrument 1, fournir soit le job id de la dernière étape run_target ou run_target_control, soit un chemin de fichier parquet déjà filtré." >&2
     exit 1
   fi
   if [[ "$SECOND_ARG" =~ ^[0-9]+$ ]]; then
-    TARGET_JOB_ID="$SECOND_ARG"
-    TARGET_OUTPUT="${OUTDIR}/laws_structure_with_target_${TARGET_LAST_CODE_LOWER}_job${TARGET_JOB_ID}.parquet"
-    if [ ! -f "$TARGET_OUTPUT" ]; then
-      echo "Fichier de sortie run_target introuvable: $TARGET_OUTPUT (job id incorrect ?)" >&2
+    JOB_ID="$SECOND_ARG"
+    TARGET_OUTPUT="${OUTDIR}/laws_structure_with_target_${TARGET_LAST_CODE_LOWER}_job${JOB_ID}.parquet"
+    CONTROL_OUTPUT="${OUTDIR}/laws_structure_with_target_control_${TARGET_LAST_CODE_LOWER}_job${JOB_ID}.parquet"
+    if [ -f "$TARGET_OUTPUT" ]; then
+      SOURCE_OUTPUT="$TARGET_OUTPUT"
+      COL_PREFIX="target_"
+      INPUT="${OUTDIR}/laws_structure_target_relevant_job${JOB_ID}.parquet"
+      echo "Chaîne détectée : run_target. Filtrage des articles avec >=1 cible = True depuis $SOURCE_OUTPUT"
+    elif [ -f "$CONTROL_OUTPUT" ]; then
+      SOURCE_OUTPUT="$CONTROL_OUTPUT"
+      COL_PREFIX="control_target_"
+      INPUT="${OUTDIR}/laws_structure_target_relevant_from_control_job${JOB_ID}.parquet"
+      echo "Chaîne détectée : run_target_control. Filtrage des articles avec >=1 cible confirmée = True depuis $SOURCE_OUTPUT"
+    else
+      echo "Aucun fichier de sortie run_target ou run_target_control introuvable pour le job id ${JOB_ID} :" >&2
+      echo "  - $TARGET_OUTPUT" >&2
+      echo "  - $CONTROL_OUTPUT" >&2
+      echo "(job id incorrect ?)" >&2
       exit 1
     fi
-    INPUT="${OUTDIR}/laws_structure_target_relevant_job${TARGET_JOB_ID}.parquet"
-    echo "Filtrage des articles avec >=1 cible = True depuis $TARGET_OUTPUT"
     python scripts/filter_target_relevant.py \
-      --input "$TARGET_OUTPUT" \
+      --input "$SOURCE_OUTPUT" \
       --output "$INPUT" \
-      --level_col level
+      --level_col level \
+      --col_prefix "$COL_PREFIX"
   else
     INPUT="$SECOND_ARG"
   fi

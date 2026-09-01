@@ -1,5 +1,5 @@
-"""Filter a run_target output parquet down to articles relevant to at least
-one of the 10 targets.
+"""Filter a run_target (or run_target_control) output parquet down to
+articles relevant to at least one of the 10 targets.
 
 Handoff point between the target-classification chain (sbatch_run_target.sh,
 10 stages) and the instrument-classification chain (sbatch_run_inst.sh, 7
@@ -7,6 +7,10 @@ stages): running instrument prompts on the full AI-relevant corpus is
 wasteful since only a small fraction of articles end up target-relevant,
 while essentially every article carries at least one instrument. Filtering
 here first keeps the instrument stage cheap.
+
+The same script also serves the handoff from the control chain
+(sbatch_run_target_control.sh): pass --col_prefix control_target_ to filter
+on the confirmed (second-pass) decisions instead of the first-pass ones.
 """
 import argparse
 import sys
@@ -17,18 +21,23 @@ import pandas as pd
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", required=True, help="Parquet output of the last run_target stage")
+    ap.add_argument("--input", required=True, help="Parquet output of the last run_target (or run_target_control) stage")
     ap.add_argument("--output", required=True)
     ap.add_argument("--level_col", default="level")
+    ap.add_argument(
+        "--col_prefix",
+        default="target_",
+        help="Prefix of the decision columns to filter on (target_ for run_target, control_target_ for run_target_control)",
+    )
     args = ap.parse_args()
 
     df = pd.read_parquet(args.input)
 
     target_cols = [
-        c for c in df.columns if c.startswith("target_") and not c.endswith("_JUSTIF")
+        c for c in df.columns if c.startswith(args.col_prefix) and not c.endswith("_JUSTIF")
     ]
     if not target_cols:
-        print("No target_<CODE> columns found in input — nothing to filter.", file=sys.stderr)
+        print(f"No {args.col_prefix}<CODE> columns found in input — nothing to filter.", file=sys.stderr)
         return 1
 
     if args.level_col in df.columns:
