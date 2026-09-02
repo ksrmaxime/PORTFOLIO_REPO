@@ -13,6 +13,7 @@ from src.client import TransformersClient, LLMConfig
 from src.runner import run_llm_dataframe, RunConfig
 from src import run_target_control_prompts
 from src.run_target_prompts import TARGET_DEFINITIONS
+from src.run1_config import build_articles_to_send_mask
 
 
 def parse_output(raw: str, decision_col: str, justif_col: str) -> dict:
@@ -56,6 +57,19 @@ def main() -> int:
     ap.add_argument("--trust_remote_code", action="store_true")
 
     ap.add_argument("--text_col", default="text")
+    ap.add_argument("--level_col", default="level")
+
+    ap.add_argument(
+        "--send_all",
+        action="store_true",
+        help=(
+            "N'applique PAS le filtre 'uniquement les articles classés OUI "
+            "par run_target' (colonne target_<CODE>). Envoie tous les "
+            "articles (level==6, texte non vide), comme run_target_pipeline. "
+            "Le prompt envoyé au LLM n'est pas modifié : il continue "
+            "d'affirmer que l'article a été classé OUI par un autre modèle."
+        ),
+    )
 
     ap.add_argument("--decision_col", default=None)
     ap.add_argument("--justif_col", default=None)
@@ -75,14 +89,20 @@ def main() -> int:
     if "row_id" not in df.columns:
         df.insert(0, "row_id", range(len(df)))
 
-    if source_col not in df.columns:
-        raise KeyError(
-            f"Colonne '{source_col}' absente de l'input — le run de contrôle doit être "
-            f"alimenté avec la sortie de la chaîne run_target (qui produit cette colonne)."
-        )
-
-    # On ne reprend que les articles classés OUI au premier passage.
-    send_mask = df[source_col].fillna(False).astype(bool)
+    if args.send_all:
+        # Pas de filtre sur target_<CODE> : on envoie tous les articles, comme
+        # run_target_pipeline. Le prompt (run_target_control_prompts) n'est
+        # pas modifié — il continue d'affirmer à chaque envoi que l'article a
+        # déjà été classé OUI par un autre modèle, que ce soit vrai ou non.
+        send_mask = build_articles_to_send_mask(df, level_col=args.level_col, text_col=args.text_col)
+    else:
+        if source_col not in df.columns:
+            raise KeyError(
+                f"Colonne '{source_col}' absente de l'input — le run de contrôle doit être "
+                f"alimenté avec la sortie de la chaîne run_target (qui produit cette colonne)."
+            )
+        # On ne reprend que les articles classés OUI au premier passage.
+        send_mask = df[source_col].fillna(False).astype(bool)
 
     df[decision_col] = pd.Series(pd.NA, index=df.index, dtype="boolean")
     df[justif_col] = pd.Series(pd.NA, index=df.index, dtype="string")
