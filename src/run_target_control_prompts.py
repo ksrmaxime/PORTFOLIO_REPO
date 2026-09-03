@@ -7,7 +7,11 @@
 # volontairement très succincte (une à deux phrases, sans contre-exemples ni
 # ancrage détaillé) : l'objectif n'est pas de re-dérouler tout le
 # raisonnement du prompt initial, mais d'obtenir un second regard,
-# indépendant et rapide, sur une classification déjà posée.
+# indépendant et rapide, sur une classification déjà posée. L'intitulé montré
+# au LLM (prompt_label) reste, comme dans run_target_prompts.py, délibérément
+# plus spécifique à l'IA que le nom officiel de la cible dans le document —
+# le LLM ne voit qu'une seule cible à la fois et n'a aucune connaissance des
+# 9 autres.
 from __future__ import annotations
 
 import pandas as pd
@@ -29,48 +33,55 @@ SHORT_TARGET_DEFINITIONS: dict[str, str] = {
         "la science des données ou le calcul informatique."
     ),
     "DATA_ACCESS_RESOURCES": (
-        "La norme facilite l'accès à des données pour entraîner des "
-        "systèmes d'IA — mise à disposition de données, ou suppression "
-        "d'une protection (ex. droit d'auteur) qui les rend réutilisables "
-        "pour l'entraînement."
+        "La norme organise ou finance la mise à disposition pratique d'une "
+        "ressource de données pour la recherche, l'entraînement ou le test "
+        "de systèmes d'IA (jeu de données ouvertes, plateforme de partage), "
+        "sans poser de condition juridique sur son utilisation."
     ),
     "COMPUTE_INFRASTRUCTURE": (
         "La norme finance ou facilite l'accès à la puissance de calcul "
         "(GPU, cloud, supercalculateurs, centres de données) pour "
         "entraîner ou faire fonctionner des systèmes d'IA."
     ),
-    "ADOPTION_DIFFUSION": (
+    "DATA_PRIVACY_IP": (
+        "La norme régule un droit, une protection ou une condition "
+        "juridique (protection des données personnelles, consentement, "
+        "licence, droit d'auteur ou exception à ce droit) attaché à des "
+        "données ou des contenus utilisés en amont pour développer, "
+        "entraîner ou faire fonctionner un système d'IA."
+    ),
+    "SECURITY_ROBUSTNESS": (
+        "La norme impose une exigence visant à protéger l'intégrité "
+        "technique (sécurité, fiabilité, résilience, robustesse) d'un "
+        "système d'IA contre une attaque malveillante ou une défaillance."
+    ),
+    "AI_DEPLOYMENT": (
         "La norme encourage, finance, autorise ou facilite concrètement "
         "l'utilisation ou le déploiement d'un système d'IA déjà existant "
         "par une entreprise, une administration ou une organisation (y "
         "compris à titre pilote ou via un bac à sable réglementaire)."
     ),
-    "DATA_PRIVACY": (
-        "La norme régule le traitement de données personnelles (collecte, "
-        "conservation, réutilisation) dans le cadre de l'utilisation d'un "
-        "système d'IA ou d'un traitement automatisé, de façon générale ou "
-        "spécifique à l'IA."
-    ),
-    "IP_CREATIVE_RIGHTS": (
-        "La norme régule des droits de propriété intellectuelle ou "
-        "d'auteur portant sur un contenu généré EN SORTIE par un système "
-        "d'IA (titularité, protection, contrefaçon)."
-    ),
-    "SECURITY_ROBUSTNESS": (
-        "La norme impose une exigence visant à protéger un système d'IA "
-        "(ou automatisé) contre une cyberattaque : intrusion, piratage, "
-        "manipulation malveillante, sabotage."
-    ),
     "ACCOUNTABILITY_TRANSPARENCY": (
-        "La norme impose (a) d'informer une personne qu'une décision la "
-        "concernant a été prise par un système d'IA, ou (b) de communiquer "
-        "des caractéristiques techniques d'un système d'IA."
+        "La norme rend le fonctionnement, l'usage ou la décision d'un "
+        "système d'IA transparent, traçable, explicable, contrôlable, "
+        "contestable, ou attribuable à un acteur responsable (information "
+        "de la personne concernée, explication, supervision humaine, "
+        "traçabilité, droit de recours, ou publication de caractéristiques "
+        "techniques)."
     ),
-    "HIGH_STAKES_RISKS": (
-        "La norme régule directement l'utilisation d'un système d'IA dans "
-        "un contexte à hauts enjeux (droits fondamentaux, sécurité "
-        "physique) ou informationnel (désinformation, manipulation), dans "
-        "le but d'en réduire le risque."
+    "OUTPUT_HARMS": (
+        "La norme prévient, restreint, corrige ou offre un remède contre "
+        "un résultat concret (contenu, décision, prédiction, "
+        "recommandation, action) directement produit par un système d'IA, "
+        "lorsque ce résultat est dommageable, illicite, dangereux, "
+        "discriminatoire ou trompeur."
+    ),
+    "SOCIETAL_HARMS": (
+        "La norme s'attaque à une conséquence collective, systémique ou "
+        "sociétale de l'usage généralisé de l'IA (désinformation à grande "
+        "échelle, manipulation électorale, discrimination systémique, "
+        "risques institutionnels ou de marché) plutôt qu'à un résultat "
+        "individuel isolé."
     ),
 }
 
@@ -81,14 +92,14 @@ def build_system_prompt(code: str) -> str:
     if code not in SHORT_TARGET_DEFINITIONS:
         raise KeyError(f"No short definition for target code: {code}")
 
-    name = TARGET_DEFINITIONS[code]["name"]
+    label = TARGET_DEFINITIONS[code]["prompt_label"]
     short_def = SHORT_TARGET_DEFINITIONS[code]
 
     blocks = [
         "Tu es un expert en analyse des politiques publiques et du droit "
         "suisse. Ta tâche est de vérifier, en second avis, une "
         "classification déjà posée par un autre modèle de langage.",
-        f"Problème public évalué : « {name} ».\n\n{short_def}",
+        f"Problème public évalué : « {label} ».\n\n{short_def}",
         "Réponds TOUJOURS en deux parties, dans cet ordre exact, sans "
         "aucun autre texte avant, après ou entre les deux :\n"
         "Justification: [une phrase maximum]\n"
@@ -113,5 +124,5 @@ def build_user_prompt(row: pd.Series, text_col: str, code: str) -> str:
     if code not in TARGET_DEFINITIONS:
         raise KeyError(f"Unknown target code: {code}")
     txt = "" if pd.isna(row[text_col]) else str(row[text_col]).strip()
-    name = TARGET_DEFINITIONS[code]["name"]
+    name = TARGET_DEFINITIONS[code]["prompt_label"]
     return USER_TEMPLATE.format(article_text=txt, target_name=name)

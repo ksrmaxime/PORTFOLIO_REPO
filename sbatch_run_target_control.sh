@@ -29,12 +29,12 @@ OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 #
 # --- Doit rester synchronisé (mêmes codes, même ordre) avec TARGETS dans
 # sbatch_run_target.sh et TARGET_DEFINITIONS dans src/run_target_prompts.py.
-TARGETS=(RESEARCH_INNOVATION SKILLS_HUMAN_CAPITAL DATA_ACCESS_RESOURCES COMPUTE_INFRASTRUCTURE ADOPTION_DIFFUSION DATA_PRIVACY IP_CREATIVE_RIGHTS SECURITY_ROBUSTNESS ACCOUNTABILITY_TRANSPARENCY HIGH_STAKES_RISKS)
+TARGETS=(RESEARCH_INNOVATION SKILLS_HUMAN_CAPITAL DATA_ACCESS_RESOURCES COMPUTE_INFRASTRUCTURE DATA_PRIVACY_IP SECURITY_ROBUSTNESS AI_DEPLOYMENT ACCOUNTABILITY_TRANSPARENCY OUTPUT_HARMS SOCIETAL_HARMS)
 N_TARGETS=${#TARGETS[@]}
 
 # Dernière cible de la chaîne run_target : son fichier de sortie contient les
 # 10 colonnes target_<CODE> nécessaires au contrôle.
-TARGET_LAST_CODE_LOWER="high_stakes_risks"
+TARGET_LAST_CODE_LOWER="societal_harms"
 
 # $1 = index de cible (1-10)
 # $2 = pour IDX=1 : job id SLURM de la dernière étape run_target terminée (ex:

@@ -23,16 +23,17 @@ OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 # Cette chaîne tourne en PREMIER, sur tout le corpus AI-relevant (même input par
 # défaut que sbatch_run_inst.sh). Une fois les 10 étapes terminées, lancer
 # manuellement sbatch_run_inst.sh en lui passant en argument le job id SLURM de
-# cette dernière étape (HIGH_STAKES_RISKS) : il filtrera automatiquement
+# cette dernière étape (SOCIETAL_HARMS) : il filtrera automatiquement
 # aux articles ayant au moins une cible = True avant de coder les instruments.
 #
 # --- Chaîne de cibles : run_target_1 = RESEARCH_INNOVATION, run_target_2 = SKILLS_HUMAN_CAPITAL, etc. ---
 # Doit rester synchronisé (mêmes codes, même ordre) avec TARGET_DEFINITIONS
-# dans src/run_target_prompts.py (nouvelle taxonomie à 10 cibles : les
-# anciennes HIGH_STAKES_RIGHTS + INFORMATION_SOCIETAL_HARMS sont fusionnées
-# en HIGH_STAKES_RISKS, et EXPERIMENTATION_MARKET est fusionnée dans
-# ADOPTION_DIFFUSION).
-TARGETS=(RESEARCH_INNOVATION SKILLS_HUMAN_CAPITAL DATA_ACCESS_RESOURCES COMPUTE_INFRASTRUCTURE ADOPTION_DIFFUSION DATA_PRIVACY IP_CREATIVE_RIGHTS SECURITY_ROBUSTNESS ACCOUNTABILITY_TRANSPARENCY HIGH_STAKES_RISKS)
+# dans src/run_target_prompts.py (taxonomie à 10 cibles, 4 quadrants
+# Enabling/Safeguarding x Upstream/Downstream : DATA_PRIVACY et
+# IP_CREATIVE_RIGHTS sont fusionnées en DATA_PRIVACY_IP, ADOPTION_DIFFUSION
+# est renommée AI_DEPLOYMENT, et HIGH_STAKES_RISKS est scindée en
+# OUTPUT_HARMS et SOCIETAL_HARMS).
+TARGETS=(RESEARCH_INNOVATION SKILLS_HUMAN_CAPITAL DATA_ACCESS_RESOURCES COMPUTE_INFRASTRUCTURE DATA_PRIVACY_IP SECURITY_ROBUSTNESS AI_DEPLOYMENT ACCOUNTABILITY_TRANSPARENCY OUTPUT_HARMS SOCIETAL_HARMS)
 N_TARGETS=${#TARGETS[@]}
 
 # $1 = index de cible (1-12), $2 = fichier d'entrée (optionnel, seulement utile pour l'index 1)

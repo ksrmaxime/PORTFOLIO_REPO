@@ -1,4 +1,4 @@
-"""Summarize the output of the last run_target_control stage (HIGH_STAKES_RISKS,
+"""Summarize the output of the last run_target_control stage (SOCIETAL_HARMS,
 which carries all 10 control_target_<CODE> columns) into a recap of the
 articles still classified True after control, and for which target(s).
 
@@ -29,7 +29,7 @@ def read_any(path: str) -> pd.DataFrame:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--input", required=True, help="Parquet/CSV output of the last run_target_control stage (control_target_HIGH_STAKES_RISKS)")
+    ap.add_argument("--input", required=True, help="Parquet/CSV output of the last run_target_control stage (control_target_SOCIETAL_HARMS)")
     ap.add_argument("--output_base", required=True)
     ap.add_argument("--level_col", default="level")
     ap.add_argument(

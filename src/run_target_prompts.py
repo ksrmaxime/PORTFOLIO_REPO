@@ -3,13 +3,31 @@
 # run_inst_prompts.py : une question binaire fermée par cible, au lieu d'une
 # seule question générique couvrant les 10 cibles à la fois.
 #
-# Taxonomie des 10 cibles opérationnelles (fusion des deux cibles Safeguarding
-# x Downstream "Usages à hauts enjeux & Droits fondamentaux" et "Information &
-# Préjudices sociétaux" en une seule cible "Risques à hauts enjeux") : PoC
-# PDF, section 2.3 (nouvelle grille à 4 quadrants Enabling/Safeguarding x
-# Upstream/Downstream). Cette
-# taxonomie remplace celle de run5_prompts.TARGET_CODES (10 cibles, ancienne
-# version) — ne pas réutiliser run5_prompts pour ce pipeline.
+# Taxonomie des 10 cibles opérationnelles : PoC PDF (Kaiser, Hinterleitner,
+# Tamò-Larrieux & Caprettini), section 4.2.2, grille à 4 quadrants
+# Enabling/Safeguarding x Upstream/Downstream. Cette version remplace la
+# précédente répartition à 10 cibles de ce même module sur deux points :
+#   - les anciennes cibles "Données & Vie privée" et "Propriété
+#     intellectuelle & Droits créatifs" (volet input) fusionnent en une
+#     seule cible Safeguarding x Upstream, DATA_PRIVACY_IP, qui couvre tout
+#     droit ou toute protection attaché aux données ou contenus utilisés en
+#     AMONT pour construire ou faire fonctionner un système d'IA — y compris
+#     désormais les règles de propriété intellectuelle sur les données
+#     d'entraînement, qui n'appartiennent plus à la cible d'accès aux
+#     données ;
+#   - l'ancienne cible unique "Risques à hauts enjeux" se scinde en deux
+#     cibles Safeguarding x Downstream distinctes : OUTPUT_HARMS (un
+#     dommage causé par un résultat concret — décision, contenu, action —
+#     produit par un système d'IA) et SOCIETAL_HARMS (un effet agrégé,
+#     collectif ou systémique de l'usage généralisé de l'IA) ;
+#   - la cible ACCOUNTABILITY_TRANSPARENCY s'élargit : elle couvre
+#     désormais aussi la supervision humaine, la traçabilité technique et le
+#     droit de recours, qu'elle excluait auparavant — tout mécanisme qui
+#     rend le fonctionnement ou la décision d'un système scrutable, plutôt
+#     que la seule information de la personne concernée ou la seule
+#     documentation technique publique.
+# La taxonomie de run5_prompts.TARGET_CODES est une version antérieure,
+# distincte de celle-ci — ne pas la réutiliser pour ce pipeline.
 #
 # Cadrage des prompts : éviter les correctifs lexicaux propres à un domaine
 # (ex. "véhicule automobile" != "automatisé"). Le corpus couvre des domaines
@@ -26,7 +44,26 @@
 #   2. Un bloc CIBLE, propre à chaque code, avec une définition précise et
 #      des exemples concrets ILLUSTRANT des mesures qui satisferaient
 #      réellement cette cible (pas des pièges négatifs d'un domaine tiers).
-#   3. Un ANCRAGE par défaut sceptique : le LLM part de la position "à
+#      Le titre de ce bloc utilise un intitulé délibérément plus spécifique
+#      à l'IA que le nom officiel de la cible dans le document (ex. "Accès
+#      aux données & ressources pour le développement de l'IA" plutôt que
+#      "Accès aux données & Ressources") : un LLM ne voit qu'un seul prompt
+#      à la fois et n'a aucune connaissance des 9 autres cibles, donc plus
+#      l'intitulé qu'on lui montre est explicitement ancré dans l'IA, moins
+#      il risque de dériver vers une lecture générique du problème public.
+#      Le nom OFFICIEL de la cible (celui du document, utilisé pour les
+#      colonnes de résultat via TARGET_CODES) reste distinct et inchangé.
+#   3. Chaque bloc CIBLE est AUTOSUFFISANT : ses exclusions ("ne satisfont
+#      pas cette cible...") décrivent directement le contenu du cas exclu
+#      (ex. "une exigence qui protège l'intégrité technique du système
+#      contre une attaque, sans lien avec le résultat qu'il produit") au
+#      lieu de renvoyer au nom d'une autre cible (ex. "cela relève de la
+#      cible Sécurité & Robustesse, pas de celle-ci"). Le modèle ne recevant
+#      qu'un seul prompt cible à la fois, une exclusion qui ne fait sens que
+#      par comparaison avec une cible qu'il ne voit pas est inutilisable —
+#      voire trompeuse, puisqu'elle laisse croire à tort que le cas exclu
+#      est pertinent ailleurs sans jamais dire pourquoi il ne l'est pas ici.
+#   4. Un ANCRAGE par défaut sceptique : le LLM part de la position "à
 #      première vue, cet article n'a aucun rapport avec l'IA" et ne doit en
 #      changer que sur preuve explicite — ce qui est plus difficile à
 #      renverser qu'une question neutre invitant à chercher un lien.
@@ -78,17 +115,30 @@ _AI_CONTEXT = _p("""
     facilite son expérimentation et son entrée sur le marché. D'autre part,
     il cherche à ENCADRER les risques concrets que l'intelligence
     artificielle fait peser sur les personnes et la société : atteintes à
-    la vie privée, atteintes aux droits de propriété intellectuelle,
-    défaillances de sécurité, décisions inexplicables ou incontestables,
-    conséquences lourdes pour les droits fondamentaux, ou préjudices
-    sociétaux liés à la diffusion automatisée d'information.
+    la vie privée ou à la propriété intellectuelle sur les données qui
+    servent à l'entraîner, défaillances techniques face à une attaque ou
+    une panne, manque de traçabilité ou de contestabilité de son
+    fonctionnement, dommages causés par ses décisions ou ses contenus, ou
+    préjudices sociétaux plus larges liés à sa diffusion à grande échelle.
 """)
 
 # ---------------------------------------------------------------------------
-# Les 10 cibles opérationnelles, dans l'ordre du tableau 2.3 du PDF.
-# `definition` : ce que doit faire la norme pour satisfaire cette cible.
-# `examples` : 2 exemples concrets ILLUSTRANT des mesures qui satisferaient
-# réellement cette cible (pas des contre-exemples d'un domaine tiers).
+# Les 10 cibles opérationnelles, dans l'ordre des 4 quadrants du PoC PDF
+# (Enabling x Upstream, Safeguarding x Upstream, Enabling x Downstream,
+# Safeguarding x Downstream).
+#
+# `name`        : intitulé OFFICIEL de la cible tel que nommé dans le
+#                 document — c'est celui-ci qui doit apparaître dans les
+#                 résultats (TARGET_CODES, colonnes de sortie, etc.).
+# `prompt_label`: intitulé montré au LLM en tête du bloc cible, délibérément
+#                 plus spécifique à l'IA que `name` (voir note en tête de
+#                 fichier). N'est utilisé que dans le prompt, jamais dans
+#                 les résultats.
+# `definition`  : ce que doit faire la norme pour satisfaire cette cible,
+#                 suivi de ses exclusions — décrites de façon autosuffisante,
+#                 sans jamais nommer une autre cible.
+# `examples`    : exemples concrets ILLUSTRANT des mesures qui satisferaient
+#                 réellement cette cible (pas des contre-exemples).
 # ---------------------------------------------------------------------------
 
 TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
@@ -97,6 +147,7 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             "RESEARCH_INNOVATION",
             {
                 "name": "Recherche & Innovation",
+                "prompt_label": "Recherche & innovation en intelligence artificielle",
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
                     Cette cible est satisfaite si la norme prévoit une
@@ -168,6 +219,7 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             "SKILLS_HUMAN_CAPITAL",
             {
                 "name": "Compétences & Capital humain",
+                "prompt_label": "Compétences & capital humain pour l'intelligence artificielle",
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
                     Cette cible est satisfaite si l'État, à travers un
@@ -209,50 +261,74 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             "DATA_ACCESS_RESOURCES",
             {
                 "name": "Accès aux données & Ressources",
+                "prompt_label": "Accès aux données & ressources pour le développement de l'IA",
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
-                    Cette cible répond à une question simple : cette norme
-                    permet-elle à des développeurs de systèmes
-                    d'intelligence artificielle — les acteurs, publics ou
-                    privés, qui construisent ou entraînent des modèles —
-                    d'utiliser des données (collecte, moissonnage/scraping,
-                    ou réutilisation de contenus) pour entraîner leurs
-                    modèles ? Deux cas satisfont cette cible. Cas explicite
-                    : la norme porte spécifiquement sur les données
-                    d'entraînement de systèmes d'IA — par exemple des jeux
-                    de données mis à disposition pour entraîner des
-                    modèles, ou un cadre facilitant le partage de données à
-                    cette fin. Cas implicite : la norme retire une
-                    protection — typiquement le droit d'auteur — qui aurait
-                    autrement empêché la réutilisation d'une donnée ou d'une
-                    œuvre, ce qui la rend de fait librement utilisable par
-                    quiconque veut entraîner un modèle d'IA, sans que le
-                    texte ait besoin de mentionner l'IA. Une règle qui fixe
-                    de façon générale le champ d'application d'une loi sur
-                    la protection des données — déterminant quels
-                    traitements, y compris le scraping par des tiers, y
-                    sont soumis — relève aussi de ce second cas.
+                    Cette cible est satisfaite si l'État MET À DISPOSITION,
+                    dans les faits, une ressource de données ou une
+                    ressource informationnelle destinée à la recherche, à
+                    l'entraînement, au développement ou aux tests de
+                    systèmes d'intelligence artificielle — un jeu de données
+                    ouvertes ou publiques, une plateforme ou un espace de
+                    partage de données, un jeu de données annotées, ou un
+                    accès facilité à des données de haute qualité pour
+                    entraîner ou évaluer un modèle. L'essentiel est que la
+                    norme ORGANISE ou FINANCE la mise à disposition
+                    pratique d'une telle ressource : elle ne pose ni ne
+                    modifie aucune condition juridique, aucun droit et
+                    aucune protection sur cette donnée — elle se contente de
+                    la rendre accessible dans les faits à ceux qui
+                    construisent ou entraînent des systèmes d'IA.
                 """) + " " + _p("""
-                    Ne satisfont PAS cette cible les normes qui donnent à un
+                    Ne satisfont PAS cette cible : une norme qui donne à un
                     organe de l'État — autorité de surveillance, police,
                     service de renseignement, assureur public, régulateur
                     sectoriel — un accès ou un pouvoir de traitement sur des
-                    données pour l'accomplissement de SES propres tâches.
-                    Dans ce contexte, l'État n'est pas un développeur de
-                    systèmes d'IA : une telle habilitation ne rend aucune
-                    donnée plus accessible aux développeurs de modèles,
-                    même si le texte emploie des mots comme « traiter des
+                    données pour l'accomplissement de SES propres tâches ;
+                    dans ce contexte, l'État n'est pas un développeur de
+                    systèmes d'IA, et une telle habilitation ne rend aucune
+                    donnée plus accessible à ceux qui en construisent, même
+                    si le texte emploie des mots comme « traiter des
                     données », « données sensibles » ou « accès aux
-                    données ». Si le texte ne relève d'aucun des deux cas
-                    positifs décrits plus haut, la réponse est NON.
+                    données ». Ne satisfait pas non plus cette cible une
+                    règle qui pose, modifie ou retire une CONDITION
+                    JURIDIQUE (base légale, consentement, licence,
+                    protection par un droit, exception à ce droit)
+                    applicable à des données ou à des contenus utilisés
+                    comme intrant pour l'IA — qu'elle en restreigne ou au
+                    contraire en facilite la réutilisation : une telle règle
+                    régule un droit ou une protection, elle ne se contente
+                    pas d'organiser ou de financer la disponibilité
+                    pratique d'une ressource, et ne satisfait donc pas cette
+                    cible. Ne satisfait pas non plus cette cible une mesure
+                    qui finance l'ACHAT ou l'USAGE, par une entreprise ou
+                    une administration, d'un système d'intelligence
+                    artificielle déjà construit : cette cible concerne la
+                    ressource en données mobilisée pour CONSTRUIRE ou
+                    ENTRAÎNER un système, pas le financement de son usage
+                    final une fois construit. En cas de doute, demande-toi :
+                    cet article organise-t-il ou finance-t-il concrètement
+                    la mise à disposition pratique d'une ressource de
+                    données pour la recherche, l'entraînement ou le test de
+                    systèmes d'IA, SANS poser de condition juridique sur son
+                    utilisation (OUI), ou s'agit-il d'un pouvoir d'accès
+                    accordé à une administration pour ses propres tâches,
+                    d'une règle qui pose ou modifie un droit ou une
+                    protection sur des données ou contenus utilisés comme
+                    intrant, ou d'un financement de l'usage d'un système
+                    déjà construit (NON) ? Un rapprochement lexical avec le
+                    mot « données » ne suffit jamais : ta justification doit
+                    citer l'élément précis du texte qui organise ou finance
+                    cette mise à disposition — jamais reformuler la
+                    définition de la cible elle-même. Si tu ne peux pas
+                    pointer cet élément précis, la réponse est NON.
                 """),
                 "examples": [
                     "Une obligation faite aux administrations de mettre à disposition des jeux de données ouvertes utilisables pour entraîner des systèmes d'intelligence artificielle.",
-                    "Un cadre légal facilitant le partage de données de santé anonymisées à des fins de recherche en intelligence artificielle.",
-                    "Une exception au droit d'auteur qui exclut les lois, ordonnances et actes officiels de la protection du droit d'auteur, rendant ces textes librement réutilisables par quiconque.",
-                    "Une exception au droit d'auteur autorisant la reproduction d'œuvres pour l'usage privé ou la documentation interne, y compris une exception pour la fouille de textes et de données sur des œuvres déjà licitement accessibles.",
-                    "Une exception au droit d'auteur autorisant la reproduction de courts extraits d'articles de presse à des fins d'information sur l'actualité.",
-                    "L'article qui fixe le champ d'application général d'une loi sur la protection des données et détermine quels traitements de données, y compris automatisés, sont soumis à la surveillance de l'autorité compétente.",
+                    "Un portail public de données ouvertes (open data) explicitement présenté comme une ressource pour la recherche ou le développement en intelligence artificielle.",
+                    "Un cadre légal organisant un espace de partage de données de santé anonymisées à des fins de recherche en intelligence artificielle.",
+                    "Un programme finançant la constitution ou l'annotation d'un jeu de données destiné à l'entraînement ou à l'évaluation de modèles d'intelligence artificielle.",
+                    "Une plateforme publique donnant à des chercheurs ou des start-up un accès facilité à des données de haute qualité pour entraîner leurs modèles.",
                 ],
             },
         ),
@@ -260,6 +336,7 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             "COMPUTE_INFRASTRUCTURE",
             {
                 "name": "Calcul & Infrastructure",
+                "prompt_label": "Calcul & infrastructure pour l'entraînement et le fonctionnement de systèmes d'IA",
                 "quadrant": "Enabling x Upstream",
                 "definition": _p("""
                     Cette cible est satisfaite si la norme finance,
@@ -302,33 +379,35 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     optique, 5G, téléphonie) motivé par la connectivité
                     générale de la population ; une définition ou un
                     inventaire des « infrastructures critiques » (énergie,
-                    eau, transport, télécoms) dont l'objet est la protection
-                    de ces infrastructures elles-mêmes, pas le calcul pour
-                    l'IA — une telle protection relève, le cas échéant, de
-                    la cible Sécurité & Robustesse, pas de celle-ci ; ou une
-                    règle générale de gouvernance ou de sécurité des
-                    infrastructures numériques de l'État (systèmes
-                    d'information, cybersécurité administrative) sans
-                    rapport avec la fourniture de capacité de calcul pour
-                    l'IA. Le simple emploi des mots « infrastructure »,
-                    « numérique », « centre de données », « énergie » ou
-                    « calcul » ne suffit jamais : il faut que le texte relie
-                    explicitement cette ressource au développement ou au
-                    fonctionnement de systèmes d'intelligence artificielle.
-                    En cas de doute, demande-toi : cet article finance-t-il,
-                    construit-il ou facilite-t-il concrètement l'accès à une
-                    capacité de calcul (puces, cloud, supercalcul, centre de
-                    données, énergie dédiée) destinée à l'entraînement ou au
+                    eau, transport, télécoms) dont l'objet est de PROTÉGER
+                    ces infrastructures contre une attaque ou une
+                    défaillance, et non de financer ou de faciliter l'accès
+                    à une capacité de calcul — une telle protection ne
+                    satisfait pas cette cible ; ou une règle générale de
+                    gouvernance ou de sécurité des infrastructures
+                    numériques de l'État (systèmes d'information,
+                    cybersécurité administrative) sans rapport avec la
+                    fourniture de capacité de calcul pour l'IA. Le simple
+                    emploi des mots « infrastructure », « numérique »,
+                    « centre de données », « énergie » ou « calcul » ne
+                    suffit jamais : il faut que le texte relie explicitement
+                    cette ressource au développement ou au fonctionnement de
+                    systèmes d'intelligence artificielle. En cas de doute,
+                    demande-toi : cet article finance-t-il, construit-il ou
+                    facilite-t-il concrètement l'accès à une capacité de
+                    calcul (puces, cloud, supercalcul, centre de données,
+                    énergie dédiée) destinée à l'entraînement ou au
                     fonctionnement de systèmes d'IA (OUI), ou s'agit-il
                     d'infrastructure, d'énergie, de numérique ou de
-                    télécommunications en général, sans lien spécifique avec
-                    le calcul pour l'IA (NON) ? Un rapprochement lexical
-                    avec le mot « infrastructure » ne suffit jamais : ta
-                    justification doit citer l'élément précis du texte qui
-                    finance ou facilite l'accès à une capacité de calcul
-                    pour l'IA — jamais reformuler la définition de la cible
-                    elle-même. Si tu ne peux pas pointer cet élément précis,
-                    la réponse est NON.
+                    télécommunications en général, ou de leur protection
+                    contre une attaque ou une défaillance, sans lien
+                    spécifique avec le calcul pour l'IA (NON) ? Un
+                    rapprochement lexical avec le mot « infrastructure » ne
+                    suffit jamais : ta justification doit citer l'élément
+                    précis du texte qui finance ou facilite l'accès à une
+                    capacité de calcul pour l'IA — jamais reformuler la
+                    définition de la cible elle-même. Si tu ne peux pas
+                    pointer cet élément précis, la réponse est NON.
                 """),
                 "examples": [
                     "Un investissement public dans un centre de calcul destiné à l'entraînement de modèles d'intelligence artificielle.",
@@ -340,9 +419,216 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             },
         ),
         (
-            "ADOPTION_DIFFUSION",
+            "DATA_PRIVACY_IP",
             {
-                "name": "Adoption & Diffusion",
+                "name": "Données, Vie privée & Propriété intellectuelle",
+                "prompt_label": "Protection des données, de la vie privée et de la propriété intellectuelle sur les intrants de l'IA",
+                "quadrant": "Safeguarding x Upstream",
+                "definition": _p("""
+                    Cette cible est satisfaite si la norme régule un droit,
+                    une protection ou une condition juridique attaché aux
+                    données, aux contenus protégés ou aux ressources
+                    utilisés COMME INTRANT (input) pour développer,
+                    entraîner, tester ou faire fonctionner un système
+                    d'intelligence artificielle ou un système automatisé de
+                    traitement de données. Trois familles de règles
+                    satisfont cette cible. Premièrement, un régime GÉNÉRAL
+                    de protection des données personnelles — base légale
+                    requise, finalité, proportionnalité, durée de
+                    conservation, droit d'accès ou de rectification,
+                    obligation de sécurité des données, ou détermination de
+                    quels traitements sont soumis à un tel régime : un tel
+                    régime général s'applique par construction à tout
+                    traitement par un système d'intelligence artificielle ou
+                    par un système automatisé, même si le texte ne mentionne
+                    jamais l'IA. Deuxièmement, une règle SPÉCIFIQUE à
+                    l'utilisation de l'IA ou d'un traitement automatisé pour
+                    collecter, croiser, profiler, ré-identifier ou inférer
+                    des informations sur des personnes à partir de données.
+                    Troisièmement, un droit de propriété intellectuelle, un
+                    droit d'auteur, une exception à ce droit, ou une
+                    exigence de consentement, de licence ou de traçabilité
+                    de provenance portant sur des DONNÉES OU DES ŒUVRES
+                    UTILISÉES POUR ENTRAÎNER ou alimenter un système
+                    d'intelligence artificielle — que cette règle restreigne
+                    ou au contraire permette leur réutilisation (par exemple
+                    une exception au droit d'auteur pour la fouille de
+                    textes et de données, ou une obligation de rémunérer les
+                    titulaires de droits dont les œuvres ont servi à
+                    l'entraînement d'un modèle). Dans les trois cas, la
+                    norme doit réguler un droit, une protection ou une
+                    condition juridique attaché à des données ou à des
+                    contenus utilisés EN AMONT, pour construire ou faire
+                    fonctionner le système — pas au contenu que ce système
+                    produit lui-même en sortie.
+                """) + " " + _p("""
+                    Ne satisfont PAS cette cible : une norme qui attribue ou
+                    étend à une administration, une autorité ou tout autre
+                    organe de l'État un DROIT ou un POUVOIR d'accéder à des
+                    données, de les collecter ou de les traiter pour
+                    l'accomplissement de SES propres tâches (par exemple un
+                    accès de la police, du fisc ou d'une assurance sociale à
+                    un registre ou une base de données) — une telle
+                    habilitation confère un pouvoir, elle ne protège ni
+                    n'encadre le traitement au sens de cette cible, même si
+                    elle porte sur des données personnelles ou sensibles ;
+                    une norme qui régule la GÉNÉRATION de données par un
+                    processus qui n'a rien à voir avec l'IA ou un traitement
+                    automatisé — par exemple une analyse génétique, un
+                    examen médical, un prélèvement biométrique ou une
+                    collecte de données sur papier — même lorsque les
+                    données ainsi générées sont ensuite conservées ou
+                    traitées ; une norme qui se contente d'ORGANISER ou de
+                    FINANCER la mise à disposition pratique d'un jeu de
+                    données ou d'une ressource informationnelle déjà
+                    existante (portail de données ouvertes, plateforme de
+                    partage), sans poser aucune condition, protection ou
+                    droit sur son utilisation — une telle norme rend une
+                    ressource disponible dans les faits, elle ne régule
+                    aucun droit ni aucune protection, et ne satisfait donc
+                    pas cette cible ; et une règle de propriété
+                    intellectuelle ou de droit d'auteur qui porte sur le
+                    CONTENU PRODUIT EN SORTIE par un système d'intelligence
+                    artificielle — titularité des droits sur une création
+                    générée, contrefaçon d'une œuvre préexistante par un
+                    contenu généré — une telle règle porte sur le résultat
+                    produit par le système, pas sur les données ou œuvres
+                    utilisées en amont pour l'entraîner, et ne satisfait
+                    donc pas non plus cette cible. Le simple emploi des mots
+                    « données », « vie privée », « propriété intellectuelle
+                    » ou « droit d'auteur » ne suffit jamais : il faut que
+                    le texte régule effectivement un droit, une protection
+                    ou une condition juridique attaché à des données ou des
+                    contenus utilisés en amont pour construire ou faire
+                    fonctionner un système d'IA. En cas de doute,
+                    demande-toi : cet article régule-t-il un droit, une
+                    protection ou une condition juridique (licéité,
+                    consentement, licence, protection par le droit d'auteur,
+                    exception à ce droit) attaché à des données ou à des
+                    contenus utilisés comme INTRANT pour développer,
+                    entraîner ou faire fonctionner un système d'IA (OUI), ou
+                    s'agit-il d'un pouvoir d'accès accordé à une
+                    administration pour ses propres tâches, d'une génération
+                    de données non automatisée, de la simple mise à
+                    disposition d'une ressource sans condition juridique
+                    attachée, ou d'un droit portant sur le contenu produit
+                    EN SORTIE par le système (NON) ? Ta justification doit
+                    citer l'élément précis du texte qui régule ce droit ou
+                    cette protection — jamais reformuler la définition de la
+                    cible elle-même. Si tu ne peux pas pointer cet élément
+                    précis, la réponse est NON.
+                """),
+                "examples": [
+                    "Une règle générale fixant les conditions de licéité (base légale, finalité, proportionnalité) de tout traitement de données personnelles, applicable aussi bien à un traitement manuel qu'à un traitement par un système automatisé ou par une intelligence artificielle.",
+                    "Une obligation de pseudonymiser ou d'anonymiser des données personnelles avant leur traitement par un système d'intelligence artificielle utilisé à des fins de profilage ou de classification de personnes.",
+                    "Une interdiction de ré-identifier une personne à partir de données que l'intelligence artificielle a rendues anonymes.",
+                    "Un droit de s'opposer au traitement de ses données personnelles par un système de décision automatisée ou d'intelligence artificielle.",
+                    "Une exception au droit d'auteur autorisant la fouille de textes et de données (text and data mining) sur des œuvres déjà licitement accessibles, à des fins d'entraînement de modèles d'intelligence artificielle.",
+                    "Une obligation de rémunérer les titulaires de droits d'auteur dont les œuvres ont été utilisées pour entraîner un système d'intelligence artificielle.",
+                    "Une exigence de traçabilité de la provenance des données ou des œuvres utilisées pour entraîner un modèle, incluant leur statut au regard du droit d'auteur.",
+                ],
+            },
+        ),
+        (
+            "SECURITY_ROBUSTNESS",
+            {
+                "name": "Sécurité & Robustesse",
+                "prompt_label": "Sécurité & robustesse technique des systèmes d'intelligence artificielle",
+                "quadrant": "Safeguarding x Upstream",
+                "definition": _p("""
+                    Cette cible est satisfaite si la norme impose une
+                    exigence dont l'objet spécifique est d'assurer
+                    l'INTÉGRITÉ TECHNIQUE d'un système d'intelligence
+                    artificielle, de son infrastructure ou de ses données
+                    d'entraînement ou de fonctionnement — c'est-à-dire sa
+                    sécurité, sa fiabilité, sa résilience ou sa robustesse
+                    technique. Cela recouvre deux types de menaces.
+                    D'une part, une menace MALVEILLANTE : une intrusion, un
+                    accès non autorisé, un piratage, une manipulation
+                    malveillante (par exemple un empoisonnement de données
+                    ou une attaque adverse visant à tromper un modèle), un
+                    sabotage, ou toute autre atteinte à la confidentialité, à
+                    l'intégrité ou à la disponibilité du système provoquée
+                    par un acteur malveillant. D'autre part, une DÉFAILLANCE
+                    non malveillante : une exigence de fiabilité, de
+                    résistance à l'erreur, de résilience face à une panne, à
+                    des données aberrantes ou à un dysfonctionnement
+                    technique, ou un test de performance ou de robustesse
+                    destiné à vérifier que le système continue de
+                    fonctionner correctement dans des conditions dégradées.
+                    Peu importe que le système ou l'infrastructure visé
+                    appartienne à l'État ou à un acteur privé : ce qui
+                    compte est que la mesure protège l'intégrité technique,
+                    la fiabilité ou la robustesse du système lui-même, de
+                    son infrastructure ou de ses données — pas les personnes
+                    affectées par ce que ce système produit ou décide.
+                """) + " " + _p("""
+                    Ne satisfont PAS cette cible : une mesure qui protège la
+                    confidentialité de données personnelles ou régule
+                    généralement leur traitement (base légale, finalité,
+                    durée de conservation, droit d'accès ou de
+                    rectification) sans viser spécifiquement l'intégrité
+                    technique d'un système contre une attaque ou une
+                    défaillance — même lorsqu'elle emploie le mot «
+                    sécurité » (par exemple une « obligation de sécurité des
+                    données ») ; une exigence dont l'objet est de protéger
+                    des personnes contre un dommage, une décision incorrecte,
+                    discriminatoire ou dangereuse causée par ce qu'un
+                    système d'IA produit ou décide — une telle exigence
+                    porte sur la conséquence produite par le système pour
+                    autrui, pas sur son intégrité technique interne ; une
+                    exigence de compréhensibilité, d'explication, de
+                    supervision humaine ou de possibilité de contester une
+                    décision individuelle, qui organise un contrôle sur la
+                    décision et non une protection technique du système ;
+                    une exigence de sécurité physique sans lien avec un
+                    système d'IA ou automatisé (bâtiment, coffre-fort,
+                    protection périmétrique) ; une loi ou une stratégie
+                    générale de cybersécurité de l'État ou d'une entreprise
+                    sans lien spécifique avec un système d'IA ou un système
+                    automatisé de traitement de données ; ou une définition
+                    ou un inventaire des infrastructures critiques (énergie,
+                    eau, transport, télécoms) dont l'objet est la protection
+                    de ces infrastructures en général, sans lien spécifique
+                    avec un système d'IA ou automatisé qui les pilote ou les
+                    traite. Le simple emploi des mots « sécurité », «
+                    robustesse », « résilience », « fiabilité » ou «
+                    cybersécurité » ne suffit jamais : il faut que le texte
+                    protège spécifiquement l'intégrité technique — contre
+                    une attaque ou une défaillance — d'un système d'IA ou
+                    d'un système automatisé de traitement de données. En cas
+                    de doute, demande-toi : cet article impose-t-il une
+                    exigence dont l'objet spécifique est de protéger
+                    l'intégrité technique (sécurité, fiabilité, résilience,
+                    robustesse) d'un système d'IA ou automatisé contre une
+                    attaque malveillante ou une défaillance (OUI), ou
+                    s'agit-il de protection des données personnelles en
+                    général, de protection des personnes contre les
+                    conséquences produites par le système, de supervision
+                    humaine d'une décision, ou de sécurité ou de
+                    cybersécurité générale sans lien spécifique avec l'IA
+                    (NON) ? Un rapprochement lexical avec le vocabulaire de
+                    la sécurité ne suffit jamais : ta justification doit
+                    citer l'élément précis du texte qui protège l'intégrité
+                    technique du système — jamais reformuler la définition
+                    de la cible elle-même. Si tu ne peux pas pointer cet
+                    élément précis, la réponse est NON.
+                """),
+                "examples": [
+                    "Une obligation de certification de cybersécurité pour les systèmes d'intelligence artificielle utilisés dans une infrastructure critique, destinée à prévenir les intrusions et le piratage.",
+                    "Une exigence de test de résistance aux attaques adverses (adversarial attacks) ou à l'empoisonnement de données avant la mise en service d'un système d'intelligence artificielle dans un contexte sensible.",
+                    "Une obligation pour les fournisseurs de systèmes d'intelligence artificielle de mettre en place des mesures de protection contre l'accès non autorisé ou le piratage de leurs modèles et infrastructures.",
+                    "Une exigence de fiabilité et de résistance aux pannes pour un système d'intelligence artificielle pilotant une infrastructure sensible.",
+                    "Une exigence de détection et de notification des incidents de sécurité affectant un système d'intelligence artificielle déployé par une entreprise ou une administration.",
+                    "Une exigence de gestion des vulnérabilités techniques d'un système d'intelligence artificielle tout au long de son cycle de vie.",
+                ],
+            },
+        ),
+        (
+            "AI_DEPLOYMENT",
+            {
+                "name": "Déploiement de l'IA",
+                "prompt_label": "Déploiement, adoption et expérimentation de systèmes d'intelligence artificielle",
                 "quadrant": "Enabling x Downstream",
                 "definition": _p("""
                     Cette cible est satisfaite si la norme encourage,
@@ -372,55 +658,54 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     organisations. Quatrièmement, un dispositif
                     d'expérimentation encadrée — bac à sable réglementaire,
                     autorisation d'essai pilote, autorisation temporaire ou
-                    dérogatoire — qui PERMET à une entreprise, une
+                    dérogatoire, ou procédure de test avant introduction sur
+                    le marché — qui PERMET à une entreprise, une
                     administration ou une autre organisation d'utiliser ou
                     de tester un système d'intelligence artificielle en
                     conditions réelles, même de façon limitée dans le temps,
                     l'espace ou le champ d'application, avant sa
                     généralisation : en autorisant cet usage réel, l'État
                     encourage directement l'adoption et la diffusion du
-                    système, tout comme dans les trois cas précédents. Dans
-                    les quatre cas, c'est l'UTILISATION du système d'IA par
-                    son destinataire final — l'entreprise, l'administration
-                    ou l'organisation qui s'en sert, même à titre pilote ou
-                    expérimental — qui doit être directement encouragée,
-                    financée, autorisée ou facilitée par la norme ; peu
-                    importe le secteur (santé, justice, transport, etc.) :
-                    ce qui compte est que la mesure vise l'usage réel de
-                    l'IA par son destinataire final, pas un autre maillon
-                    de la chaîne.
+                    système, tout comme dans les trois cas précédents.
+                    L'expérimentation et l'introduction sur le marché sont
+                    ainsi traitées comme des étapes du déploiement, pas
+                    comme des sujets distincts. Dans les quatre cas, c'est
+                    l'UTILISATION du système d'IA par son destinataire final
+                    — l'entreprise, l'administration ou l'organisation qui
+                    s'en sert, même à titre pilote ou expérimental — qui
+                    doit être directement encouragée, financée, autorisée ou
+                    facilitée par la norme ; peu importe le secteur (santé,
+                    justice, transport, etc.) : ce qui compte est que la
+                    mesure vise l'usage réel de l'IA par son destinataire
+                    final, pas un autre maillon de la chaîne.
                 """) + " " + _p("""
                     Ne satisfont PAS cette cible les mesures qui, bien que
-                    liées à l'intelligence artificielle, portent en
-                    réalité sur un autre maillon de la chaîne de valeur ou
-                    relèvent d'une autre logique de régulation — même si,
+                    liées à l'intelligence artificielle, portent en réalité
+                    sur un autre maillon de la chaîne de valeur — même si,
                     par ricochet, elles pourraient elles aussi favoriser
                     l'IA en général. Ne satisfont donc pas cette cible : un
-                    financement de la recherche ou de l'innovation en
-                    intelligence artificielle qui ne finance et n'impose
-                    aucun usage concret par une entreprise ou une
-                    administration (cible Recherche & Innovation) ; un
-                    dispositif de formation, d'enseignement ou de
-                    développement de compétences en IA, qui outille des
-                    personnes sans encourager ni faciliter l'utilisation
-                    d'un système par une organisation (cible Compétences &
-                    Capital humain) ; une mesure facilitant l'accès aux
-                    données d'entraînement ou à la puissance de calcul, qui
-                    profite aux développeurs de systèmes d'IA et non à
-                    leurs utilisateurs finaux (cibles Accès aux données &
-                    Ressources et Calcul & Infrastructure) ; ainsi que toute
-                    exigence de sécurité, de robustesse, de transparence, de
+                    financement ou une organisation d'une activité de
+                    RECHERCHE en intelligence artificielle, qui ne finance
+                    ni n'impose aucun usage concret par une entreprise ou
+                    une administration ; un dispositif d'ENSEIGNEMENT ou de
+                    FORMATION en intelligence artificielle, qui outille des
+                    personnes de compétences sans encourager ni faciliter
+                    l'utilisation d'un système par une organisation ; une
+                    mesure qui facilite l'accès à des DONNÉES d'entraînement
+                    ou à de la PUISSANCE DE CALCUL, qui profite à ceux qui
+                    construisent des systèmes d'IA et non à ceux qui les
+                    utilisent une fois construits ; ainsi que toute exigence
+                    de sécurité, de robustesse, de transparence, de
                     traçabilité, de supervision humaine, de protection des
                     données, de protection de droits fondamentaux ou de
-                    protection contre des préjudices sociétaux, même
-                    lorsque cette exigence porte sur un système d'IA déjà
-                    utilisé ou déployé, y compris dans le cadre d'un bac à
-                    sable ou d'un essai pilote — une telle exigence encadre
-                    ou restreint l'usage, elle ne l'encourage ni ne le
-                    facilite (cibles relevant de la logique Safeguarding).
-                    Une simple mention de la « transformation numérique »,
-                    de la « modernisation de l'administration » ou de la «
-                    digitalisation », sans référence spécifique à
+                    protection contre des préjudices, même lorsque cette
+                    exigence porte sur un système d'IA déjà utilisé ou
+                    déployé, y compris dans le cadre d'un bac à sable ou
+                    d'un essai pilote — une telle exigence ENCADRE ou
+                    RESTREINT l'usage, elle ne l'encourage ni ne le
+                    facilite. Une simple mention de la « transformation
+                    numérique », de la « modernisation de l'administration »
+                    ou de la « digitalisation », sans référence spécifique à
                     l'intelligence artificielle, ne satisfait pas non plus
                     cette cible. En cas de doute, demande-toi : cet article
                     encourage-t-il, finance-t-il, autorise-t-il ou
@@ -429,17 +714,16 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
                     d'un système d'intelligence artificielle par une
                     entreprise, une administration ou une organisation qui
                     s'en sert dans son activité (OUI), ou s'agit-il d'autre
-                    chose — recherche, formation, données, calcul,
-                    sécurité, gouvernance, protection des droits (NON) ? Un
+                    chose — recherche, formation, données, calcul, sécurité,
+                    gouvernance, protection des droits (NON) ? Un
                     rapprochement lexical avec les mots « adoption », «
-                    diffusion », « déploiement », « pilote », « bac à
-                    sable » ou « utilisation » ne suffit jamais : ta
-                    justification doit citer l'élément précis du texte qui
-                    encourage, finance, autorise ou facilite concrètement
-                    l'usage d'un système d'IA par son destinataire final —
-                    jamais reformuler la définition de la cible elle-même.
-                    Si tu ne peux pas pointer cet élément précis, la réponse
-                    est NON.
+                    diffusion », « déploiement », « pilote », « bac à sable
+                    » ou « utilisation » ne suffit jamais : ta justification
+                    doit citer l'élément précis du texte qui encourage,
+                    finance, autorise ou facilite concrètement l'usage d'un
+                    système d'IA par son destinataire final — jamais
+                    reformuler la définition de la cible elle-même. Si tu ne
+                    peux pas pointer cet élément précis, la réponse est NON.
                 """),
                 "examples": [
                     "Un programme incitant les PME à adopter des outils d'intelligence artificielle dans leur processus de production.",
@@ -453,449 +737,276 @@ TARGET_DEFINITIONS: "OrderedDict[str, dict]" = OrderedDict(
             },
         ),
         (
-            "DATA_PRIVACY",
-            {
-                "name": "Données & Vie privée",
-                "quadrant": "Safeguarding x Upstream",
-                "definition": _p("""
-                    Cette cible est satisfaite si la norme protège des
-                    droits ou intérêts liés au traitement de données
-                    personnelles ou de données privées (collecte,
-                    conservation, réutilisation, communication à des tiers,
-                    croisement, profilage, ré-identification, inférence),
-                    selon deux cas. Premier cas — régime général : la norme
-                    régule de façon GÉNÉRALE le traitement de données
-                    personnelles, quel que soit le moyen utilisé pour le
-                    traiter (base légale requise, finalité, principe de
-                    proportionnalité, durée de conservation, droit d'accès
-                    ou de rectification, obligation de sécurité des
-                    données) ; un tel régime général s'applique par
-                    construction aussi bien au traitement par un système
-                    d'intelligence artificielle ou par un système automatisé
-                    qu'à tout autre traitement, même si le texte ne
-                    mentionne jamais l'IA. Second cas — régime spécifique :
-                    la norme régule SPÉCIFIQUEMENT le traitement de données
-                    personnelles PAR un système d'intelligence artificielle
-                    ou par un système automatisé de traitement de données —
-                    par exemple une exigence propre à l'usage de l'IA pour
-                    traiter, croiser, profiler ou ré-identifier des
-                    personnes à partir de données. Dans les deux cas, la
-                    mesure porte sur l'UTILISATION ou le TRAITEMENT de
-                    données par un système d'intelligence artificielle déjà
-                    développé ou par un système automatisé déjà en fonction
-                    — pas sur les données utilisées pour ENTRAÎNER un tel
-                    système ; une mesure qui porte spécifiquement sur les
-                    données d'entraînement d'un système d'IA relève d'une
-                    autre cible, pas de celle-ci.
-                """) + " " + _p("""
-                    Ne satisfont PAS cette cible : une norme qui attribue ou
-                    étend à une administration, une autorité ou tout autre
-                    organe de l'État un DROIT ou un POUVOIR d'accéder à des
-                    données, de les collecter ou de les traiter pour
-                    l'accomplissement de SES propres tâches (par exemple un
-                    accès de la police, du fisc ou d'une assurance sociale à
-                    un registre ou une base de données) — une telle
-                    habilitation confère un pouvoir, elle ne protège ni
-                    n'encadre le traitement au sens de cette cible, même si
-                    elle porte sur des données personnelles ou sensibles ;
-                    une norme qui régule la GÉNÉRATION de données par un
-                    processus qui n'a rien à voir avec l'IA ou un traitement
-                    automatisé — par exemple une analyse génétique, un
-                    examen médical, un prélèvement biométrique ou une
-                    collecte de données sur papier — même lorsque les
-                    données ainsi générées sont ensuite conservées ou
-                    traitées ; et une mesure portant spécifiquement sur les
-                    données d'entraînement d'un système d'intelligence
-                    artificielle (anonymisation avant entraînement, droit de
-                    savoir quelles données ont servi à l'entraînement,
-                    licéité de la réutilisation d'un jeu de données pour
-                    entraîner un modèle), qui relève d'une autre cible que
-                    celle-ci. Le simple emploi des mots « données », « vie
-                    privée », « protection des données » ou « traitement »
-                    ne suffit jamais : il faut que le texte régule un
-                    traitement de données au sens de la définition ci-dessus
-                    — de façon générale, ou spécifiquement par l'IA — et non
-                    un simple pouvoir d'accès, une génération de données non
-                    automatisée, ou un régime propre aux données
-                    d'entraînement. En cas de doute, demande-toi : cet
-                    article régule-t-il, de façon générale ou spécifiquement
-                    pour l'IA, le TRAITEMENT (collecte, conservation,
-                    réutilisation, croisement, ré-identification) de données
-                    personnelles déjà collectées, dans le cadre de
-                    l'UTILISATION d'un système d'IA ou d'un système
-                    automatisé (OUI), ou s'agit-il d'un pouvoir d'accès
-                    accordé à une administration, d'une génération de
-                    données par un processus non automatisé, ou d'un régime
-                    propre aux données d'entraînement (NON) ? Ta
-                    justification doit citer l'élément précis du texte qui
-                    régule ce traitement — jamais reformuler la définition
-                    de la cible elle-même. Si tu ne peux pas pointer cet
-                    élément précis, la réponse est NON.
-                """),
-                "examples": [
-                    "Une règle générale fixant les conditions de licéité (base légale, finalité, proportionnalité) de tout traitement de données personnelles, applicable aussi bien à un traitement manuel qu'à un traitement par un système automatisé ou par une intelligence artificielle.",
-                    "Une obligation de pseudonymiser ou d'anonymiser des données personnelles avant leur traitement par un système d'intelligence artificielle utilisé à des fins de profilage ou de classification de personnes.",
-                    "Une interdiction de ré-identifier une personne à partir de données que l'intelligence artificielle a rendues anonymes.",
-                    "Un droit de s'opposer au traitement de ses données personnelles par un système de décision automatisée ou d'intelligence artificielle.",
-                    "Une procédure de certification indépendante pour les systèmes ou logiciels de traitement de données personnelles.",
-                ],
-            },
-        ),
-        (
-            "IP_CREATIVE_RIGHTS",
-            {
-                "name": "Propriété intellectuelle & Droits créatifs",
-                "quadrant": "Safeguarding x Upstream",
-                "definition": _p("""
-                    Cette cible est satisfaite si la norme régule des droits
-                    de propriété intellectuelle ou des droits d'auteur
-                    portant spécifiquement sur le CONTENU produit EN SORTIE
-                    (output) par un système d'intelligence artificielle ou
-                    par un traitement automatisé — texte, image, son, vidéo,
-                    code, ou toute autre création générée de façon autonome
-                    ou semi-autonome par un tel système. Cela recouvre
-                    notamment : la question de savoir si un contenu généré
-                    par IA peut être protégé par le droit d'auteur, et à
-                    quelles conditions (par exemple l'exigence d'un apport
-                    créatif humain) ; l'attribution de la titularité des
-                    droits sur un tel contenu — à son utilisateur, au
-                    développeur ou à l'exploitant du système, ou à personne
-                    ; l'exercice de droits moraux sur un contenu généré par
-                    IA ; les conditions d'exploitation ou de commercialisation
-                    d'un contenu généré par IA ; ou la responsabilité
-                    encourue lorsqu'un contenu généré par un système
-                    d'intelligence artificielle reproduit ou imite une œuvre
-                    protégée préexistante (contrefaçon). Dans tous les cas,
-                    c'est le contenu produit en sortie par le système qui
-                    doit être l'objet de la règle.
-                """) + " " + _p("""
-                    Ne satisfont PAS cette cible les normes qui portent sur
-                    des données ou des œuvres utilisées EN AMONT pour
-                    entraîner un système d'intelligence artificielle — jeux
-                    de données d'entraînement, œuvres protégées moissonnées
-                    ou réutilisées pour l'entraînement, exception au droit
-                    d'auteur pour la fouille de textes et de données (text
-                    and data mining), ou obligation de rémunérer des
-                    titulaires de droits dont les œuvres ont servi à
-                    l'entraînement d'un modèle. Ces mesures régulent
-                    l'INPUT du système, pas son output : elles relèvent de
-                    la cible Accès aux données & Ressources, pas de
-                    celle-ci, même si elles emploient un vocabulaire de
-                    propriété intellectuelle ou de droit d'auteur. Ne
-                    satisfont pas non plus cette cible les règles générales
-                    de propriété intellectuelle, de droit d'auteur ou de
-                    propriété industrielle (brevets, marques, dessins et
-                    modèles) qui ne visent pas spécifiquement un contenu
-                    généré par un système automatisé ou d'intelligence
-                    artificielle — par exemple la durée de protection d'une
-                    œuvre, une exception pour l'usage privé ou
-                    l'accessibilité aux personnes handicapées, ou
-                    l'organisation d'une autorité chargée de la propriété
-                    intellectuelle en général. Le simple emploi des mots «
-                    propriété intellectuelle », « droit d'auteur », «
-                    création » ou « contenu » ne suffit jamais : il faut que
-                    le texte régule spécifiquement le contenu produit en
-                    sortie par un système d'IA. En cas de doute, demande-toi
-                    : cet article régule-t-il un droit de propriété
-                    intellectuelle ou d'auteur sur un contenu généré EN
-                    SORTIE par un système d'intelligence artificielle (OUI),
-                    ou porte-t-il sur les données utilisées pour ENTRAÎNER
-                    un tel système, ou sur la propriété intellectuelle en
-                    général sans lien avec un contenu généré par IA (NON) ?
-                    Un rapprochement lexical avec le vocabulaire de la
-                    propriété intellectuelle ne suffit jamais : ta
-                    justification doit citer l'élément précis du texte qui
-                    régule ce contenu généré en sortie — jamais reformuler
-                    la définition de la cible elle-même. Si tu ne peux pas
-                    pointer cet élément précis, la réponse est NON.
-                """),
-                "examples": [
-                    "Une règle attribuant les droits d'auteur sur un contenu généré par un système d'intelligence artificielle.",
-                    "Une disposition excluant de la protection par le droit d'auteur une œuvre entièrement générée par une intelligence artificielle, faute d'auteur humain identifiable.",
-                    "Une règle attribuant la responsabilité en cas de contrefaçon lorsqu'un contenu produit par un système d'intelligence artificielle reproduit une œuvre protégée préexistante.",
-                    "Une obligation d'obtenir l'autorisation d'un ayant droit avant d'exploiter commercialement un contenu généré par intelligence artificielle imitant le style ou la voix d'un artiste.",
-                ],
-            },
-        ),
-        (
-            "SECURITY_ROBUSTNESS",
-            {
-                "name": "Sécurité & Robustesse",
-                "quadrant": "Safeguarding x Upstream",
-                "definition": _p("""
-                    Cette cible est satisfaite si la norme impose une
-                    exigence dont l'objet spécifique est de protéger un
-                    système, un modèle, des données d'entraînement ou de
-                    fonctionnement, ou une infrastructure numérique
-                    d'intelligence artificielle — ou un système automatisé
-                    de traitement de données — contre une CYBERATTAQUE :
-                    une intrusion, un accès non autorisé, un piratage, une
-                    manipulation malveillante (par exemple un empoisonnement
-                    de données ou une attaque adverse visant à tromper un
-                    modèle), un sabotage, ou toute autre atteinte à la
-                    confidentialité, à l'intégrité ou à la disponibilité
-                    d'un tel système provoquée par un acteur malveillant.
-                    Peu importe que le système ou l'infrastructure visé
-                    appartienne à l'État (administration, serveur public)
-                    ou à un acteur privé (entreprise développant ou
-                    exploitant un système d'IA, opérateur d'une
-                    infrastructure critique) : ce qui compte est que la
-                    mesure protège spécifiquement un système d'IA ou un
-                    système automatisé contre un risque cyber.
-                """) + " " + _p("""
-                    Ne satisfont PAS cette cible : une mesure qui protège la
-                    confidentialité de données personnelles ou régule
-                    généralement leur traitement (base légale, finalité,
-                    durée de conservation, droit d'accès ou de
-                    rectification) — même lorsqu'elle emploie le mot «
-                    sécurité » (par exemple une « obligation de sécurité des
-                    données ») ; une telle obligation relève de la cible
-                    Données & Vie privée, pas de celle-ci, sauf si elle vise
-                    spécifiquement à empêcher une intrusion ou un accès
-                    malveillant à un système d'IA ou automatisé. Ne
-                    satisfont pas non plus cette cible une exigence dont
-                    l'objet est la protection de droits fondamentaux, la
-                    non-discrimination, l'explicabilité, la transparence, la
-                    supervision humaine ou la possibilité de contester une
-                    décision — ces exigences relèvent des cibles
-                    Responsabilité & Transparence ou Usages à hauts enjeux &
-                    Droits fondamentaux, pas de celle-ci. Une exigence de
-                    robustesse, de fiabilité ou d'exactitude technique d'un
-                    système d'IA qui n'est pas motivée par un risque
-                    d'attaque ou d'intrusion malveillante — par exemple un
-                    test de performance, une exigence de qualité des données
-                    d'entraînement, une exigence de résistance à des données
-                    aberrantes ou à des erreurs non malveillantes, ou une
-                    obligation générale de fiabilité d'un service numérique
-                    — ne satisfait pas non plus cette cible : sans lien avec
-                    une menace malveillante (piratage, intrusion, sabotage),
-                    il ne s'agit pas de sécurité au sens de cette cible. Ne
-                    satisfont pas non plus cette cible une exigence de
-                    sécurité physique (bâtiment, coffre-fort, protection
-                    périmétrique), une loi ou une stratégie générale de
-                    cybersécurité de l'État ou d'une entreprise sans lien
-                    spécifique avec un système d'IA ou un système automatisé
-                    de traitement de données, ou une définition ou un
-                    inventaire des infrastructures critiques (énergie, eau,
-                    transport, télécoms) dont l'objet est la protection de
-                    ces infrastructures en général, sans lien spécifique
-                    avec un système d'IA ou un système automatisé qui les
-                    pilote ou les traite. Le simple emploi des mots «
-                    sécurité », « robustesse », « résilience » ou «
-                    cybersécurité » ne suffit jamais : il faut que le texte
-                    protège spécifiquement, contre une menace malveillante,
-                    un système d'IA ou un système automatisé de traitement
-                    de données. En cas de doute, demande-toi : cet article
-                    impose-t-il une exigence dont l'objet spécifique est de
-                    protéger un système d'IA ou un système automatisé contre
-                    une cyberattaque — intrusion, piratage, manipulation
-                    malveillante, sabotage (OUI) — ou s'agit-il de
-                    protection des données personnelles, de droits
-                    fondamentaux, de robustesse technique générale sans lien
-                    avec une menace malveillante, ou de cybersécurité
-                    générale sans lien spécifique avec l'IA (NON) ? Un
-                    rapprochement lexical avec le vocabulaire de la
-                    cybersécurité ne suffit jamais : ta justification doit
-                    citer l'élément précis du texte qui protège un système
-                    d'IA ou automatisé contre une cyberattaque — jamais
-                    reformuler la définition de la cible elle-même. Si tu ne
-                    peux pas pointer cet élément précis, la réponse est NON.
-                """),
-                "examples": [
-                    "Une obligation de certification de cybersécurité pour les systèmes d'intelligence artificielle utilisés dans une infrastructure critique, destinée à prévenir les intrusions et le piratage.",
-                    "Une exigence de test de résistance aux attaques adverses (adversarial attacks) ou à l'empoisonnement de données avant la mise en service d'un système d'intelligence artificielle dans un contexte sensible.",
-                    "Une obligation pour les fournisseurs de systèmes d'intelligence artificielle de mettre en place des mesures de protection contre l'accès non autorisé ou le piratage de leurs modèles et infrastructures.",
-                    "Une obligation pour les administrations publiques de sécuriser leurs serveurs et systèmes automatisés de traitement de données contre les cyberattaques.",
-                    "Une exigence de détection et de notification des incidents de cybersécurité affectant un système d'intelligence artificielle déployé par une entreprise ou une administration.",
-                ],
-            },
-        ),
-        (
             "ACCOUNTABILITY_TRANSPARENCY",
             {
-                "name": "Responsabilité & Transparence",
+                "name": "Responsabilité & Transparence des systèmes",
+                "prompt_label": "Transparence, traçabilité et contestabilité des systèmes d'intelligence artificielle",
                 "quadrant": "Safeguarding x Downstream",
                 "definition": _p("""
-                    Cette cible est étroite et ne couvre que deux cas
-                    précis. Premier cas : la norme reconnaît ou impose
-                    explicitement, au bénéfice d'une personne concernée, un
-                    droit ou une obligation d'INFORMER cette personne
-                    qu'une décision la concernant directement (refus,
-                    octroi, évaluation, classification, sanction) a été
-                    prise, en tout ou en partie, par un système
+                    Cette cible est satisfaite si la norme rend le
+                    FONCTIONNEMENT, l'UTILISATION, le PROCESSUS DÉCISIONNEL
+                    ou la GOUVERNANCE d'un système d'intelligence
+                    artificielle transparent, traçable, explicable,
+                    contrôlable, contestable, ou attribuable à un acteur
+                    responsable identifié. Six types de mesures satisfont
+                    cette cible. Premièrement, une obligation ou un droit
+                    d'informer une personne qu'une décision la concernant
+                    (refus, octroi, évaluation, classification, sanction) a
+                    été prise, en tout ou en partie, par un système
                     d'intelligence artificielle ou par un traitement
-                    automatisé de données. Second cas : la norme impose aux
-                    développeurs, fournisseurs ou exploitants d'un système
-                    d'intelligence artificielle une obligation de rendre
-                    publics ou de communiquer des ASPECTS TECHNIQUES de leur
-                    système — son fonctionnement, les données utilisées
-                    pour l'entraîner, ses capacités, ses limites connues,
-                    son architecture, ses paramètres, sa méthode
-                    d'évaluation ou de test — que le destinataire de cette
-                    communication soit le public, les utilisateurs, une
-                    autorité de surveillance ou un organe de certification.
-                    Dans les deux cas, l'objet précis de la norme doit être
-                    de FAIRE SAVOIR quelque chose à quelqu'un — que l'IA est
-                    intervenue dans une décision, ou comment un système
-                    d'IA fonctionne techniquement — pas d'organiser un autre
-                    mécanisme de responsabilisation.
+                    automatisé de données. Deuxièmement, une obligation
+                    d'expliquer le fonctionnement, la logique ou les motifs
+                    d'une décision individuelle prise par un tel système.
+                    Troisièmement, une obligation de supervision humaine, de
+                    validation humaine ou d'intervention humaine dans le
+                    processus décisionnel (human-in-the-loop), avant ou
+                    après la décision. Quatrièmement, une obligation de
+                    journalisation, d'enregistrement ou de traçabilité
+                    technique du fonctionnement d'un système (boîte noire,
+                    journal d'événements, registre d'audit), qu'elle soit
+                    destinée à une autorité de contrôle, à un organe interne
+                    ou au public. Cinquièmement, un droit de recours,
+                    d'opposition ou de contestation contre une décision
+                    prise par un système d'IA, ou une procédure de
+                    réclamation propre à un tel système. Sixièmement, une
+                    obligation de publier ou de communiquer des
+                    caractéristiques techniques d'un système — sa
+                    documentation technique, les données utilisées pour
+                    l'entraîner, ses capacités, ses limites connues, son
+                    architecture, ses paramètres, sa méthode d'évaluation ou
+                    de certification — à un public, des utilisateurs, une
+                    autorité de surveillance ou un organe de certification,
+                    y compris une procédure de certification ou d'audit de
+                    conformité qui impose une telle communication ou
+                    vérification. Dans tous les cas, l'objet de la norme
+                    doit être de rendre le fonctionnement ou la décision du
+                    système SCRUTABLE — compréhensible, vérifiable,
+                    contrôlable ou contestable — par une personne, une
+                    autorité ou le public, quel que soit le secteur dans
+                    lequel le système est utilisé.
                 """) + " " + _p("""
-                    Ne satisfont donc PAS cette cible, même quand elles
-                    relèvent d'une logique de responsabilisation de l'IA :
-                    un droit de recours, d'opposition, de contestation ou
-                    d'appel contre une décision, qui organise une voie de
-                    contestation et non une obligation d'informer — sauf si
-                    le même article impose aussi, distinctement,
-                    d'informer la personne de l'intervention de l'IA, auquel
-                    cas seule cette partie-là satisfait la cible ; une
-                    obligation de supervision humaine ou de validation
-                    humaine dans la boucle décisionnelle (human-in-the-loop,
-                    intervention humaine avant ou après la décision), qui
-                    organise un contrôle et non une communication
-                    d'information ; une obligation de traçabilité, de
-                    journalisation ou d'enregistrement interne (boîte noire,
-                    journal d'événements, registre d'audit) destinée à une
-                    autorité de contrôle a posteriori, tant qu'elle
-                    n'impose aucune communication de documentation
-                    technique ni aucune information de la personne
-                    concernée ; une obligation d'explication détaillée des
-                    motifs ou du raisonnement d'une décision individuelle
-                    (explicabilité au sens strict), lorsque la norme ne se
-                    limite pas à faire savoir qu'un système d'IA est
-                    intervenu dans cette décision ; une procédure de
-                    certification, d'audit de conformité ou d'évaluation
-                    des risques d'un système d'IA qui n'impose elle-même
-                    aucune obligation de publier ou de communiquer les
-                    caractéristiques techniques du système ; une obligation
-                    de transparence administrative générale (accès aux
-                    documents, principe de publicité) sans lien avec un
-                    système d'intelligence artificielle ; et tout
-                    encadrement sectoriel spécifique de l'usage de l'IA
-                    dans un contexte à hauts enjeux (santé, emploi, crédit,
-                    justice, migration) ou toute exigence de sécurité, de
-                    robustesse ou de non-discrimination, qui relèvent
-                    d'autres cibles, pas de celle-ci, sauf si l'article
-                    impose aussi, spécifiquement, l'un des deux cas décrits
-                    ci-dessus. Le simple emploi des mots « transparence », «
-                    responsabilité », « explicabilité » ou « traçabilité »
-                    ne suffit jamais : il faut que le texte impose
-                    concrètement soit une information de la personne
-                    concernée sur l'intervention de l'IA dans une décision,
-                    soit une communication des caractéristiques techniques
-                    d'un système d'IA. En cas de doute, demande-toi : cet
-                    article reconnaît-il ou impose-t-il explicitement (a)
-                    un droit ou une obligation d'informer une personne
-                    qu'une décision la concernant a été prise par un
-                    système d'IA, ou (b) une obligation pour les
-                    développeurs ou exploitants de communiquer des
-                    informations techniques sur leur système d'IA (OUI), ou
-                    s'agit-il d'autre chose — contestation, supervision
-                    humaine, traçabilité interne, explication des motifs,
-                    certification, transparence administrative générale,
-                    encadrement sectoriel, sécurité, non-discrimination
-                    (NON) ? Un rapprochement lexical avec le vocabulaire de
-                    la transparence ou de la responsabilité ne suffit
-                    jamais : ta justification doit citer l'élément précis
-                    du texte qui informe une personne ou communique des
-                    caractéristiques techniques — jamais reformuler la
-                    définition de la cible elle-même. Si tu ne peux pas
-                    pointer cet élément précis, la réponse est NON.
-                """),
-                "examples": [
-                    "Une obligation d'informer une personne qu'une décision administrative la concernant a été prise, en tout ou en partie, par un système d'intelligence artificielle.",
-                    "Un droit, pour une personne faisant l'objet d'une décision de crédit automatisée, d'être informée que cette décision a été rendue par un système d'intelligence artificielle.",
-                    "Une obligation faite aux fournisseurs de systèmes d'intelligence artificielle de publier une documentation technique décrivant le fonctionnement, les données d'entraînement et les limites connues de leur système.",
-                    "Une obligation de communiquer à une autorité de surveillance les caractéristiques techniques (architecture, paramètres, méthode d'évaluation) d'un système d'intelligence artificielle avant sa mise sur le marché.",
-                ],
-            },
-        ),
-        (
-            "HIGH_STAKES_RISKS",
-            {
-                "name": "Risques à hauts enjeux",
-                "quadrant": "Safeguarding x Downstream",
-                "definition": _p("""
-                    Cette cible est satisfaite si la norme régule
-                    DIRECTEMENT l'utilisation d'un système d'intelligence
-                    artificielle dans un contexte concret, dans le but d'en
-                    réduire un risque pour les personnes ou pour la
-                    société. Cela recouvre deux grandes familles de
-                    risques. D'une part, les risques pour les droits et la
-                    sécurité des individus lorsqu'un système d'IA est
-                    utilisé dans un contexte à hauts enjeux : mobilité,
-                    emploi, crédit, santé, éducation, police, justice,
-                    prestations sociales, migration, discrimination, ou
-                    encore le pilotage de machines ou de robots autonomes
-                    dont un dysfonctionnement pourrait causer un accident
-                    ou un dommage physique. D'autre part, les risques
-                    sociétaux liés à l'utilisation de l'IA comme vecteur
-                    d'information — génération, recommandation, ciblage ou
-                    diffusion automatisée de contenu — susceptibles
-                    d'amplifier la désinformation, de manipuler l'opinion
-                    publique ou de fragiliser les processus démocratiques.
-                    Dans les deux cas, l'objet de la norme doit être
-                    l'utilisation elle-même du système d'IA dans ce
-                    contexte à risque, et la mesure doit chercher à
-                    réduire, prévenir ou encadrer ce risque (interdiction,
-                    restriction, condition, garantie procédurale propre à
-                    ce contexte).
-                """) + " " + _p("""
-                    Ne satisfont PAS cette cible : une obligation
-                    d'informer une personne qu'une décision la concernant a
-                    été prise par un système d'IA, ou une obligation de
-                    publier ou communiquer des caractéristiques techniques
-                    d'un système (documentation, architecture, données
-                    d'entraînement, méthode d'évaluation) — ces
-                    obligations, dont l'objet est de FAIRE SAVOIR quelque
-                    chose plutôt que de réguler directement l'usage à
-                    risque lui-même, relèvent de la cible Responsabilité &
-                    Transparence, pas de celle-ci, même lorsqu'elles
-                    s'appliquent dans un contexte à hauts enjeux ou
-                    informationnel. Ne satisfont pas non plus cette cible
-                    une exigence dont l'objet est de protéger un système
-                    d'IA contre une cyberattaque (intrusion, piratage,
-                    sabotage), qui relève de la cible Sécurité &
-                    Robustesse, ni une règle de protection des données
-                    personnelles ou de la vie privée, qui relève de la
-                    cible Données & Vie privée — même si le traitement de
-                    données a lieu dans un contexte à hauts enjeux ou
-                    informationnel. Une règle de sécurité physique visant
-                    des machines ou des robots dépourvus de toute capacité
-                    de décision ou d'apprentissage autonome (mécanique ou
-                    électronique classique, sans IA) ne satisfait pas non
-                    plus cette cible : il faut que le risque visé provienne
-                    spécifiquement d'un système d'IA. De même, une
-                    régulation générale des médias, de la publicité, de la
-                    désinformation, ou de la sécurité des machines et des
-                    véhicules, sans lien structurel avec l'intelligence
-                    artificielle ou l'automatisation, ne satisfait pas
-                    cette cible : le simple fait qu'un contenu ou une
-                    machine puisse théoriquement impliquer de l'IA ne
-                    suffit pas, il faut que le texte vise spécifiquement
-                    les systèmes d'IA ou les systèmes automatisés. En cas
-                    de doute, demande-toi : cet article régule-t-il
-                    directement l'utilisation d'un système d'IA dans un
-                    contexte à hauts enjeux (droits fondamentaux, sécurité
-                    physique) ou informationnel (désinformation,
-                    manipulation, processus démocratique), dans le but
-                    d'en réduire le risque (OUI) — ou s'agit-il d'informer
-                    sur l'intervention de l'IA, de protéger contre une
-                    cyberattaque, de protéger des données personnelles, ou
-                    d'une régulation générale sans lien spécifique avec
-                    l'IA (NON) ? Un rapprochement lexical avec les hauts
-                    enjeux, la désinformation ou la sécurité ne suffit
-                    jamais : ta justification doit citer l'élément précis
-                    du texte qui régule l'usage à risque d'un système d'IA
-                    — jamais reformuler la définition de la cible
-                    elle-même. Si tu ne peux pas pointer cet élément
+                    Ne satisfont PAS cette cible : une mesure qui interdit,
+                    restreint, corrige ou sanctionne directement un résultat
+                    produit par un système d'IA — une décision
+                    discriminatoire, un contenu dangereux ou trompeur, une
+                    action autonome dommageable — sans se limiter à en
+                    assurer la traçabilité, l'explication ou la
+                    contestabilité : une telle mesure agit sur le résultat
+                    produit lui-même, elle ne se contente pas de le rendre
+                    scrutable ; une exigence dont l'objet spécifique est de
+                    protéger l'intégrité technique d'un système contre une
+                    attaque, une intrusion ou une défaillance (sécurité,
+                    robustesse, résilience), sans lien avec la possibilité
+                    de comprendre, de tracer ou de contester son
+                    fonctionnement ; une règle qui régule le traitement de
+                    données personnelles en général (base légale, finalité,
+                    durée de conservation) sans imposer d'obligation
+                    d'information, d'explication, de traçabilité ou de
+                    contestation spécifiquement liée à un système d'IA ; et
+                    une obligation de transparence administrative générale
+                    (accès aux documents, principe de publicité) sans lien
+                    avec un système d'intelligence artificielle. Le simple
+                    emploi des mots « transparence », « responsabilité », «
+                    explicabilité » ou « traçabilité » ne suffit jamais : il
+                    faut que le texte impose concrètement l'un des six
+                    mécanismes décrits ci-dessus. En cas de doute,
+                    demande-toi : cet article rend-il le fonctionnement,
+                    l'usage ou la décision d'un système d'IA transparent,
+                    traçable, explicable, contrôlable, contestable, ou
+                    attribuable à un acteur responsable (OUI), ou agit-il
+                    directement sur le résultat produit par le système,
+                    protège-t-il son intégrité technique, ou régule-t-il les
+                    données en général sans mécanisme de scrutabilité
+                    spécifique à l'IA (NON) ? Ta justification doit citer
+                    l'élément précis du texte qui organise cette
+                    scrutabilité — jamais reformuler la définition de la
+                    cible elle-même. Si tu ne peux pas pointer cet élément
                     précis, la réponse est NON.
                 """),
                 "examples": [
-                    "Un encadrement spécifique de l'utilisation de systèmes d'intelligence artificielle pour évaluer l'éligibilité à des prestations sociales.",
+                    "Une obligation d'informer une personne qu'une décision administrative la concernant a été prise, en tout ou en partie, par un système d'intelligence artificielle.",
+                    "Une obligation d'expliquer les motifs d'une décision de crédit rendue par un système de décision automatisée.",
+                    "Une obligation de supervision humaine avant qu'une décision prise par un système d'intelligence artificielle ne devienne définitive.",
+                    "Une obligation de journalisation des décisions prises par un système d'intelligence artificielle utilisé par une administration, destinée à un contrôle a posteriori.",
+                    "Un droit de recours contre une décision individuelle rendue par un système de décision automatisée.",
+                    "Une obligation faite aux fournisseurs de systèmes d'intelligence artificielle de publier une documentation technique décrivant le fonctionnement, les données d'entraînement et les limites connues de leur système.",
+                    "Une procédure de certification ou d'audit de conformité vérifiant le respect d'exigences de transparence par un système d'intelligence artificielle avant sa mise sur le marché.",
+                ],
+            },
+        ),
+        (
+            "OUTPUT_HARMS",
+            {
+                "name": "Préjudices liés aux résultats de l'IA",
+                "prompt_label": "Préjudices causés par les décisions, contenus ou actions produits par un système d'intelligence artificielle",
+                "quadrant": "Safeguarding x Downstream",
+                "definition": _p("""
+                    Cette cible est satisfaite si la norme PRÉVIENT,
+                    RESTREINT, CORRIGE ou offre un REMÈDE contre un résultat
+                    concret produit DIRECTEMENT par un système
+                    d'intelligence artificielle, lorsque ce résultat est
+                    dommageable, illicite, dangereux, discriminatoire,
+                    trompeur ou autrement problématique. Le résultat visé
+                    peut prendre la forme d'un contenu généré (texte, image,
+                    son, vidéo), d'une décision individuelle (refus, octroi,
+                    évaluation, classification, sanction), d'une prédiction,
+                    d'une recommandation, d'une commande ou d'une action
+                    physique exécutée par un système autonome. Quatre
+                    familles de mesures satisfont typiquement cette cible.
+                    Premièrement, une interdiction ou une restriction visant
+                    une décision automatisée discriminatoire ou une décision
+                    individuelle dangereuse dans un contexte à hauts enjeux
+                    pour les personnes (emploi, crédit, santé, éducation,
+                    justice, migration, prestations sociales).
+                    Deuxièmement, une exigence de sécurité visant à prévenir
+                    un accident ou un dommage physique causé par l'action
+                    autonome d'un robot, d'un véhicule ou d'une machine
+                    pilotée par un système d'intelligence artificielle.
+                    Troisièmement, une règle attribuant la titularité, la
+                    protection ou la responsabilité pour un CONTENU produit
+                    en sortie par un système d'IA — droit d'auteur sur une
+                    création générée, contrefaçon d'une œuvre préexistante
+                    par un contenu généré, usurpation d'identité, contenu
+                    synthétique représentant une personne sans son
+                    consentement (deepfake). Quatrièmement, une obligation
+                    d'étiqueter, de signaler ou de corriger un contenu ou
+                    une recommandation trompeurs, dangereux ou illicites
+                    produits par un système d'IA. Dans tous les cas, l'objet
+                    de la norme doit être le résultat lui-même — ce que le
+                    système produit, décide ou fait —, et non son
+                    fonctionnement interne ni la possibilité de le
+                    comprendre ou de le contester.
+                """) + " " + _p("""
+                    Ne satisfont PAS cette cible : une obligation
+                    d'informer une personne qu'une décision la concernant a
+                    été prise par un système d'IA, une obligation
+                    d'expliquer les motifs d'une décision, une obligation de
+                    supervision humaine, de traçabilité ou de publication de
+                    caractéristiques techniques d'un système — ces
+                    obligations rendent le fonctionnement du système
+                    scrutable (compréhensible, vérifiable, contestable),
+                    mais n'agissent pas elles-mêmes sur le résultat produit ;
+                    une exigence dont l'objet est de protéger l'intégrité
+                    technique d'un système contre une attaque, une intrusion
+                    ou une défaillance, sans viser un résultat concret
+                    dommageable déjà produit ou à produire ; une règle qui
+                    régule des droits ou des conditions attachés à des
+                    données ou contenus utilisés EN AMONT pour entraîner un
+                    système — licéité, consentement, licence, exception au
+                    droit d'auteur sur des données ou œuvres d'entraînement
+                    — plutôt qu'à un contenu ou une décision produits en
+                    sortie ; une règle de sécurité physique visant des
+                    machines ou des robots dépourvus de toute capacité de
+                    décision ou d'apprentissage autonome (mécanique ou
+                    électronique classique, sans IA) ; et une régulation
+                    générale des médias, de la publicité ou de la
+                    désinformation sans lien structurel avec l'intelligence
+                    artificielle ou l'automatisation. Le simple fait qu'un
+                    contenu ou une décision puisse théoriquement provenir
+                    d'un système d'IA ne suffit pas : il faut que le texte
+                    vise spécifiquement un résultat produit par un système
+                    d'IA ou automatisé. En cas de doute, demande-toi : cet
+                    article prévient-il, restreint-il, corrige-t-il ou
+                    offre-t-il un remède contre un résultat concret —
+                    contenu, décision, prédiction, recommandation, action —
+                    directement produit par un système d'IA (OUI), ou
+                    s'agit-il de rendre le système scrutable, de protéger
+                    son intégrité technique, de réguler ses données
+                    d'entraînement, ou d'une régulation générale sans lien
+                    spécifique avec l'IA (NON) ? Ta justification doit citer
+                    l'élément précis du texte qui vise ce résultat produit —
+                    jamais reformuler la définition de la cible elle-même.
+                    Si tu ne peux pas pointer cet élément précis, la réponse
+                    est NON.
+                """),
+                "examples": [
                     "Une interdiction d'utiliser un système d'intelligence artificielle pour prendre seul une décision de refus de crédit.",
-                    "Une obligation de sécurité applicable aux robots ou machines pilotés par un système d'intelligence artificielle, destinée à prévenir le risque d'accident pour les personnes à proximité.",
-                    "Une obligation d'étiqueter le contenu généré ou modifié par intelligence artificielle (deepfake) diffusé publiquement.",
-                    "Une règle limitant l'usage de systèmes de recommandation automatisés qui amplifient la désinformation.",
+                    "Un encadrement spécifique des décisions automatisées évaluant l'éligibilité à des prestations sociales.",
+                    "Une obligation de sécurité applicable à des robots ou véhicules pilotés par un système d'intelligence artificielle, destinée à prévenir le risque d'accident pour les personnes à proximité.",
+                    "Une règle attribuant la responsabilité en cas de contrefaçon lorsqu'un contenu produit par un système d'intelligence artificielle reproduit une œuvre protégée préexistante.",
+                    "Une obligation d'étiqueter un contenu généré ou modifié par intelligence artificielle (deepfake) représentant une personne réelle sans son consentement.",
+                    "Une règle excluant de la protection par le droit d'auteur une œuvre entièrement générée par une intelligence artificielle, faute d'auteur humain identifiable.",
+                ],
+            },
+        ),
+        (
+            "SOCIETAL_HARMS",
+            {
+                "name": "Préjudices sociétaux",
+                "prompt_label": "Préjudices sociétaux et systémiques liés à la diffusion de l'intelligence artificielle",
+                "quadrant": "Safeguarding x Downstream",
+                "definition": _p("""
+                    Cette cible est satisfaite si la norme s'attaque à une
+                    conséquence COLLECTIVE, SYSTÉMIQUE ou SOCIÉTALE de
+                    l'utilisation généralisée de l'intelligence artificielle
+                    — un effet qui touche la société, les institutions, les
+                    marchés, les processus démocratiques, l'environnement
+                    informationnel ou les rapports sociaux dans leur
+                    ensemble, plutôt qu'une décision ou un résultat
+                    individuel isolé. Cela recouvre notamment : la
+                    désinformation ou la manipulation de l'opinion publique
+                    à grande échelle rendue possible par la génération, la
+                    recommandation ou la diffusion automatisée massive de
+                    contenu ; l'atteinte aux processus électoraux ou
+                    démocratiques par un usage coordonné ou massif de
+                    systèmes d'intelligence artificielle ; une
+                    discrimination structurelle ou systémique résultant de
+                    l'usage généralisé de systèmes d'IA dans un secteur ou
+                    dans la société, distincte d'une décision discriminatoire
+                    individuelle isolée ; la dégradation de l'environnement
+                    informationnel (perte de confiance dans l'information,
+                    saturation par du contenu synthétique) ; ou des risques
+                    institutionnels ou de marché plus larges liés à une
+                    adoption massive de l'IA (concentration excessive du
+                    marché, dépendance systémique, instabilité). L'objet de
+                    la norme doit être cet effet AGRÉGÉ ou COLLECTIF, et non
+                    un dommage individuel isolé causé à une personne
+                    déterminée par une décision ou un contenu particulier.
+                """) + " " + _p("""
+                    Ne satisfont PAS cette cible : une interdiction ou une
+                    restriction visant une décision, un contenu ou une
+                    action individuelle produits par un système d'IA — une
+                    décision discriminatoire prise à l'égard d'une personne
+                    déterminée, un contenu illicite isolé, un accident
+                    causé par un système autonome — même si ce type de
+                    résultat pourrait, en théorie, se reproduire à grande
+                    échelle : tant que l'objet de la norme reste la
+                    protection d'une personne déterminée contre un résultat
+                    individuel, la mesure ne satisfait pas cette cible ; une
+                    obligation d'informer une personne, d'expliquer une
+                    décision, ou de publier des caractéristiques techniques
+                    d'un système, qui rend le système scrutable sans
+                    s'attaquer à un effet collectif ou systémique ; une
+                    exigence de protection technique d'un système contre une
+                    attaque ou une défaillance ; une règle régulant des
+                    droits ou des conditions attachés à des données
+                    d'entraînement ; et une régulation générale des médias,
+                    de la publicité, de la désinformation ou de la
+                    concurrence économique sans lien structurel avec
+                    l'intelligence artificielle ou l'automatisation — le
+                    simple fait qu'un média ou un marché puisse en théorie
+                    être affecté par l'IA ne suffit pas, il faut que le
+                    texte vise spécifiquement les effets collectifs de
+                    systèmes d'IA ou de traitements automatisés. En cas de
+                    doute, demande-toi : cet article s'attaque-t-il à un
+                    effet AGRÉGÉ, COLLECTIF ou SYSTÉMIQUE de l'usage
+                    généralisé de l'IA sur la société, les institutions, les
+                    marchés ou les processus démocratiques (OUI), ou
+                    s'agit-il de protéger une personne déterminée contre un
+                    résultat individuel, de rendre un système scrutable, de
+                    le protéger techniquement, ou d'une régulation générale
+                    sans lien spécifique avec l'IA (NON) ? Ta justification
+                    doit citer l'élément précis du texte qui vise cet effet
+                    collectif — jamais reformuler la définition de la cible
+                    elle-même. Si tu ne peux pas pointer cet élément précis,
+                    la réponse est NON.
+                """),
+                "examples": [
+                    "Une règle limitant l'usage de systèmes de recommandation automatisés qui amplifient la désinformation à grande échelle.",
+                    "Une interdiction de l'usage de systèmes d'intelligence artificielle pour manipuler le comportement électoral de façon coordonnée et massive.",
+                    "Une obligation de surveiller ou d'atténuer les risques de discrimination systémique liés à l'usage généralisé de systèmes d'intelligence artificielle dans un secteur.",
+                    "Une mesure visant à préserver la diversité et la fiabilité de l'environnement informationnel face à la diffusion massive de contenu généré par intelligence artificielle.",
+                    "Une règle visant à prévenir une concentration excessive de marché ou une dépendance systémique résultant de l'adoption massive de systèmes d'intelligence artificielle.",
                 ],
             },
         ),
@@ -912,13 +1023,13 @@ def build_system_prompt(code: str) -> str:
         raise KeyError(f"Unknown target code: {code}")
 
     d = TARGET_DEFINITIONS[code]
-    name = d["name"]
+    label = d["prompt_label"]
     examples = "\n".join(f"- {ex}" for ex in d["examples"])
 
     blocks = [
         "Tu es un expert en analyse des politiques publiques et du droit suisse.",
         f"## Contexte : l'intelligence artificielle et sa régulation\n\n{_AI_CONTEXT}",
-        f"## Cible à évaluer : {name}\n\n{d['definition']}\n\n"
+        f"## Cible à évaluer : {label}\n\n{d['definition']}\n\n"
         f"Exemples de mesures qui satisferaient cette cible :\n{examples}",
         "## Calibration\n\n"
         "La plupart des articles de loi n'ont aucun rapport avec l'intelligence "

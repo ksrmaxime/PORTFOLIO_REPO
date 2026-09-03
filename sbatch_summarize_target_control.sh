@@ -20,18 +20,18 @@ WORKDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO
 OUTDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO/data/processed
 
 # Prend la sortie de la DERNIÈRE étape de la chaîne sbatch_run_target_control.sh
-# (cible HIGH_STAKES_RISKS, IDX=10 — son fichier porte les 10 colonnes
+# (cible SOCIETAL_HARMS, IDX=10 — son fichier porte les 10 colonnes
 # control_target_<CODE>) et produit un récapitulatif des articles toujours
 # classés True après contrôle, avec la ou les cibles concernées.
 #
 # $1 = job id SLURM de la dernière étape run_target_control terminée (celle
-#      pour HIGH_STAKES_RISKS), ou alternativement un chemin de fichier
+#      pour SOCIETAL_HARMS), ou alternativement un chemin de fichier
 #      parquet/csv déjà produit par cette dernière étape.
 SECOND_ARG="${1:?Usage: sbatch sbatch_summarize_target_control.sh <last_run_target_control_job_id|input_file>}"
 
 if [[ "$SECOND_ARG" =~ ^[0-9]+$ ]]; then
   CONTROL_JOB_ID="$SECOND_ARG"
-  INPUT="${OUTDIR}/laws_structure_with_target_control_high_stakes_risks_job${CONTROL_JOB_ID}.parquet"
+  INPUT="${OUTDIR}/laws_structure_with_target_control_societal_harms_job${CONTROL_JOB_ID}.parquet"
   if [ ! -f "$INPUT" ]; then
     echo "Fichier de sortie run_target_control introuvable: $INPUT (job id incorrect, ou ce n'était pas la dernière étape de la chaîne ?)" >&2
     exit 1
