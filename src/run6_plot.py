@@ -13,7 +13,6 @@ from src.run6_config import (
     TARGET_FUNCTION_RUNS,
     TARGET_LOCATION_RUNS,
     TARGET_ORDER,
-    TARGET_QUADRANT_RUNS,
 )
 
 # Values treated as a positive ("OUI"/True) decision when reading a wide
@@ -143,27 +142,29 @@ def detect_and_build_portfolio_matrix(
 
 
 # ---------------------------------------------------------------------------
-# Sequential blue ramp (light -> dark), validated for heatmap/magnitude use.
+# Monochrome styling: no color scale, no printed counts — magnitude is
+# carried only by grayscale ink density, matching the plain black-and-white
+# look of Figure 1 in the PoC PDF. Grid lines are a light neutral gray
+# (rather than white) so cell boundaries stay visible over empty (white)
+# cells too.
 # ---------------------------------------------------------------------------
-_SEQUENTIAL_BLUE = ["#f7fafd", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"]
-
 _INK = "#0b0b0b"
 _INK_MUTED = "#52514e"
-_GRID_LINE = "#dedcd6"
-_QUADRANT_LINE = "#8a8878"
+_GRID_LINE = "#c9c9c9"
 _BAND_LINE = "#0b0b0b"
+_DIVIDER_LINE = "#b5b5b0"
 
 
 def plot_portfolio_matrix(matrix: pd.DataFrame, *, title: str | None = None):
     """
-    Render the instrument x target portfolio matrix as a heatmap laid out
-    like Figure 1 of the PoC PDF: 7 instruments on the Y axis; 10 targets on
-    the X axis, grouped by a nested Enabling/Safeguarding x Upstream/
-    Downstream header that mirrors the paper's conceptual grid instead of a
-    single flat row of ad hoc domain labels.
+    Render the instrument x target portfolio matrix as a plain grayscale grid
+    laid out like Figure 1 of the PoC PDF: 7 instruments on the Y axis; 10
+    targets on the X axis; a nested Enabling/Safeguarding x Upstream/
+    Downstream legend band below the plot (not drawn across the matrix
+    itself); cell shade (white -> black) is the only encoding of magnitude —
+    no color scale, no printed counts, no run/job metadata in the title.
     """
     import matplotlib.pyplot as plt
-    from matplotlib.colors import LinearSegmentedColormap
 
     n_rows, n_cols = matrix.shape
     data = matrix.to_numpy()
@@ -172,9 +173,8 @@ def plot_portfolio_matrix(matrix: pd.DataFrame, *, title: str | None = None):
     fig_h = 3.6 + 0.5 * n_rows
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
 
-    cmap = LinearSegmentedColormap.from_list("portfolio_blue", _SEQUENTIAL_BLUE)
     vmax = max(int(data.max()), 1)
-    im = ax.imshow(data, cmap=cmap, vmin=0, vmax=vmax, aspect="auto")
+    im = ax.imshow(data, cmap="Greys", vmin=0, vmax=vmax, aspect="auto")
 
     ax.set_xticks(range(n_cols))
     ax.set_yticks(range(n_rows))
@@ -186,25 +186,16 @@ def plot_portfolio_matrix(matrix: pd.DataFrame, *, title: str | None = None):
 
     ax.set_xticks([x - 0.5 for x in range(1, n_cols)], minor=True)
     ax.set_yticks([y - 0.5 for y in range(1, n_rows)], minor=True)
-    ax.grid(which="minor", color="white", linewidth=1.5)
+    ax.grid(which="minor", color=_GRID_LINE, linewidth=0.8)
     ax.tick_params(which="minor", length=0)
     ax.tick_params(which="major", length=0)
     for spine in ax.spines.values():
         spine.set_visible(False)
 
-    for i in range(n_rows):
-        for j in range(n_cols):
-            v = data[i, j]
-            if v <= 0:
-                continue
-            color = "white" if v > vmax * 0.6 else _INK
-            ax.text(j, i, str(v), ha="center", va="center", fontsize=8.5, color=color)
-
-    # Heavier separators at quadrant boundaries only (Enabling x Upstream |
-    # Safeguarding x Upstream | Enabling x Downstream | Safeguarding x
-    # Downstream), matching Figure 1's column groupings.
-    for _, _, end in TARGET_QUADRANT_RUNS[:-1]:
-        ax.axvline(end - 0.5, color=_QUADRANT_LINE, linewidth=1.3, zorder=3)
+    # No per-cell counts and no quadrant separators drawn across the matrix:
+    # the Enabling/Safeguarding x Upstream/Downstream grouping is conveyed
+    # only by the legend band below the plot (see _draw_band), exactly as in
+    # Figure 1, which has no internal divider lines either.
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.035, pad=0.02)
     cbar.set_label("Coded articles", fontsize=9, color=_INK_MUTED)
@@ -212,8 +203,7 @@ def plot_portfolio_matrix(matrix: pd.DataFrame, *, title: str | None = None):
     cbar.outline.set_visible(False)
 
     if title:
-        n_total = int(data.sum())
-        ax.set_title(f"{title}\n(n = {n_total:,} instrument-target entries)", fontsize=11.5, pad=12, color=_INK)
+        ax.set_title(title, fontsize=11.5, pad=12, color=_INK)
 
     fig.subplots_adjust(bottom=0.46, right=0.98, top=0.9)
 
@@ -254,7 +244,14 @@ def plot_portfolio_matrix(matrix: pd.DataFrame, *, title: str | None = None):
                 fontweight="bold" if bold else "normal", color=_INK, clip_on=False,
             )
 
-    line_y1 = min_y_axes - 0.03
+    # A single light full-width rule separates the plot (heatmap + target
+    # labels) from the legend band below, so the Enabling/Safeguarding and
+    # Upstream/Downstream grouping reads as a distinct legend rather than as
+    # annotations floating across the matrix.
+    divider_y = min_y_axes - 0.018
+    ax.plot([-0.5, n_cols - 0.5], [divider_y, divider_y], color=_DIVIDER_LINE, linewidth=0.8, transform=trans, clip_on=False)
+
+    line_y1 = divider_y - 0.03
     _draw_band(TARGET_FUNCTION_RUNS, line_y1, bold=False, upper=False)
 
     line_y2 = line_y1 - row_gap

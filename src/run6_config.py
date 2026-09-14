@@ -70,13 +70,6 @@ def _contiguous_runs(keys: list[str]) -> list[tuple[str, int, int]]:
     return runs
 
 
-# Contiguous quadrant runs along the target axis, e.g.
-# [("Enabling x Upstream", 0, 4), ("Safeguarding x Upstream", 4, 6),
-#  ("Enabling x Downstream", 6, 7), ("Safeguarding x Downstream", 7, 10)].
-TARGET_QUADRANT_RUNS: list[tuple[str, int, int]] = _contiguous_runs(
-    [f"{f} x {l}" for f, l in TARGET_QUADRANT.values()]
-)
-
 # Contiguous Upstream/Downstream runs (the outer band in Figure 1), e.g.
 # [("Upstream", 0, 6), ("Downstream", 6, 10)].
 TARGET_LOCATION_RUNS: list[tuple[str, int, int]] = _contiguous_runs(

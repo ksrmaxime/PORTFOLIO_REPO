@@ -64,7 +64,7 @@ fi
 python scripts/run6_pipeline.py \
   --input "$INPUT" \
   --output_base "${OUTBASE}_job${SLURM_JOB_ID}" \
-  --title "AI Regulation Portfolio — Switzerland (run5 job ${RUN5_JOB_ID})"
+  --title "AI Regulation Portfolio — Switzerland"
 
 RUN_DIR="data/output/run6_job${SLURM_JOB_ID}"
 mkdir -p "$RUN_DIR"
