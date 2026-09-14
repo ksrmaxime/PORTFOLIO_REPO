@@ -12,38 +12,42 @@ matplotlib.use("Agg")
 
 import pandas as pd
 
-from src.run6_plot import build_portfolio_matrix, plot_portfolio_matrix
+from src.run6_plot import detect_and_build_portfolio_matrix, plot_portfolio_matrix
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(
-        description="Render the final AI regulation portfolio matrix (Figure 1 of the PoC) "
-        "from the long-format portfolio entries produced by run5."
+        description="Render the final AI regulation portfolio matrix (Figure 1 of the PoC). "
+        "Accepts either the legacy long-format run5 entries table (one row per "
+        "article x target x instrument) or a wide table with one row per "
+        "article and one Target_<CODE> / Instrument_<CODE> column each "
+        "(e.g. data/external/PORTFOLIO_GOLD.csv) — the format is auto-detected."
     )
 
     ap.add_argument(
         "--input",
         required=True,
-        help="Path to the run5 output, e.g. "
-        "<output_base>_entries_job<RUN5_JOB_ID>.parquet (or .csv).",
+        help="Path to the input file: either the run5 output "
+        "(<output_base>_entries_job<RUN5_JOB_ID>.parquet/.csv) or a wide "
+        "Target_*/Instrument_* table such as PORTFOLIO_GOLD.csv.",
     )
     ap.add_argument("--output_base", required=True)
 
-    ap.add_argument("--target_col", default="target_code")
-    ap.add_argument("--instrument_col", default="instrument_code")
-    ap.add_argument("--id_col", default="row_id")
+    ap.add_argument("--target_col", default="target_code", help="Long-format target column name.")
+    ap.add_argument("--instrument_col", default="instrument_code", help="Long-format instrument column name.")
+    ap.add_argument("--id_col", default="row_id", help="Long-format article id column name.")
 
     ap.add_argument("--title", default="AI Regulation Portfolio — Switzerland")
 
     args = ap.parse_args()
 
     df = pd.read_parquet(args.input) if args.input.endswith(".parquet") else pd.read_csv(args.input)
-    print(f"Loaded {len(df):,} portfolio entries from {args.input}")
+    print(f"Loaded {len(df):,} rows from {args.input}")
 
     if df.empty:
         print("[run6] Warning: input has no rows — the portfolio matrix will be empty.")
 
-    matrix = build_portfolio_matrix(
+    matrix = detect_and_build_portfolio_matrix(
         df,
         target_col=args.target_col,
         instrument_col=args.instrument_col,

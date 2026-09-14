@@ -54,7 +54,7 @@ CODE_LOWER=$(echo "$CODE" | tr '[:upper:]' '[:lower:]')
 # sbatch_run_target.sh / sbatch_run_target_control.sh) : son fichier de sortie contient
 # les colonnes target_<CODE> (et, pour la chaîne de contrôle, control_target_<CODE>)
 # nécessaires au filtrage.
-TARGET_LAST_CODE_LOWER="high_stakes_risks"
+TARGET_LAST_CODE_LOWER="societal_harms"
 
 OUTBASE="${OUTDIR}/laws_structure_with_instrument_${CODE_LOWER}"
 
