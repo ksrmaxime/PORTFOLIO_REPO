@@ -383,7 +383,10 @@ def download_cc_xml_batch(
         base_act_uri = str(row["base_act_uri"])
         cons_uri = str(row["consolidation_uri"])
         cons_date = str(row["consolidation_date_yyyymmdd"])
-        ident = base_act_uri.rstrip("/").split("/")[-1]
+        # identifiant complet après /eli/cc/ ("2018/385" -> "2018_385") : le seul dernier
+        # segment ("385") n'est pas unique (2007/385 = LIB, 2018/385 = ordonnance DFAE) et
+        # faisait partager le même fichier XML à deux actes différents.
+        ident = base_act_uri.rstrip("/").split("/eli/cc/")[-1].replace("/", "_")
         out_path = out_raw_dir / f"{cons_date}__{ident}.xml"
 
         if out_path.exists() and not cfg.overwrite:
@@ -793,6 +796,12 @@ def run_all(
     dl_log.to_parquet(out_download_log, index=False)
     ok = int(dl_log["ok"].sum()) if "ok" in dl_log.columns else 0
     print(f"   Saved: {out_download_log} (ok={ok}, total={len(dl_log)})")
+
+    # garde-fou : chaque acte doit avoir son propre fichier XML
+    ok_paths = dl_log.loc[dl_log["ok"] == True, ["base_act_uri", "path"]].dropna()  # noqa: E712
+    dup = ok_paths[ok_paths["path"].duplicated(keep=False)]
+    if len(dup):
+        raise RuntimeError(f"Plusieurs actes partagent le même fichier XML :\n{dup.head(10).to_string()}")
 
     # map law_id -> xml path
     path_map = (
