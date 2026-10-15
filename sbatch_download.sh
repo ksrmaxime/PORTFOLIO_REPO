@@ -2,7 +2,7 @@
 #SBATCH --job-name=fedlex_download
 #SBATCH --partition=cpu
 #SBATCH --cpus-per-task=2
-#SBATCH --mem=16G
+#SBATCH --mem=64G
 #SBATCH --time=10:00:00
 #SBATCH --output=logs/fedlex_download_%j.out
 #SBATCH --error=logs/fedlex_download_%j.err

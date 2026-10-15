@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import gc
 import hashlib
 import re
+import resource
+import sys
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -25,6 +28,12 @@ def _stable_id(*parts: str) -> str:
         h.update(p.encode("utf-8", errors="ignore"))
         h.update(b"\x1f")
     return h.hexdigest()
+
+
+def _peak_rss_mb() -> float:
+    # ru_maxrss : Ko sous Linux, octets sous macOS
+    r = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    return r / (1024 * 1024) if sys.platform == "darwin" else r / 1024
 
 
 def _sha256_bytes(b: bytes) -> str:
@@ -523,11 +532,19 @@ def extract_law_title_from_xml(xml_path: Path) -> str:
     return title
 
 
+_DOCNUMBER_RE = re.compile(rb"<(?:\w+:)?docNumber[^>]*>(.*?)</(?:\w+:)?docNumber>", re.DOTALL)
+
+
 def extract_sr_number(xml_path: Path) -> str:
-    """Numéro RS (ex. '172.019.1', '0.103.2') depuis <docNumber> du préambule."""
-    parser = etree.XMLParser(recover=True, huge_tree=True)
-    root = etree.parse(str(xml_path), parser).getroot()
-    return _first_xpath_text(root, ["//*[local-name()='docNumber'][1]"])
+    """Numéro RS (ex. '172.019.1', '0.103.2') depuis <docNumber> du préambule.
+    Lecture du seul début du fichier (pas de second parsing XML complet)."""
+    with open(xml_path, "rb") as fh:
+        head = fh.read(300_000)
+    m = _DOCNUMBER_RE.search(head)
+    if not m:
+        return ""
+    txt = re.sub(rb"<[^>]+>", b"", m.group(1)).decode("utf-8", errors="ignore")
+    return _norm_ws(txt)
 
 
 # ============================================================
@@ -812,11 +829,18 @@ def run_all(
     )
 
     print("3) Building structure dataset (XML-native, includes <level> titles)…")
-    struct_rows: List[dict] = []
+    # stockage en colonnes (listes) plutôt qu'en liste de dicts : ~3x moins de mémoire
+    cols = ["law_id", "node_id", "parent_node_id", "node_type", "level", "order_index", "label", "text"]
+    struct_cols: Dict[str, list] = {c: [] for c in cols}
     missing_title = 0
     sr_numbers: Dict[str, str] = {}
+    n_catalog = len(catalog)
 
-    for _, row in catalog.iterrows():
+    for i_act, (_, row) in enumerate(catalog.iterrows(), start=1):
+        if i_act % 250 == 0 or i_act == n_catalog:
+            gc.collect()
+            print(f"   … {i_act:,}/{n_catalog:,} actes | {len(struct_cols['law_id']):,} lignes | "
+                  f"mémoire max {_peak_rss_mb():,.0f} Mo", flush=True)
         law_id = str(row["base_act_uri"])
         title = "" if pd.isna(row.get("title")) else str(row.get("title") or "")
         xml_path_s = path_map.get(law_id)
@@ -836,28 +860,27 @@ def run_all(
                 title = ""  # keep empty if impossible
 
         try:
-            for n in iter_structure_nodes_from_xml(law_id, title, xml_path):
-                struct_rows.append(
-                    dict(
-                        law_id=n.law_id,
-                        node_id=n.node_id,
-                        parent_node_id=n.parent_node_id,
-                        node_type=n.node_type,
-                        level=n.level,
-                        order_index=n.order_index,
-                        label=n.label,
-                        text=n.text,
-                    )
-                )
+            nodes = list(iter_structure_nodes_from_xml(law_id, title, xml_path))
         except Exception as e:
             print(f"   [WARN] structure failed for {law_id}: {e}")
+            continue
+        n_chars = sum(len(n.text) + len(n.label) for n in nodes)
+        if len(nodes) > 20_000 or n_chars > 20_000_000:
+            print(f"   [INFO] acte volumineux {law_id}: {len(nodes):,} lignes, {n_chars/1e6:,.1f} M caractères "
+                  f"(XML {xml_path.stat().st_size/1e6:,.1f} Mo)", flush=True)
+        for n in nodes:
+            for c in cols:
+                struct_cols[c].append(getattr(n, c))
+        del nodes
 
-    struct_df = pd.DataFrame(struct_rows)
+    struct_df = pd.DataFrame(struct_cols)
+    del struct_cols
+    gc.collect()
     doc_info = catalog.set_index("base_act_uri")[["doc_category", "type_code", "doc_type_label"]]
     struct_df = struct_df.join(doc_info, on="law_id")
     struct_df["sr_number"] = struct_df["law_id"].map(sr_numbers).fillna("")
     struct_df.to_parquet(out_struct_raw, index=False)
-    print(f"   Saved: {out_struct_raw} (rows={len(struct_df)})")
+    print(f"   Saved: {out_struct_raw} (rows={len(struct_df)}) | mémoire max {_peak_rss_mb():,.0f} Mo", flush=True)
     if missing_title:
         print(f"   [INFO] Titles missing even after XML fallback: {missing_title}")
 
@@ -867,6 +890,8 @@ def run_all(
         ["law_id", "sr_number", "doc_category", "type_code", "doc_type_label",
          "node_type", "level", "order_index", "label", "text"]
     ].copy()
+    del struct_df
+    gc.collect()
 
     # ensure non-articles have empty text
     final_df.loc[final_df["node_type"] != "article", "text"] = ""
