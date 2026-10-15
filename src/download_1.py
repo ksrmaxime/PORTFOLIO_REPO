@@ -916,7 +916,11 @@ def run_all(
     gc.collect()
 
     # ensure non-articles have empty text
-    final_df.loc[final_df["node_type"] != "article", "text"] = ""
+    # (déjà vide en sortie de iter_structure_nodes_from_xml ; garde-fou sans .loc[...] = "" :
+    #  avec les chaînes Arrow de pandas récent, cette affectation convertit toute la colonne
+    #  en tableau numpy à largeur fixe -> 133 Go pour 250k lignes dont une de 140k caractères)
+    is_article = (final_df["node_type"] == "article").to_numpy()
+    final_df["text"] = [t if keep else "" for t, keep in zip(final_df["text"].tolist(), is_article)]
 
     # stable order per law
     final_df.sort_values(["law_id", "order_index"], inplace=True)
