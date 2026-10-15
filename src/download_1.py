@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import re
 import time
 from collections import OrderedDict
 from dataclasses import dataclass
@@ -74,6 +75,10 @@ def _drop_notes_inplace(root: etree._Element) -> None:
                 else:
                     p.text = (p.text or "") + n.tail
             p.remove(n)
+    # éléments de liste (<item>: "a.", "b.", tirets) : marqueur de saut de ligne,
+    # converti en "\n" dans _article_body_text (sinon "règle:a. la mise…;b. l'utilisation…")
+    for it in root.xpath("//*[local-name()='item']"):
+        it.text = _ITEM_MARK + (it.text or "")
     # <br/> -> espace (sinon "Loi fédérale<br/>sur" devient "Loi fédéralesur")
     for br in root.xpath("//*[local-name()='br']"):
         br.tail = " " + (br.tail or "")
@@ -90,6 +95,14 @@ def _looks_like_xml(content: bytes) -> bool:
 
 
 _ART_PREFIX_RE = None
+
+# caractère à usage privé (non blanc, donc préservé par _norm_ws)
+_ITEM_MARK = "\ue000"
+
+
+def _restore_items(s: str) -> str:
+    s = s.replace(" " + _ITEM_MARK, _ITEM_MARK).replace(_ITEM_MARK + " ", _ITEM_MARK)
+    return s.replace(_ITEM_MARK, "\n").strip()
 
 
 def _clean_art_token(num_text: str) -> str:
@@ -146,20 +159,45 @@ RESOURCE_TYPE_BASE = "https://fedlex.data.admin.ch/vocabulary/resource-type/"
 
 DOC_TYPES: "OrderedDict[int, Tuple[str, str]]" = OrderedDict(
     [
+        # Droit interne
         (21, ("loi", "Loi fédérale")),
         (22, ("loi", "Loi fédérale urgente")),
         (28, ("ordonnance", "Ordonnance de l'Assemblée fédérale")),
         (29, ("ordonnance", "Ordonnance du Conseil fédéral")),
         (26, ("ordonnance", "Ordonnance d'un département")),
         (27, ("ordonnance", "Ordonnance d'un office")),
+        # Actes (ordonnances, règlements) d'autres autorités fédérales
+        (1, ("autre_acte", "Acte législatif d'exploitations ou d'établissements autonomes")),
+        (2, ("autre_acte", "Acte législatif de Commissions")),
+        (3, ("autre_acte", "Acte législatif des Tribunaux fédéraux")),
+        (4, ("autre_acte", "Acte législatif du Conseil des États")),
+        (5, ("autre_acte", "Acte législatif du Conseil national")),
+        (15, ("convention_cantons", "Conventions entre la Confédération et les cantons")),
+        # Droit international (RS 0.xxx)
+        (31, ("traite_international", "Traité international bilatéral")),
+        (32, ("traite_international", "Traité international multilatéral")),
     ]
 )
+
+_INTERNATIONAL = {"traite_international"}
 
 DOC_TYPE_GROUPS: Dict[str, List[int]] = {
     "lois": [c for c, (cat, _) in DOC_TYPES.items() if cat == "loi"],
     "ordonnances": [c for c, (cat, _) in DOC_TYPES.items() if cat == "ordonnance"],
+    "autres_actes": [c for c, (cat, _) in DOC_TYPES.items() if cat == "autre_acte"],
+    "conventions_cantons": [c for c, (cat, _) in DOC_TYPES.items() if cat == "convention_cantons"],
+    "traites": [c for c, (cat, _) in DOC_TYPES.items() if cat in _INTERNATIONAL],
+    # tout le droit interne (défaut)
+    "interne": [c for c, (cat, _) in DOC_TYPES.items() if cat not in _INTERNATIONAL],
     "all": list(DOC_TYPES.keys()),
 }
+
+# Fedlex ne renseigne pas jolux:inForceStatus pour beaucoup d'actes récents (ex. ONum,
+# RS 172.019.1, en vigueur depuis le 1.5.2025). Sans statut, un acte est considéré en
+# vigueur s'il n'a pas de date de fin (dateNoLongerInForce) et que son entrée en vigueur
+# est comprise entre cette date et as_of. Le plancher écarte ~900 vieux actes (1940-1990)
+# abrogés mais jamais mis à jour dans les métadonnées (arrêtés de guerre, etc.).
+NO_STATUS_MIN_ENTRY = "2000-01-01"
 
 
 def build_cc_catalog_fr(
@@ -168,44 +206,55 @@ def build_cc_catalog_fr(
     as_of: Optional[str] = None,
 ) -> pd.DataFrame:
     """
-    Catalogue du Recueil systématique (CC), FR, actes en vigueur, des types demandés
-    (par défaut : lois + ordonnances fédérales, cf. DOC_TYPES).
+    Catalogue du Recueil systématique (RS, eli/cc), FR, actes en vigueur, des types
+    demandés (par défaut : tout le droit interne, cf. DOC_TYPES / DOC_TYPE_GROUPS).
+    En vigueur = statut Fedlex 'en vigueur', ou, faute de statut, cf. NO_STATUS_MIN_ENTRY.
     -> 1 ligne par base_act_uri : la dernière consolidation dont la date est <= as_of
        (YYYYMMDD, défaut = aujourd'hui). Les consolidations datées dans le futur
        (versions déjà publiées mais pas encore en vigueur) sont ignorées.
     """
-    type_codes = list(type_codes or DOC_TYPE_GROUPS["all"])
+    type_codes = list(type_codes or DOC_TYPE_GROUPS["interne"])
     unknown = [c for c in type_codes if c not in DOC_TYPES]
     if unknown:
         raise ValueError(f"Unknown resource-type codes: {unknown} (known: {list(DOC_TYPES)})")
     as_of = as_of or date.today().strftime("%Y%m%d")
 
+    as_of_iso = f"{as_of[:4]}-{as_of[4:6]}-{as_of[6:]}"
     values = "\n    ".join(f"<{RESOURCE_TYPE_BASE}{c}>" for c in type_codes)
     sparql = f"""
 PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
 
-SELECT ?base ?cons ?typeDoc ?status ?title_fr ?title_any
+SELECT ?base ?cons ?typeDoc ?status ?entry ?end ?title_fr
 WHERE {{
-  ?cons jolux:isMemberOf ?base .
-  FILTER(STRSTARTS(STR(?base), "https://fedlex.data.admin.ch/eli/cc/"))
-  FILTER(REGEX(STR(?cons), "/[0-9]{{8}}$"))
-
   ?base jolux:typeDocument ?typeDoc .
   VALUES ?typeDoc {{
     {values}
   }}
+  # Recueil systématique (RS) uniquement
+  FILTER(STRSTARTS(STR(?base), "https://fedlex.data.admin.ch/eli/cc/"))
 
-  # En vigueur
-  ?base jolux:inForceStatus ?status .
-  VALUES ?status {{
-    <https://fedlex.data.admin.ch/vocabulary/enforcement-status/0>
-  }}
+  # Vigueur : statut 'en vigueur' OU (pas de statut ET entrée en vigueur récente) ;
+  # dans les deux cas, pas de date de fin <= as_of
+  OPTIONAL {{ ?base jolux:inForceStatus ?status . }}
+  OPTIONAL {{ ?base jolux:dateEntryInForce ?entry . }}
+  OPTIONAL {{ ?base jolux:dateNoLongerInForce ?end . }}
+  BIND(COALESCE(STR(?status), "") AS ?st)
+  BIND(COALESCE(STR(?entry), "") AS ?en)
+  BIND(COALESCE(STR(?end), "9999-12-31") AS ?ed)
+  FILTER(?ed > "{as_of_iso}")
+  FILTER(?st = "https://fedlex.data.admin.ch/vocabulary/enforcement-status/0"
+         || (?st = "" && ?en != "" && ?en <= "{as_of_iso}" && ?en >= "{NO_STATUS_MIN_ENTRY}"))
 
+  # Versions consolidées
+  ?cons jolux:isMemberOf ?base .
+  FILTER(REGEX(STR(?cons), "/[0-9]{{8}}$"))
+
+  # Titre FR (porté par l'expression /fr de l'acte)
   OPTIONAL {{
-    ?base jolux:title ?title_fr .
-    FILTER(lang(?title_fr) = "fr")
+    ?base jolux:isRealizedBy ?expr .
+    FILTER(STRENDS(STR(?expr), "/fr"))
+    ?expr jolux:title ?title_fr .
   }}
-  OPTIONAL {{ ?base jolux:title ?title_any . }}
 }}
 """
     data = client.query_json(sparql)
@@ -225,8 +274,9 @@ WHERE {{
                 "consolidation_uri": cons,
                 "type_doc": b.get("typeDoc", {}).get("value"),
                 "in_force_status_uri": b.get("status", {}).get("value"),
+                "date_entry_in_force": b.get("entry", {}).get("value"),
+                "date_no_longer_in_force": b.get("end", {}).get("value"),
                 "title_fr": b.get("title_fr", {}).get("value"),
-                "title_any": b.get("title_any", {}).get("value"),
             }
         )
 
@@ -254,8 +304,12 @@ WHERE {{
     df["doc_category"] = df["type_code"].map(lambda c: DOC_TYPES[c][0])
     df["doc_type_label"] = df["type_code"].map(lambda c: DOC_TYPES[c][1])
 
-    # titre (fallback)
-    df["title"] = df["title_fr"].fillna(df["title_any"])
+    # base de la décision "en vigueur" (statut Fedlex, ou déduite faute de statut)
+    df["in_force_basis"] = df["in_force_status_uri"].map(lambda v: "status" if isinstance(v, str) and v else "inferred_no_status")
+
+    # titres Fedlex parfois balisés ("1<sup>er</sup> mars")
+    df["title_fr"] = df["title_fr"].map(lambda t: _norm_ws(re.sub(r"<[^>]+>", "", t)) if isinstance(t, str) else t)
+    df["title"] = df["title_fr"]
     df["lang"] = "fr"
     df["as_of"] = as_of
     return df
@@ -463,6 +517,13 @@ def extract_law_title_from_xml(xml_path: Path) -> str:
     return title
 
 
+def extract_sr_number(xml_path: Path) -> str:
+    """Numéro RS (ex. '172.019.1', '0.103.2') depuis <docNumber> du préambule."""
+    parser = etree.XMLParser(recover=True, huge_tree=True)
+    root = etree.parse(str(xml_path), parser).getroot()
+    return _first_xpath_text(root, ["//*[local-name()='docNumber'][1]"])
+
+
 # ============================================================
 # Structure from XML (namespace-agnostic) + article text extraction
 # ============================================================
@@ -484,7 +545,7 @@ def _struct_label(el: etree._Element) -> str:
     head_el = el.xpath("./*[local-name()='heading'][1]")
     num = _txt(num_el[0]) if num_el else ""
     head = _txt(head_el[0]) if head_el else ""
-    return _norm_ws(" ".join([x for x in [num, head] if x]))
+    return _norm_ws(" ".join([x for x in [num, head] if x]).replace(_ITEM_MARK, " "))
 
 
 def _article_label(article: etree._Element) -> str:
@@ -503,7 +564,8 @@ def _article_body_text(article: etree._Element) -> str:
     for p in paras:
         pnum_el = p.xpath("./*[local-name()='num'][1]")
         pnum = _txt(pnum_el[0]) if pnum_el else ""
-        ptxt = _txt(p)
+        ptxt = _restore_items(_txt(p))
+        pnum = _restore_items(pnum)
         if not ptxt:
             continue
         # avoid duplicating num if itertext already includes it
@@ -675,7 +737,7 @@ def run_all(
     *,
     overwrite_download: bool = False,
     limit: Optional[int] = None,
-    doc_types: str = "all",
+    doc_types: str = "interne",
     as_of: Optional[str] = None,
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -716,6 +778,7 @@ def run_all(
     print("3) Building structure dataset (XML-native, includes <level> titles)…")
     struct_rows: List[dict] = []
     missing_title = 0
+    sr_numbers: Dict[str, str] = {}
 
     for _, row in catalog.iterrows():
         law_id = str(row["base_act_uri"])
@@ -724,6 +787,10 @@ def run_all(
         if not xml_path_s:
             continue
         xml_path = Path(xml_path_s)
+        try:
+            sr_numbers[law_id] = extract_sr_number(xml_path)
+        except Exception:
+            sr_numbers[law_id] = ""
 
         # Title fallback from XML if catalog title missing
         if not _norm_ws(title):
@@ -752,6 +819,7 @@ def run_all(
     struct_df = pd.DataFrame(struct_rows)
     doc_info = catalog.set_index("base_act_uri")[["doc_category", "type_code", "doc_type_label"]]
     struct_df = struct_df.join(doc_info, on="law_id")
+    struct_df["sr_number"] = struct_df["law_id"].map(sr_numbers).fillna("")
     struct_df.to_parquet(out_struct_raw, index=False)
     print(f"   Saved: {out_struct_raw} (rows={len(struct_df)})")
     if missing_title:
@@ -760,7 +828,7 @@ def run_all(
     print("4) Building FINAL flat file (with level 0 + article texts)…")
     # NB: law_id = URI ELI de l'acte (loi OU ordonnance) ; doc_category distingue les deux.
     final_df = struct_df[
-        ["law_id", "doc_category", "type_code", "doc_type_label",
+        ["law_id", "sr_number", "doc_category", "type_code", "doc_type_label",
          "node_type", "level", "order_index", "label", "text"]
     ].copy()
 
@@ -787,8 +855,10 @@ def main_cli() -> int:
     ap.add_argument(
         "--doc-types",
         choices=sorted(DOC_TYPE_GROUPS),
-        default="all",
-        help="Types d'actes à inclure : lois (21, 22), ordonnances (26-29) ou all (défaut)",
+        default="interne",
+        help="Types d'actes : interne (défaut : lois, ordonnances, autres actes fédéraux, "
+        "conventions Confédération-cantons), traites (internationaux), all, ou un groupe : "
+        "lois, ordonnances, autres_actes, conventions_cantons",
     )
     ap.add_argument(
         "--as-of",

@@ -9,13 +9,16 @@
 #SBATCH --mail-user=maxime.kaiser@unil.ch
 #SBATCH --mail-type=END,FAIL
 
-# Téléchargement Fedlex (lois + ordonnances fédérales en vigueur, FR) et découpe
+# Téléchargement Fedlex (Recueil systématique, actes en vigueur, FR) et découpe
 # article par article -> laws_structure_final.parquet / .csv
 #
 # Usage :
-#   sbatch sbatch_download.sh                      # lois + ordonnances, version en vigueur aujourd'hui
-#   sbatch sbatch_download.sh lois                 # lois seulement   (lois | ordonnances | all)
-#   sbatch sbatch_download.sh all 20260101         # version consolidée en vigueur au 1.1.2026
+#   sbatch sbatch_download.sh                      # droit interne (défaut), versions en vigueur aujourd'hui
+#   sbatch sbatch_download.sh traites              # traités internationaux seulement
+#   sbatch sbatch_download.sh all 20260101         # interne + traités, en vigueur au 1.1.2026
+#
+# Groupes : interne (lois, ordonnances, autres actes fédéraux, conventions Confédération-
+# cantons) | traites | all | lois | ordonnances | autres_actes | conventions_cantons
 #   OVERWRITE=1 sbatch sbatch_download.sh          # re-télécharger les XML déjà présents
 #
 # Les XML déjà présents dans $OUTDIR/raw_xml sont réutilisés (cache), donc relancer
@@ -30,13 +33,13 @@ set -euo pipefail
 module purge
 module load python/3.12.1
 
-DOC_TYPES="${1:-all}"
+DOC_TYPES="${1:-interne}"
 AS_OF="${2:-$(date +%Y%m%d)}"
 OVERWRITE="${OVERWRITE:-0}"
 
 case "$DOC_TYPES" in
-  lois|ordonnances|all) ;;
-  *) echo "DOC_TYPES doit être lois, ordonnances ou all (reçu : $DOC_TYPES)" >&2; exit 1 ;;
+  interne|traites|all|lois|ordonnances|autres_actes|conventions_cantons) ;;
+  *) echo "DOC_TYPES invalide (reçu : $DOC_TYPES) — voir l'en-tête du script" >&2; exit 1 ;;
 esac
 if ! [[ "$AS_OF" =~ ^[0-9]{8}$ ]]; then
   echo "AS_OF doit être au format YYYYMMDD (reçu : $AS_OF)" >&2; exit 1
@@ -89,6 +92,12 @@ import pandas as pd
 out = "$OUTDIR"
 log = pd.read_parquet(f"{out}/download_log.parquet")
 df = pd.read_parquet(f"{out}/laws_structure_final.parquet")
+
+# Versions CSV (lisibles dans Excel / Numbers) à côté de chaque parquet.
+# utf-8-sig = UTF-8 avec BOM, pour que les accents s'affichent correctement dans Excel.
+df.to_csv(f"{out}/laws_structure_final.csv", index=False, encoding="utf-8-sig")
+pd.read_parquet(f"{out}/cc_catalog_fr_inforce.parquet").to_csv(f"{out}/cc_catalog_fr_inforce.csv", index=False, encoding="utf-8-sig")
+log.to_csv(f"{out}/download_log.csv", index=False, encoding="utf-8-sig")
 arts = df[df["level"] == 6]
 print("=== BILAN ===")
 print(f"XML ok: {int(log['ok'].sum()):,} / {len(log):,}  (dont déjà présents: {int(log['skipped_existing'].sum()):,})")
@@ -98,7 +107,12 @@ if len(fails):
     print(fails[["base_act_uri", "error"]].head(20).to_string(index=False))
 print("Actes par type :")
 print(df.drop_duplicates("law_id")["doc_type_label"].value_counts().to_string())
+cat = pd.read_parquet(f"{out}/cc_catalog_fr_inforce.parquet")
+print("Base vigueur :", cat["in_force_basis"].value_counts().to_dict())
 print(f"Articles : {len(arts):,} (dont sans texte / abrogés : {int((arts['text'].fillna('').str.strip() == '').sum()):,})")
 PY
 
-echo "Terminé : $OUTDIR/laws_structure_final.parquet"
+echo "Terminé :"
+echo "  $OUTDIR/laws_structure_final.parquet"
+echo "  $OUTDIR/laws_structure_final.csv"
+echo "  (+ cc_catalog_fr_inforce.parquet/.csv, download_log.parquet/.csv)"
