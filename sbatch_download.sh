@@ -3,7 +3,7 @@
 #SBATCH --partition=cpu
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=16G
-#SBATCH --time=04:00:00
+#SBATCH --time=10:00:00
 #SBATCH --output=logs/fedlex_download_%j.out
 #SBATCH --error=logs/fedlex_download_%j.err
 #SBATCH --mail-user=maxime.kaiser@unil.ch
@@ -13,9 +13,9 @@
 # article par article -> laws_structure_final.parquet / .csv
 #
 # Usage :
-#   sbatch sbatch_download.sh                      # droit interne (défaut), versions en vigueur aujourd'hui
-#   sbatch sbatch_download.sh traites              # traités internationaux seulement
-#   sbatch sbatch_download.sh all 20260101         # interne + traités, en vigueur au 1.1.2026
+#   sbatch sbatch_download.sh                      # tout (défaut) : droit interne + traités, en vigueur aujourd'hui
+#   sbatch sbatch_download.sh interne              # droit interne seulement
+#   sbatch sbatch_download.sh all 20260101         # tout, en vigueur au 1.1.2026
 #
 # Groupes : interne (lois, ordonnances, autres actes fédéraux, conventions Confédération-
 # cantons) | traites | all | lois | ordonnances | autres_actes | conventions_cantons
@@ -33,7 +33,7 @@ set -euo pipefail
 module purge
 module load python/3.12.1
 
-DOC_TYPES="${1:-interne}"
+DOC_TYPES="${1:-all}"
 AS_OF="${2:-$(date +%Y%m%d)}"
 OVERWRITE="${OVERWRITE:-0}"
 
@@ -109,7 +109,7 @@ print("Actes par type :")
 print(df.drop_duplicates("law_id")["doc_type_label"].value_counts().to_string())
 cat = pd.read_parquet(f"{out}/cc_catalog_fr_inforce.parquet")
 print("Base vigueur :", cat["in_force_basis"].value_counts().to_dict())
-print(f"Articles : {len(arts):,} (dont sans texte / abrogés : {int((arts['text'].fillna('').str.strip() == '').sum()):,})")
+print(f"Articles : {len(arts):,} (dont sans texte / abrogés : {int((arts['text'].fillna('').str.strip() == '').sum()):,} ; actes sans articles, texte intégral en 1 ligne : {int((arts['label'] == 'Texte intégral (sans articles)').sum()):,})")
 PY
 
 echo "Terminé :"

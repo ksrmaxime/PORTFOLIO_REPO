@@ -96,6 +96,9 @@ def _looks_like_xml(content: bytes) -> bool:
 
 _ART_PREFIX_RE = None
 
+# label de la ligne unique créée pour un acte sans <article> (cf. iter_structure_nodes_from_xml)
+BODY_FALLBACK_LABEL = "Texte intégral (sans articles)"
+
 # caractère à usage privé (non blanc, donc préservé par _norm_ws)
 _ITEM_MARK = "\ue000"
 
@@ -207,13 +210,13 @@ def build_cc_catalog_fr(
 ) -> pd.DataFrame:
     """
     Catalogue du Recueil systématique (RS, eli/cc), FR, actes en vigueur, des types
-    demandés (par défaut : tout le droit interne, cf. DOC_TYPES / DOC_TYPE_GROUPS).
+    demandés (par défaut : tout, droit interne + traités, cf. DOC_TYPES / DOC_TYPE_GROUPS).
     En vigueur = statut Fedlex 'en vigueur', ou, faute de statut, cf. NO_STATUS_MIN_ENTRY.
     -> 1 ligne par base_act_uri : la dernière consolidation dont la date est <= as_of
        (YYYYMMDD, défaut = aujourd'hui). Les consolidations datées dans le futur
        (versions déjà publiées mais pas encore en vigueur) sont ignorées.
     """
-    type_codes = list(type_codes or DOC_TYPE_GROUPS["interne"])
+    type_codes = list(type_codes or DOC_TYPE_GROUPS["all"])
     unknown = [c for c in type_codes if c not in DOC_TYPES]
     if unknown:
         raise ValueError(f"Unknown resource-type codes: {unknown} (known: {list(DOC_TYPES)})")
@@ -608,6 +611,7 @@ def iter_structure_nodes_from_xml(law_id: str, law_title: str, xml_path: Path) -
     }
 
     order = 0
+    n_articles = 0
     root_id = _stable_id(law_id, "law_title", law_title)
 
     yield StructNode(
@@ -726,6 +730,29 @@ def iter_structure_nodes_from_xml(law_id: str, law_title: str, xml_path: Path) -
             text=art_text,
         )
         order += 1
+        n_articles += 1
+
+    # Repli : acte sans <article> mais avec du texte (protocoles, déclarations,
+    # mémorandums, listes techniques, vieux arrêtés numérotés "1.", "2."...).
+    # Le texte entier du <body> devient une seule ligne de niveau 6, pour ne pas le perdre.
+    if n_articles == 0:
+        # un saut de ligne avant chaque bloc numéroté / paragraphe, un espace après chaque numéro
+        for el in body.xpath(".//*[local-name()='level' or local-name()='paragraph' or local-name()='hcontainer']"):
+            el.text = _ITEM_MARK + (el.text or "")
+        for num in body.xpath(".//*[local-name()='num']"):
+            num.tail = " " + (num.tail or "")
+        body_text = _restore_items(_txt(body))
+        if body_text:
+            yield StructNode(
+                law_id=law_id,
+                node_id=_stable_id(law_id, "article", str(order), "body_fallback"),
+                parent_node_id=root_id,
+                node_type="article",
+                level=6,
+                order_index=order,
+                label=BODY_FALLBACK_LABEL,
+                text=body_text,
+            )
 
 
 # ============================================================
@@ -737,7 +764,7 @@ def run_all(
     *,
     overwrite_download: bool = False,
     limit: Optional[int] = None,
-    doc_types: str = "interne",
+    doc_types: str = "all",
     as_of: Optional[str] = None,
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -855,10 +882,10 @@ def main_cli() -> int:
     ap.add_argument(
         "--doc-types",
         choices=sorted(DOC_TYPE_GROUPS),
-        default="interne",
-        help="Types d'actes : interne (défaut : lois, ordonnances, autres actes fédéraux, "
-        "conventions Confédération-cantons), traites (internationaux), all, ou un groupe : "
-        "lois, ordonnances, autres_actes, conventions_cantons",
+        default="all",
+        help="Types d'actes : all (défaut : droit interne + traités internationaux), "
+        "interne (lois, ordonnances, autres actes fédéraux, conventions Confédération-cantons), "
+        "traites, ou un groupe : lois, ordonnances, autres_actes, conventions_cantons",
     )
     ap.add_argument(
         "--as-of",
