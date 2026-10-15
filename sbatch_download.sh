@@ -19,10 +19,9 @@
 #
 # Groupes : interne (lois, ordonnances, autres actes fédéraux, conventions Confédération-
 # cantons) | traites | all | lois | ordonnances | autres_actes | conventions_cantons
-#   OVERWRITE=1 sbatch sbatch_download.sh          # re-télécharger les XML déjà présents
+#   REUSE=1 sbatch sbatch_download.sh              # réutiliser les XML déjà présents (pas de re-téléchargement)
 #
-# Les XML déjà présents dans $OUTDIR/raw_xml sont réutilisés (cache), donc relancer
-# le job après un échec ne retélécharge que ce qui manque.
+# Par défaut, tous les XML sont re-téléchargés (raw_xml/ est écrasé).
 # Prérequis : le nœud de calcul doit pouvoir joindre https://fedlex.data.admin.ch
 # (vérifié en début de job).
 
@@ -35,7 +34,7 @@ module load python/3.12.1
 
 DOC_TYPES="${1:-all}"
 AS_OF="${2:-$(date +%Y%m%d)}"
-OVERWRITE="${OVERWRITE:-0}"
+REUSE="${REUSE:-0}"
 
 case "$DOC_TYPES" in
   interne|traites|all|lois|ordonnances|autres_actes|conventions_cantons) ;;
@@ -57,7 +56,7 @@ mkdir -p logs "$OUTDIR"
 echo "=== SLURM ==="
 echo "JOBID=${SLURM_JOB_ID:-<unset>} HOST=$(hostname) PARTITION=${SLURM_JOB_PARTITION:-<unset>}"
 echo "DATE=$(date -Is)"
-echo "DOC_TYPES=$DOC_TYPES AS_OF=$AS_OF OVERWRITE=$OVERWRITE"
+echo "DOC_TYPES=$DOC_TYPES AS_OF=$AS_OF REUSE=$REUSE"
 echo "OUTDIR=$OUTDIR"
 echo "GIT=$(git rev-parse --short HEAD 2>/dev/null || echo n/a)"
 python -V
@@ -75,8 +74,12 @@ fi
 echo "Fedlex OK (HTTP $HTTP_CODE)"
 
 # --- Téléchargement + découpe ---
-EXTRA_ARGS=()
-if [ "$OVERWRITE" = "1" ]; then
+# plafond mémoire Python = 85 % de la mémoire SLURM : un acte pathologique est ignoré
+# (et signalé dans le log) au lieu de faire tuer le job ; chaque acte est logué avant découpe.
+MEM_MB="${SLURM_MEM_PER_NODE:-65536}"
+MAX_MEM_GB=$(( MEM_MB * 85 / 100 / 1024 ))
+EXTRA_ARGS=(--verbose --max-mem-gb "$MAX_MEM_GB")
+if [ "$REUSE" != "1" ]; then
   EXTRA_ARGS+=(--overwrite-download)
 fi
 

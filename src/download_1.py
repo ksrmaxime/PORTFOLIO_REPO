@@ -786,7 +786,18 @@ def run_all(
     limit: Optional[int] = None,
     doc_types: str = "all",
     as_of: Optional[str] = None,
+    max_mem_gb: Optional[float] = None,
+    verbose: bool = False,
 ) -> None:
+    # Plafond mémoire du processus : un acte qui fait exploser la mémoire lève alors
+    # MemoryError (acte ignoré et signalé) au lieu de faire tuer tout le job par SLURM.
+    if max_mem_gb:
+        lim = int(max_mem_gb * 1024**3)
+        try:
+            resource.setrlimit(resource.RLIMIT_AS, (lim, lim))
+            print(f"   [INFO] plafond mémoire du processus : {max_mem_gb:g} Go")
+        except (ValueError, OSError) as e:
+            print(f"   [WARN] impossible de fixer le plafond mémoire : {e}")
     out_dir.mkdir(parents=True, exist_ok=True)
     raw_dir = out_dir / "raw_xml"
     raw_dir.mkdir(parents=True, exist_ok=True)
@@ -834,6 +845,7 @@ def run_all(
     struct_cols: Dict[str, list] = {c: [] for c in cols}
     missing_title = 0
     sr_numbers: Dict[str, str] = {}
+    skipped_memory: List[str] = []
     n_catalog = len(catalog)
 
     for i_act, (_, row) in enumerate(catalog.iterrows(), start=1):
@@ -859,8 +871,16 @@ def run_all(
                 missing_title += 1
                 title = ""  # keep empty if impossible
 
+        if verbose:
+            print(f"   [{i_act}] {law_id} ({xml_path.stat().st_size/1e6:.1f} Mo)", flush=True)
         try:
             nodes = list(iter_structure_nodes_from_xml(law_id, title, xml_path))
+        except MemoryError:
+            nodes = None
+            gc.collect()
+            print(f"   [WARN] MÉMOIRE dépassée pour {law_id} ({xml_path}) — acte ignoré", flush=True)
+            skipped_memory.append(law_id)
+            continue
         except Exception as e:
             print(f"   [WARN] structure failed for {law_id}: {e}")
             continue
@@ -873,6 +893,8 @@ def run_all(
                 struct_cols[c].append(getattr(n, c))
         del nodes
 
+    if skipped_memory:
+        print(f"   [WARN] {len(skipped_memory)} acte(s) ignoré(s) faute de mémoire : {skipped_memory}", flush=True)
     struct_df = pd.DataFrame(struct_cols)
     del struct_cols
     gc.collect()
@@ -913,6 +935,9 @@ def main_cli() -> int:
     ap.add_argument("--out-dir", required=True, help="Output directory")
     ap.add_argument("--overwrite-download", action="store_true", help="Re-download XML even if already present")
     ap.add_argument("--limit", type=int, default=None, help="Limit number of acts (debug)")
+    ap.add_argument("--max-mem-gb", type=float, default=None,
+                    help="Plafond mémoire du processus (Go) ; un acte qui le dépasse est ignoré et signalé")
+    ap.add_argument("--verbose", action="store_true", help="Afficher chaque acte avant sa découpe")
     ap.add_argument(
         "--doc-types",
         choices=sorted(DOC_TYPE_GROUPS),
@@ -934,6 +959,8 @@ def main_cli() -> int:
         limit=args.limit,
         doc_types=args.doc_types,
         as_of=args.as_of,
+        max_mem_gb=args.max_mem_gb,
+        verbose=args.verbose,
     )
     return 0
 
