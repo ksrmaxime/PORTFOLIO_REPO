@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Tuple
 
@@ -64,7 +66,17 @@ def _drop_notes_inplace(root: etree._Element) -> None:
     for n in root.xpath("//*[local-name()='note' or local-name()='authorialNote' or local-name()='editorialNote']"):
         p = n.getparent()
         if p is not None:
+            # garder le texte qui suit la note (lxml le stocke dans n.tail)
+            if n.tail:
+                prev = n.getprevious()
+                if prev is not None:
+                    prev.tail = (prev.tail or "") + n.tail
+                else:
+                    p.text = (p.text or "") + n.tail
             p.remove(n)
+    # <br/> -> espace (sinon "Loi fédérale<br/>sur" devient "Loi fédéralesur")
+    for br in root.xpath("//*[local-name()='br']"):
+        br.tail = " " + (br.tail or "")
 
 
 def _looks_like_html(content: bytes) -> bool:
@@ -128,44 +140,78 @@ def _extract_last_segment(uri: str) -> str:
     return uri.rstrip("/").split("/")[-1]
 
 
-def build_cc_catalog_fr(client: SparqlClient) -> pd.DataFrame:
+# Types de documents Fedlex (vocabulaire jolux:typeDocument, resource-type/<code>).
+# code -> (catégorie, libellé officiel FR)
+RESOURCE_TYPE_BASE = "https://fedlex.data.admin.ch/vocabulary/resource-type/"
+
+DOC_TYPES: "OrderedDict[int, Tuple[str, str]]" = OrderedDict(
+    [
+        (21, ("loi", "Loi fédérale")),
+        (22, ("loi", "Loi fédérale urgente")),
+        (28, ("ordonnance", "Ordonnance de l'Assemblée fédérale")),
+        (29, ("ordonnance", "Ordonnance du Conseil fédéral")),
+        (26, ("ordonnance", "Ordonnance d'un département")),
+        (27, ("ordonnance", "Ordonnance d'un office")),
+    ]
+)
+
+DOC_TYPE_GROUPS: Dict[str, List[int]] = {
+    "lois": [c for c, (cat, _) in DOC_TYPES.items() if cat == "loi"],
+    "ordonnances": [c for c, (cat, _) in DOC_TYPES.items() if cat == "ordonnance"],
+    "all": list(DOC_TYPES.keys()),
+}
+
+
+def build_cc_catalog_fr(
+    client: SparqlClient,
+    type_codes: Optional[List[int]] = None,
+    as_of: Optional[str] = None,
+) -> pd.DataFrame:
     """
-    Catalogue CC, FR, lois fédérales, en vigueur.
-    -> 1 ligne par base_act_uri (dernière consolidation).
+    Catalogue du Recueil systématique (CC), FR, actes en vigueur, des types demandés
+    (par défaut : lois + ordonnances fédérales, cf. DOC_TYPES).
+    -> 1 ligne par base_act_uri : la dernière consolidation dont la date est <= as_of
+       (YYYYMMDD, défaut = aujourd'hui). Les consolidations datées dans le futur
+       (versions déjà publiées mais pas encore en vigueur) sont ignorées.
     """
-    sparql = """
+    type_codes = list(type_codes or DOC_TYPE_GROUPS["all"])
+    unknown = [c for c in type_codes if c not in DOC_TYPES]
+    if unknown:
+        raise ValueError(f"Unknown resource-type codes: {unknown} (known: {list(DOC_TYPES)})")
+    as_of = as_of or date.today().strftime("%Y%m%d")
+
+    values = "\n    ".join(f"<{RESOURCE_TYPE_BASE}{c}>" for c in type_codes)
+    sparql = f"""
 PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
 
 SELECT ?base ?cons ?typeDoc ?status ?title_fr ?title_any
-WHERE {
+WHERE {{
   ?cons jolux:isMemberOf ?base .
   FILTER(STRSTARTS(STR(?base), "https://fedlex.data.admin.ch/eli/cc/"))
-  FILTER(REGEX(STR(?cons), "/[0-9]{8}$"))
+  FILTER(REGEX(STR(?cons), "/[0-9]{{8}}$"))
 
-  # Lois fédérales uniquement
   ?base jolux:typeDocument ?typeDoc .
-  VALUES ?typeDoc {
-    <https://fedlex.data.admin.ch/vocabulary/resource-type/21>
-    <https://fedlex.data.admin.ch/vocabulary/resource-type/22>
-  }
+  VALUES ?typeDoc {{
+    {values}
+  }}
 
   # En vigueur
   ?base jolux:inForceStatus ?status .
-  VALUES ?status {
+  VALUES ?status {{
     <https://fedlex.data.admin.ch/vocabulary/enforcement-status/0>
-  }
+  }}
 
-  OPTIONAL {
+  OPTIONAL {{
     ?base jolux:title ?title_fr .
     FILTER(lang(?title_fr) = "fr")
-  }
-  OPTIONAL { ?base jolux:title ?title_any . }
-}
+  }}
+  OPTIONAL {{ ?base jolux:title ?title_any . }}
+}}
 """
     data = client.query_json(sparql)
     bindings = data.get("results", {}).get("bindings", [])
     if not bindings:
-        raise RuntimeError("SPARQL returned 0 rows for CC catalog (laws in force).")
+        raise RuntimeError("SPARQL returned 0 rows for CC catalog (acts in force).")
 
     records: List[dict] = []
     for b in bindings:
@@ -187,17 +233,31 @@ WHERE {
     df = pd.DataFrame.from_records(records)
     df["consolidation_date_yyyymmdd"] = df["consolidation_uri"].map(_extract_last_segment).astype(str)
 
-    # dernière consolidation
+    n_acts_all = df["base_act_uri"].nunique()
+
+    # ignorer les consolidations futures (pas encore en vigueur)
+    df = df[df["consolidation_date_yyyymmdd"] <= as_of]
+
+    # dernière consolidation <= as_of
     df = (
         df.sort_values(["base_act_uri", "consolidation_date_yyyymmdd"])
         .groupby("base_act_uri", as_index=False)
         .tail(1)
         .reset_index(drop=True)
     )
+    n_dropped = n_acts_all - len(df)
+    if n_dropped:
+        print(f"   [INFO] {n_dropped} acte(s) sans consolidation <= {as_of} ignoré(s)")
+
+    # type de document
+    df["type_code"] = df["type_doc"].map(_extract_last_segment).astype(int)
+    df["doc_category"] = df["type_code"].map(lambda c: DOC_TYPES[c][0])
+    df["doc_type_label"] = df["type_code"].map(lambda c: DOC_TYPES[c][1])
 
     # titre (fallback)
     df["title"] = df["title_fr"].fillna(df["title_any"])
     df["lang"] = "fr"
+    df["as_of"] = as_of
     return df
 
 
@@ -615,6 +675,8 @@ def run_all(
     *,
     overwrite_download: bool = False,
     limit: Optional[int] = None,
+    doc_types: str = "all",
+    as_of: Optional[str] = None,
 ) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     raw_dir = out_dir / "raw_xml"
@@ -629,7 +691,8 @@ def run_all(
 
     print("1) Building catalog via SPARQL (known-working query)…")
     sp = SparqlClient()
-    catalog = build_cc_catalog_fr(sp)
+    catalog = build_cc_catalog_fr(sp, type_codes=DOC_TYPE_GROUPS[doc_types], as_of=as_of)
+    print("   " + ", ".join(f"{k}={v}" for k, v in catalog["doc_type_label"].value_counts().items()))
     if limit is not None:
         catalog = catalog.head(limit).copy()
     catalog.to_parquet(out_catalog, index=False)
@@ -687,13 +750,19 @@ def run_all(
             print(f"   [WARN] structure failed for {law_id}: {e}")
 
     struct_df = pd.DataFrame(struct_rows)
+    doc_info = catalog.set_index("base_act_uri")[["doc_category", "type_code", "doc_type_label"]]
+    struct_df = struct_df.join(doc_info, on="law_id")
     struct_df.to_parquet(out_struct_raw, index=False)
     print(f"   Saved: {out_struct_raw} (rows={len(struct_df)})")
     if missing_title:
         print(f"   [INFO] Titles missing even after XML fallback: {missing_title}")
 
     print("4) Building FINAL flat file (with level 0 + article texts)…")
-    final_df = struct_df[["law_id", "node_type", "level", "order_index", "label", "text"]].copy()
+    # NB: law_id = URI ELI de l'acte (loi OU ordonnance) ; doc_category distingue les deux.
+    final_df = struct_df[
+        ["law_id", "doc_category", "type_code", "doc_type_label",
+         "node_type", "level", "order_index", "label", "text"]
+    ].copy()
 
     # ensure non-articles have empty text
     final_df.loc[final_df["node_type"] != "article", "text"] = ""
@@ -714,13 +783,26 @@ def main_cli() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out-dir", required=True, help="Output directory")
     ap.add_argument("--overwrite-download", action="store_true", help="Re-download XML even if already present")
-    ap.add_argument("--limit", type=int, default=None, help="Limit number of laws (debug)")
+    ap.add_argument("--limit", type=int, default=None, help="Limit number of acts (debug)")
+    ap.add_argument(
+        "--doc-types",
+        choices=sorted(DOC_TYPE_GROUPS),
+        default="all",
+        help="Types d'actes à inclure : lois (21, 22), ordonnances (26-29) ou all (défaut)",
+    )
+    ap.add_argument(
+        "--as-of",
+        default=None,
+        help="Date de référence YYYYMMDD : version consolidée en vigueur à cette date (défaut : aujourd'hui)",
+    )
     args = ap.parse_args()
 
     run_all(
         out_dir=Path(args.out_dir),
         overwrite_download=args.overwrite_download,
         limit=args.limit,
+        doc_types=args.doc_types,
+        as_of=args.as_of,
     )
     return 0
 
