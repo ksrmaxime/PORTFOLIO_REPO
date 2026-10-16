@@ -2,8 +2,13 @@
 ou un titre de partie/chapitre/section contient un mot-clé (cf. src/keyword_filter.py).
 
 Sorties (à côté de --output_base) :
-  <base>.parquet / .csv            toutes les lignes des actes retenus (+ colonnes kw_*, act_*)
-  <base>_acts.csv                  1 ligne par acte retenu : RS, titre, type, mots-clés trouvés
+  <base>.parquet / .csv            DATASET RÉDUIT : même format (mêmes colonnes, même ordre)
+                                   que laws_structure_final, avec TOUTES les lignes (titres,
+                                   chapitres, articles complets) des actes retenus uniquement.
+                                   -> base pour la suite de la classification.
+  <base>_annotated.parquet / .csv  idem + colonnes kw_* (la ligne contient-elle un mot-clé,
+                                   lequel) et act_* (mots-clés de l'acte) pour vérification
+  <base>_acts.csv                  résumé : 1 ligne par acte retenu (RS, titre, mots-clés)
   <base>_keywords.csv              nb de lignes / d'actes par mot-clé (pour juger chaque motif)
 """
 import sys
@@ -49,8 +54,13 @@ def main() -> int:
 
     base = Path(args.output_base)
     base.parent.mkdir(parents=True, exist_ok=True)
-    rows.to_parquet(f"{base}.parquet", index=False)
-    rows.to_csv(f"{base}.csv", index=False, encoding="utf-8-sig")
+    # dataset réduit au format exact du download (mêmes colonnes, même ordre de lignes)
+    reduced = df[df["law_id"].isin(set(acts["law_id"]))] if not acts.empty else df.iloc[0:0]
+    reduced.to_parquet(f"{base}.parquet", index=False)
+    reduced.to_csv(f"{base}.csv", index=False, encoding="utf-8-sig")
+    # version annotée (vérification des correspondances)
+    rows.to_parquet(f"{base}_annotated.parquet", index=False)
+    rows.to_csv(f"{base}_annotated.csv", index=False, encoding="utf-8-sig")
     acts.to_csv(f"{base}_acts.csv", index=False, encoding="utf-8-sig")
     kw.to_csv(f"{base}_keywords.csv", index=False, encoding="utf-8-sig")
 
@@ -60,12 +70,16 @@ def main() -> int:
         return 0
     print(f"Actes retenus : {len(acts):,} / {df['law_id'].nunique():,} "
           f"(core : {int((acts['act_tier'] == 'core').sum()):,} | extended seulement : {int((acts['act_tier'] == 'extended').sum()):,})")
-    print(f"Lignes en sortie : {len(rows):,} (dont lignes contenant un mot-clé : {int(rows['kw_hit'].sum()):,})")
+    n_art = int((pd.to_numeric(reduced["level"], errors="coerce") == 6).sum())
+    print(f"Dataset réduit : {len(reduced):,} lignes dont {n_art:,} articles "
+          f"(lignes contenant un mot-clé : {int(rows['kw_hit'].sum()):,})")
     if "doc_category" in acts.columns:
         print("Par catégorie :", acts["doc_category"].value_counts().to_dict())
     print("\nPar mot-clé :")
     print(kw[["tier", "group", "keyword", "n_acts", "n_rows"]].to_string(index=False))
-    print(f"\nSaved: {base}.parquet / .csv, {base}_acts.csv, {base}_keywords.csv")
+    print(f"\nDataset réduit (format download) : {base}.parquet / .csv")
+    print(f"Version annotée : {base}_annotated.parquet / .csv")
+    print(f"Résumés : {base}_acts.csv, {base}_keywords.csv")
     return 0
 
 

@@ -33,7 +33,7 @@ WORKDIR=/work/FAC/FDCA/IDHEAP/mhinterl/parp/PORTFOLIO_REPO
 INDIR="${WORKDIR}/data/processed/fedlex/${DOC_TYPES}"
 INPUT="${INPUT:-${INDIR}/laws_structure_final.parquet}"
 TIER_TAG=$(echo "$TIERS" | tr ',' '_')
-OUTBASE="${INDIR}/keyword_filter/laws_kw_${TIER_TAG}"
+OUTBASE="${INDIR}/keyword_filter/laws_structure_kw_${TIER_TAG}"
 
 cd "$WORKDIR"
 source .venv/bin/activate
