@@ -109,6 +109,34 @@ def normalize(s: str, *, keep_case: bool = False) -> str:
     return s if keep_case else s.casefold()
 
 
+def normalize_with_map(s: str, *, keep_case: bool = False):
+    """Comme normalize(), mais renvoie aussi, pour chaque caractère du texte normalisé,
+    l'indice du caractère d'origine correspondant (pour retrouver la forme exacte d'un
+    terme dans l'article : accents, majuscules, apostrophes typographiques)."""
+    out: List[str] = []
+    idx: List[int] = []
+    prev_space = True
+    for i, ch in enumerate((s or "")):
+        c = ch.translate(_APOS)
+        if c.isspace():
+            if not prev_space:
+                out.append(" ")
+                idx.append(i)
+            prev_space = True
+            continue
+        prev_space = False
+        c = _strip_accents(c)
+        if not keep_case:
+            c = c.casefold()
+        for cc in c:
+            out.append(cc)
+            idx.append(i)
+    while out and out[-1] == " ":
+        out.pop()
+        idx.pop()
+    return "".join(out), idx
+
+
 # ============================================================
 # Recherche
 # ============================================================
@@ -237,3 +265,36 @@ def filter_dataframe(
     kw_counts[["n_rows", "n_acts"]] = kw_counts[["n_rows", "n_acts"]].astype(int)
 
     return {"rows": rows, "acts": acts, "keywords": kw_counts}
+
+
+def find_surface_terms(text: str, compiled: List[_Compiled]) -> List[Dict[str, str]]:
+    """Occurrences des mots-clés dans `text`, avec la forme EXACTE telle qu'écrite dans
+    l'article (ex. 'décisions individuelles automatisées'). Une entrée par forme distincte ;
+    un terme inclus dans un terme plus long trouvé au même endroit est omis."""
+    if not text:
+        return []
+    low, low_map = normalize_with_map(text)
+    cased, cased_map = None, None
+    spans = []  # (start, end, keyword)
+    for c in compiled:
+        if c.kw.case_sensitive:
+            if cased is None:
+                cased, cased_map = normalize_with_map(text, keep_case=True)
+            hay, m_ = cased, cased_map
+        else:
+            hay, m_ = low, low_map
+        for m in c.rx.finditer(hay):
+            if m.end() <= m.start():
+                continue
+            spans.append((m_[m.start()], m_[m.end() - 1] + 1, c.kw))
+    # retirer les occurrences contenues dans une occurrence plus longue
+    kept = [sp for sp in spans
+            if not any(o is not sp and o[0] <= sp[0] and sp[1] <= o[1] and (o[1] - o[0]) > (sp[1] - sp[0]) for o in spans)]
+    found: Dict[str, Dict[str, str]] = {}
+    for a, b, kw in sorted(kept, key=lambda x: x[0]):
+        surface = " ".join(text[a:b].split())
+        surface = re.sub(r"^(?:[ldLD][’'])(?=IA\b)", "", surface)   # "l'IA" -> "IA"
+        key = surface.casefold()
+        if key not in found:
+            found[key] = {"term": surface, "keyword": kw.label, "group": kw.group, "tier": kw.tier}
+    return list(found.values())

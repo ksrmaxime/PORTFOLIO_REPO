@@ -104,3 +104,81 @@ class TransformersClient:
             res.append(txt.strip())
 
         return res
+    # ------------------------------------------------------------------
+    # Ajouts : classification par probabilité des réponses (pas de parsing)
+    # ------------------------------------------------------------------
+
+    def build_chat_prompt(self, system_prompt: str, user_prompt: str) -> str:
+        """Prompt complet (template de chat du modèle), prêt pour la réponse de l'assistant."""
+        msgs = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        return self.tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+
+    def score_options(self, prompts: List[str], options: List[str], batch_size: int = 4) -> List[List[float]]:
+        """Pour chaque prompt, log-probabilité que l'assistant réponde exactement chacune des
+        `options` (somme des log-probas de ses tokens). Une seule passe avant par
+        (prompt, option), sans génération : aucune réponse mal formée possible, et les
+        probabilités servent de score de confiance.
+        Retour : liste (par prompt) de listes (par option) de log-probabilités."""
+        torch = self.torch
+        opt_ids = [self.tok(o, add_special_tokens=False)["input_ids"] for o in options]
+        K = max(len(x) for x in opt_ids)
+        pad_id = self.tok.pad_token_id
+        results: List[List[float]] = []
+
+        for start in range(0, len(prompts), max(1, int(batch_size))):
+            batch = prompts[start:start + max(1, int(batch_size))]
+            seqs, owners = [], []
+            for bi, p in enumerate(batch):
+                p_ids = self.tok(p, add_special_tokens=False)["input_ids"]
+                for oi, o in enumerate(opt_ids):
+                    seqs.append(p_ids + o)
+                    owners.append((bi, oi))
+            L = max(len(s) for s in seqs)
+            input_ids = torch.full((len(seqs), L), pad_id, dtype=torch.long)
+            attn = torch.zeros((len(seqs), L), dtype=torch.long)
+            for i, s in enumerate(seqs):          # padding à gauche : les options finissent toutes en position L-1
+                input_ids[i, L - len(s):] = torch.tensor(s, dtype=torch.long)
+                attn[i, L - len(s):] = 1
+            pos = (attn.cumsum(-1) - 1).clamp(min=0)
+            dev = self.model.device
+            input_ids, attn, pos = input_ids.to(dev), attn.to(dev), pos.to(dev)
+
+            with torch.inference_mode():
+                try:   # ne calculer les logits que sur les K+1 dernières positions (économie mémoire)
+                    out = self.model(input_ids=input_ids, attention_mask=attn, position_ids=pos, logits_to_keep=K + 1)
+                    logits = out.logits[:, -(K + 1):, :]
+                except TypeError:
+                    out = self.model(input_ids=input_ids, attention_mask=attn, position_ids=pos)
+                    logits = out.logits[:, -(K + 1):, :]
+                logp = torch.log_softmax(logits.float(), dim=-1)
+
+            scores = [[0.0] * len(options) for _ in batch]
+            for row, (bi, oi) in enumerate(owners):
+                o = opt_ids[oi]
+                n = len(o)
+                # le token o[t] (position absolue L-n+t) est prédit par la position L-n+t-1,
+                # soit l'indice K-n+t dans la fenêtre des K+1 dernières positions
+                scores[bi][oi] = float(sum(logp[row, K - n + t, o[t]].item() for t in range(n)))
+            results.extend(scores)
+            del out, logits, logp
+        return results
+
+    def generate_from_prompts(self, prompts: List[str], max_new_tokens: int = 80, batch_size: int = 4) -> List[str]:
+        """Génération gloutonne à partir de prompts déjà formatés (ex. prompt + début de réponse)."""
+        res: List[str] = []
+        for start in range(0, len(prompts), max(1, int(batch_size))):
+            batch = prompts[start:start + max(1, int(batch_size))]
+            enc = self.tok(batch, return_tensors="pt", padding=True, add_special_tokens=False)
+            # seulement input_ids / attention_mask (certains tokenizers ajoutent token_type_ids,
+            # que generate() refuse)
+            enc = {k: enc[k].to(self.model.device) for k in ("input_ids", "attention_mask")}
+            with self.torch.inference_mode():
+                out = self.model.generate(**enc, max_new_tokens=int(max_new_tokens), do_sample=False,
+                                          pad_token_id=self.tok.pad_token_id)
+            n_in = enc["input_ids"].shape[1]
+            for i in range(out.shape[0]):
+                res.append(self.tok.decode(out[i, n_in:], skip_special_tokens=True).strip())
+        return res
