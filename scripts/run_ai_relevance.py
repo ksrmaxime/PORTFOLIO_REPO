@@ -1,20 +1,22 @@
-"""Step LLM 1 (v2) — pertinence IA des articles repérés par mots-clés.
+"""Step LLM 1 (v3) — pertinence IA des articles repérés par mots-clés.
 
 Entrée : sortie annotée du filtre par mots-clés (…_annotated.parquet).
 Pour chaque article (level 6) contenant un mot-clé :
-  1. RÈGLE : si l'IA y est nommée explicitement (P.RULE_SPECIFIQUE_KEYWORDS), l'article est
-     classé SPECIFIQUE sans LLM (AIREL_METHOD = "regle").
-  2. LLM sinon : Apertus répond par une lettre A/B/C (= SPECIFIQUE/NEUTRE/NON). On ne génère
-     pas la réponse : on lit en une passe la probabilité des trois lettres comme prochain token.
-     Calibration contextuelle : la préférence du modèle pour chaque lettre, mesurée sur des
-     prompts sans contenu (P.CONTENT_FREE_INPUTS), est retirée des probabilités. Les deux
-     versions (brute / calibrée) sont gardées ; le label retenu est calibré sauf --no_calibration.
-     Une justification d'une phrase est ensuite générée, conditionnée sur la lettre retenue.
+  1. RÈGLE : si l'IA y est nommée explicitement (P.RULE_SPECIFIQUE_KEYWORDS) -> SPECIFIQUE sans
+     LLM (AIREL_METHOD = "regle").
+  2. LLM sinon : Apertus répond par une lettre A/B/C (= SPECIFIQUE/NEUTRE/NON). On lit en une passe
+     la probabilité des trois lettres comme prochain token. Le prompt contient le contexte de
+     l'article et, si l'acte en a une, la définition du terme (article « Définitions »).
+     Label = probabilités brutes (calibration contextuelle disponible avec --calibrate).
+     Une justification d'une phrase est générée, conditionnée sur la lettre retenue.
+  3. PROPAGATION intra-acte : si un article d'un acte est SPECIFIQUE, les autres articles du même
+     acte qui partagent un mot-clé de P.PROPAGATION_KEYWORDS deviennent SPECIFIQUE
+     (AIREL_METHOD = "propagation", AIREL_LABEL_LLM garde la réponse du LLM).
 
 Sorties (--output_base, suffixe _job<SLURM_JOB_ID>) :
   .parquet / .csv          dataset d'entrée complet + colonnes AIREL_*
   _articles.csv            seulement les articles traités
-  _prompt_example.txt      un prompt complet, pour relecture
+  _prompt_example.txt      un prompt complet (de préférence un avec définition), pour relecture
   _eval.txt                si --gold : comparaison au gold
 """
 import sys
@@ -31,7 +33,7 @@ import time
 import pandas as pd
 
 from src import ai_relevance_prompts as P
-from src.keyword_filter import KEYWORDS, compile_keywords, find_surface_terms
+from src.keyword_filter import KEYWORDS, compile_keywords, find_in_text, find_surface_terms
 
 
 def read_any(path: str) -> pd.DataFrame:
@@ -51,6 +53,10 @@ def calibrate(p, p_cf):
     q = [a / b for a, b in zip(p, p_cf)]
     s = sum(q)
     return [v / s for v in q]
+
+
+def argmax(p):
+    return max(range(len(p)), key=lambda j: p[j])
 
 
 def _report(m: pd.DataFrame, pred_col: str, title: str) -> list:
@@ -81,21 +87,55 @@ def evaluate(out: pd.DataFrame, gold_path: str, report_path: str) -> None:
     g["AI_RELEVANT"] = g["AI_RELEVANT"].astype(str).str.strip().str.upper()
     g = g[g["AI_RELEVANT"].isin(P.LABELS)]
     g["order_index"] = g["order_index"].astype(str)
-    cols = ["law_id", "order_index", "AIREL_LABEL", "AIREL_LABEL_BRUT", "AIREL_METHOD"]
+    cols = ["law_id", "order_index", "AIREL_LABEL", "AIREL_LABEL_LLM", "AIREL_LABEL_BRUT", "AIREL_LABEL_CALIB",
+            "AIREL_METHOD", "AIREL_DEFINITION"]
     pred = out[out["AIREL_LABEL"].notna() & (out["AIREL_LABEL"] != "")][cols].copy()
     pred["order_index"] = pred["order_index"].astype(str)
     m = pred.merge(g, on=["law_id", "order_index"], how="inner")
-    llm = m[m["AIREL_METHOD"] == "llm"]
-    lines = [f"Articles traités et présents dans le gold : {len(m)} (règle {len(m) - len(llm)}, LLM {len(llm)})"]
-    lines += _report(m, "AIREL_LABEL", "Pipeline complète (règle + LLM)")
-    lines += _report(llm, "AIREL_LABEL", "LLM seul, probabilités calibrées")
+    llm = m[m["AIREL_METHOD"].isin(["llm", "propagation"])]
+    lines = [f"Articles traités et présents dans le gold : {len(m)} "
+             f"(règle {int((m['AIREL_METHOD'] == 'regle').sum())}, LLM {len(llm)}, "
+             f"dont propagés {int((m['AIREL_METHOD'] == 'propagation').sum())})"]
+    lines += _report(m, "AIREL_LABEL", "Pipeline complète (règle + LLM + propagation)")
+    lines += _report(llm, "AIREL_LABEL_LLM", "LLM seul, avant propagation (label utilisé)")
     lines += _report(llm, "AIREL_LABEL_BRUT", "LLM seul, probabilités brutes")
+    lines += _report(llm, "AIREL_LABEL_CALIB", "LLM seul, probabilités calibrées")
+    wd = llm[llm["AIREL_DEFINITION"].fillna("") != ""]
+    lines += _report(wd, "AIREL_LABEL_LLM", "LLM seul, articles avec définition dans le prompt")
+    prop = m[m["AIREL_METHOD"] == "propagation"]
+    if len(prop):
+        lines.append(f"\nPropagation : {len(prop)} articles passés en SPECIFIQUE, "
+                     f"dont {int((prop['AI_RELEVANT'] == 'SPECIFIQUE').sum())} SPECIFIQUE dans le gold")
     rule = m[m["AIREL_METHOD"] == "regle"]
     if len(rule):
-        lines.append(f"\nRègle « IA nommée » : {int((rule['AI_RELEVANT'] == 'SPECIFIQUE').sum())}/{len(rule)} SPECIFIQUE dans le gold")
+        lines.append(f"Règle « IA nommée » : {int((rule['AI_RELEVANT'] == 'SPECIFIQUE').sum())}/{len(rule)} SPECIFIQUE dans le gold")
     txt = "\n".join(lines)
     print("\n=== ÉVALUATION ===\n" + txt)
     Path(report_path).write_text(txt + "\n", encoding="utf-8")
+
+
+def propagate(df: pd.DataFrame, todo: list, res: dict) -> int:
+    """Propagation intra-acte (cf. P.PROPAGATION_KEYWORDS). Modifie res en place."""
+    allowed = set(P.PROPAGATION_KEYWORDS)
+    kws = {i: set(str(df.at[i, "kw_keywords"]).split("|")) & allowed for i in todo}
+    by_law = {}
+    for i in todo:
+        by_law.setdefault(str(df.at[i, "law_id"]), []).append(i)
+    n = 0
+    for law, items in by_law.items():
+        sources = [i for i in items if res[i]["AIREL_LABEL"] == "SPECIFIQUE" and kws[i]]
+        if not sources:
+            continue
+        for i in items:
+            if res[i]["AIREL_LABEL"] == "SPECIFIQUE" or not kws[i]:
+                continue
+            src = [j for j in sources if kws[j] & kws[i]]
+            if src:
+                res[i]["AIREL_LABEL"] = "SPECIFIQUE"
+                res[i]["AIREL_METHOD"] = "propagation"
+                res[i]["AIREL_PROPAGATED_FROM"] = ", ".join(str(df.at[j, "label"]).strip() for j in src[:5])
+                n += 1
+    return n
 
 
 def main() -> int:
@@ -106,13 +146,20 @@ def main() -> int:
     ap.add_argument("--dtype", default="bf16", choices=["bf16", "fp16"])
     ap.add_argument("--trust_remote_code", action="store_true")
     ap.add_argument("--batch_size", type=int, default=4)
-    ap.add_argument("--no_calibration", action="store_true", help="label = probabilités brutes")
+    ap.add_argument("--calibrate", action="store_true", help="label = probabilités calibrées (défaut : brutes)")
     ap.add_argument("--no_rule", action="store_true", help="envoyer aussi au LLM les articles où l'IA est nommée")
+    ap.add_argument("--no_definitions", action="store_true", help="ne pas ajouter les définitions de l'acte au prompt")
+    ap.add_argument("--no_propagation", action="store_true", help="pas de propagation intra-acte")
     ap.add_argument("--no_justification", action="store_true")
     ap.add_argument("--max_new_tokens", type=int, default=90)
     ap.add_argument("--limit", type=int, default=None, help="ne traiter que N articles (test)")
     ap.add_argument("--gold", default=None, help="CSV gold (colonne AI_RELEVANT) pour évaluer")
     args = ap.parse_args()
+
+    labels_known = {k.label for k in KEYWORDS}
+    unknown = [k for k in P.RULE_SPECIFIQUE_KEYWORDS + P.PROPAGATION_KEYWORDS if k not in labels_known]
+    if unknown:
+        raise RuntimeError(f"Mots-clés inconnus dans ai_relevance_prompts.py : {unknown}")
 
     df = read_any(args.input).reset_index(drop=True)
     lvl = pd.to_numeric(df["level"], errors="coerce")
@@ -131,17 +178,28 @@ def main() -> int:
 
     compiled = compile_keywords(KEYWORDS)
     contexts = P.build_contexts(df)
-    terms_col, prompts_user = {}, {}
+    def_index = {} if args.no_definitions else P.find_definition_articles(df)
+    terms_col, prompts_user, defs_col = {}, {}, {}
     for i in todo:
         row = df.loc[i]
-        found = find_surface_terms(f"{row['label']}\n{row['text']}", compiled)
+        full = f"{row['label']}\n{row['text']}"
+        found = find_surface_terms(full, compiled)
         terms_col[i] = [f["term"] for f in found] or [t for t in str(row.get("kw_keywords", "")).split("|") if t]
-        prompts_user[i] = P.build_user_prompt(row, contexts[i], terms_col[i])
+        defs = ""
+        if def_index:
+            kw_here = set(find_in_text(full, compiled))
+            sub = [c for c in compiled if c.kw in kw_here]
+            defs = P.definitions_for(df, i, def_index, sub, find_in_text) if sub else ""
+        defs_col[i] = defs
+        prompts_user[i] = P.build_user_prompt(row, contexts[i], terms_col[i], defs)
+    n_def = sum(1 for i in llm_idx if defs_col[i])
+    print(f"Articles de définitions repérés : {sum(len(v) for v in def_index.values())} dans {len(def_index)} actes ; "
+          f"articles LLM recevant une définition : {n_def}/{len(llm_idx)}")
 
-    res = {}   # i -> dict de colonnes AIREL_*
+    res = {}
     for i in rule_idx:
         explicit = [k for k in str(df.at[i, "kw_keywords"]).split("|") if k in rule_set]
-        res[i] = {"AIREL_METHOD": "regle", "AIREL_LABEL": "SPECIFIQUE", "AIREL_LABEL_BRUT": "SPECIFIQUE",
+        res[i] = {"AIREL_METHOD": "regle", "AIREL_LABEL": "SPECIFIQUE", "AIREL_LABEL_LLM": "",
                   "AIREL_JUSTIFICATION": "IA nommée explicitement (mot-clé : " + ", ".join(explicit) + ")"}
 
     chat_prompts, n_tok = [], []
@@ -177,14 +235,16 @@ def main() -> int:
         for k, (i, lp) in enumerate(zip(llm_idx, logps)):
             raw = softmax(lp)
             cal = calibrate(raw, p_cf)
-            use = raw if args.no_calibration else cal
-            best = max(range(3), key=lambda j: use[j])
+            use = cal if args.calibrate else raw
+            best = argmax(use)
             letters.append(P.LETTERS[best])
             res[i] = {"AIREL_METHOD": "llm",
                       "AIREL_LABEL": P.LABELS[best],
-                      "AIREL_LABEL_BRUT": P.LABELS[max(range(3), key=lambda j: raw[j])],
-                      "AIREL_P_SPECIFIQUE": round(cal[0], 4), "AIREL_P_NEUTRE": round(cal[1], 4), "AIREL_P_NON": round(cal[2], 4),
-                      "AIREL_P_SPECIFIQUE_BRUT": round(raw[0], 4), "AIREL_P_NEUTRE_BRUT": round(raw[1], 4), "AIREL_P_NON_BRUT": round(raw[2], 4),
+                      "AIREL_LABEL_LLM": P.LABELS[best],
+                      "AIREL_LABEL_BRUT": P.LABELS[argmax(raw)],
+                      "AIREL_LABEL_CALIB": P.LABELS[argmax(cal)],
+                      "AIREL_P_SPECIFIQUE": round(raw[0], 4), "AIREL_P_NEUTRE": round(raw[1], 4), "AIREL_P_NON": round(raw[2], 4),
+                      "AIREL_P_SPECIFIQUE_CALIB": round(cal[0], 4), "AIREL_P_NEUTRE_CALIB": round(cal[1], 4), "AIREL_P_NON_CALIB": round(cal[2], 4),
                       "AIREL_CONFIDENCE": round(max(use), 4),
                       "AIREL_PROMPT_TOKENS": n_tok[k]}
 
@@ -196,14 +256,19 @@ def main() -> int:
                 res[i]["AIREL_JUSTIFICATION"] = " ".join(r.split("\n\n")[0].split())
             print(f"Justifications : {time.time() - t0:.0f} s")
 
-    cols = ["AIREL_METHOD", "AIREL_TERMS", "AIREL_LABEL", "AIREL_LABEL_BRUT",
+    n_prop = 0 if args.no_propagation else propagate(df, todo, res)
+    print(f"Propagation intra-acte : {n_prop} article(s) passés en SPECIFIQUE")
+
+    cols = ["AIREL_METHOD", "AIREL_TERMS", "AIREL_DEFINITION", "AIREL_LABEL", "AIREL_LABEL_LLM",
+            "AIREL_LABEL_BRUT", "AIREL_LABEL_CALIB",
             "AIREL_P_SPECIFIQUE", "AIREL_P_NEUTRE", "AIREL_P_NON",
-            "AIREL_P_SPECIFIQUE_BRUT", "AIREL_P_NEUTRE_BRUT", "AIREL_P_NON_BRUT",
-            "AIREL_CONFIDENCE", "AIREL_JUSTIFICATION", "AIREL_PROMPT_TOKENS"]
+            "AIREL_P_SPECIFIQUE_CALIB", "AIREL_P_NEUTRE_CALIB", "AIREL_P_NON_CALIB",
+            "AIREL_CONFIDENCE", "AIREL_PROPAGATED_FROM", "AIREL_JUSTIFICATION", "AIREL_PROMPT_TOKENS"]
     for c in cols:
         df[c] = pd.NA
     for i in todo:
         df.at[i, "AIREL_TERMS"] = " | ".join(terms_col[i])
+        df.at[i, "AIREL_DEFINITION"] = defs_col[i].strip()
         for c, v in res[i].items():
             df.at[i, c] = v
 
@@ -217,17 +282,17 @@ def main() -> int:
     art.insert(0, "act_title", [contexts[i]["act_title"] for i in todo])
     art.to_csv(f"{base}_articles.csv", index=False, encoding="utf-8-sig")
     if chat_prompts:
-        Path(f"{base}_prompt_example.txt").write_text(chat_prompts[0], encoding="utf-8")
+        k_ex = next((k for k, i in enumerate(llm_idx) if defs_col[i]), 0)
+        Path(f"{base}_prompt_example.txt").write_text(chat_prompts[k_ex], encoding="utf-8")
 
     print("\n=== BILAN ===")
     vc = df.loc[todo, "AIREL_LABEL"].value_counts()
     for lab in P.LABELS:
         print(f"{lab:10s} {int(vc.get(lab, 0)):4d}")
+    print("Par méthode : " + ", ".join(f"{k}={v}" for k, v in df.loc[todo, "AIREL_METHOD"].value_counts().items()))
     if llm_idx:
         conf = df.loc[llm_idx, "AIREL_CONFIDENCE"].astype(float)
         print(f"LLM — confiance : médiane {conf.median():.2f} ; {int((conf < 0.6).sum())} article(s) sous 0.60")
-        moved = int((df.loc[llm_idx, "AIREL_LABEL"] != df.loc[llm_idx, "AIREL_LABEL_BRUT"]).sum())
-        print(f"Articles dont le label change avec la calibration : {moved}")
     print(f"\nSaved: {base}.parquet / .csv, {base}_articles.csv")
 
     if args.gold:
