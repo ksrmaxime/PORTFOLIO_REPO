@@ -1,14 +1,20 @@
 # src/ai_relevance_prompts.py
-"""Step LLM 1 : le terme trouvé par le filtre par mots-clés fait-il référence à de l'IA ?
+"""Step LLM 1 (v2) : le terme trouvé par le filtre par mots-clés renvoie-t-il à de l'IA ?
 
-Réponse en trois classes (cf. codage manuel PORTFOLIO_NEW_GOLD) :
-  SPECIFIQUE : l'IA est nommée, ou le système visé ne peut pas fonctionner sans IA ;
+Trois classes (cf. PORTFOLIO_NEW_GOLD) :
+  SPECIFIQUE : l'IA est nommée, ou le système visé perçoit / comprend / agit seul ;
   NEUTRE     : décision / évaluation / profilage par une machine, encadré quelle que soit la
-               technique (logiciel à règles fixes ou IA) ;
-  NON        : "automatisé" au sens d'informatisé / électronique / mécanique.
+               technique ;
+  NON        : simple informatique (traitement, transmission, mécanisme fixe).
 
-La réponse n'est pas générée puis lue : on mesure la probabilité que le modèle réponde
-chacun des trois mots (cf. TransformersClient.score_options).
+Changements par rapport à la v1 (src/OLD/ai_relevance_prompts_v1.py, job 66233220) :
+  - plus de test négatif (« pourrait-il fonctionner sans IA ? ») que le modèle prenait au pied
+    de la lettre ; les catégories sont décrites positivement, par ce que fait la machine ;
+  - réponse en une lettre (A/B/C) : un seul token par réponse, plus de biais de longueur ;
+  - quelques exemples INVENTÉS et généraux (aucun article du corpus) pour montrer le
+    raisonnement, pas des réponses à recopier ;
+  - les articles où l'IA est nommée explicitement (mots-clés du groupe "ia") ne passent pas
+    par le LLM : SPECIFIQUE directement (cf. RULE_SPECIFIQUE_KEYWORDS).
 """
 from __future__ import annotations
 
@@ -17,31 +23,43 @@ from typing import Dict, List
 import pandas as pd
 
 LABELS: List[str] = ["SPECIFIQUE", "NEUTRE", "NON"]
+LETTERS: List[str] = ["A", "B", "C"]                    # même ordre que LABELS
+LETTER_TO_LABEL = dict(zip(LETTERS, LABELS))
+
+# Libellés de mots-clés (src/keyword_filter.py, colonne kw_keywords) qui suffisent à classer
+# l'article SPECIFIQUE sans LLM : l'IA y est nommée en toutes lettres.
+RULE_SPECIFIQUE_KEYWORDS: List[str] = [
+    "intelligence artificielle",
+    "IA (sigle)",
+    "système d'IA",
+    "IA générative / modèle de langage",
+]
 
 SYSTEM_PROMPT = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).
 
-## Ce qu'est un système d'IA
-Un système d'IA est un système informatique qui, à partir des données qu'il reçoit, INFÈRE comment produire un résultat — prédiction, contenu, recommandation ou décision — avec un certain degré d'autonomie. Exemples : reconnaissance d'images ou de visages, compréhension ou génération de texte, conduite d'un véhicule sans conducteur, apprentissage automatique.
-Un logiciel qui applique seulement des règles fixes écrites par des humains (calculer, enregistrer, transmettre, comparer ou vérifier des données) n'est PAS de l'IA.
+Un filtre par mots-clés a repéré, dans un article de loi, un terme lié à l'automatisation. Ta tâche : dire à quel type de technologie ce terme renvoie, tel qu'il est employé dans CET article.
 
-## Ta tâche
-Un terme a été repéré dans un article de loi. Dis si, tel qu'il est employé dans CET article, il fait référence à de l'IA. Pose-toi la question :
-« Le système que ce terme désigne pourrait-il fonctionner sans IA ? »
+## Les trois catégories
+A — Système d'IA. Le terme désigne une machine qui accomplit elle-même une tâche demandant normalement de la perception, de la compréhension ou du jugement humains : conduire un véhicule à la place du conducteur, reconnaître une personne ou un objet sur une image, comprendre ou produire du texte, des images ou des sons, agir de façon autonome dans le monde réel. Il suffit que le texte vise un tel système, même s'il n'emploie pas les mots « intelligence artificielle ».
 
-## Réponses possibles
-SPECIFIQUE — Le terme désigne l'IA, ou un système qui NE PEUT PAS fonctionner sans IA.
-  Exemples : intelligence artificielle ; véhicule équipé d'un système d'automatisation qui conduit à la place du conducteur ; arme autonome ; système de reconnaissance faciale automatisée ; contenu généré par IA, hypertrucage (deepfake).
-NEUTRE — Le terme désigne une décision, une évaluation ou un profilage effectués par une machine sans intervention humaine, que la règle encadre QUELLE QUE SOIT la technique : un simple logiciel à règles fixes comme un système d'IA.
-  Exemples : décision individuelle automatisée ; profilage ; trading algorithmique.
-NON — Le terme signifie seulement « informatisé », « électronique » ou « mécanique » : la machine ne prend aucune décision sur une personne ou une situation.
-  Exemples : transmission, consultation ou comparaison automatisée de données ; traitement automatisé de données dans un registre ou un système d'information ; procédure automatisée de communication entre autorités ; robot commandé à distance ou machine industrielle ; algorithme de chiffrement ou de calcul ; enregistrement de données biométriques.
+B — Décision ou évaluation automatisée. Le terme désigne une machine qui évalue une personne ou tranche un cas à la place d'un humain : décision rendue sans intervention humaine, profilage (évaluation automatisée de caractéristiques personnelles comme le comportement, le risque, la solvabilité ou la santé), attribution d'un score ou classement de personnes. La règle vaut quelle que soit la technique (simple logiciel ou IA). Si l'article encadre l'usage de tels résultats (autorisation, communication, droits des personnes), c'est aussi B.
 
-## Règles
-- Juge l'emploi du terme dans cet article précis, pas le mot en général.
-- Le titre de l'acte et l'emplacement de l'article peuvent aider : un terme employé dans un acte ou un chapitre consacré à l'IA relève de SPECIFIQUE.
-- En cas de doute entre SPECIFIQUE et NEUTRE, réponds NEUTRE.
-- En cas de doute entre NEUTRE et NON, demande-toi si une machine prend elle-même une décision ou une évaluation concernant une personne ou une situation : si oui NEUTRE, sinon NON.
-- Réponds par un seul mot : SPECIFIQUE, NEUTRE ou NON."""
+C — Simple informatique. Le terme indique seulement que des données sont traitées par ordinateur, ou qu'un appareil fonctionne de lui-même selon un mécanisme fixe : enregistrer, transmettre, consulter, comparer, calculer, mesurer, déclencher. Aucune machine n'évalue de personne ni ne remplace un jugement humain. « Autonome » au sens d'« indépendant » et « traitement automatisé » au sens de « traitement informatique » relèvent de C.
+
+## Comment raisonner
+1. Regarde ce que fait la machine dans cet article : elle perçoit, comprend ou agit seule (A) ; elle évalue ou décide à propos d'une personne ou d'un cas (B) ; elle exécute seulement une opération sur des données ou un mécanisme (C).
+2. Juge l'emploi du terme dans cet article précis, pas le mot en général. Le titre de l'acte et le chapitre peuvent aider.
+3. Entre A et B : A si la tâche demande de percevoir ou de comprendre (voir, conduire, lire, parler) ; B si la machine applique des critères à des données sur une personne ou un cas.
+4. Entre B et C : B seulement si le résultat porte sur une personne ou un cas et tient lieu d'appréciation humaine.
+
+## Exemples (inventés, pour illustrer le raisonnement)
+- « Le drone de livraison évite seul les obstacles détectés par ses caméras. » → A : la machine perçoit son environnement et agit sans pilote.
+- « Les demandes peuvent être triées par un logiciel qui attribue un score de priorité à chaque requérant. » → B : une machine évalue des personnes.
+- « L'office peut statuer sans qu'une personne physique examine le dossier. » → B : décision rendue sans intervention humaine.
+- « Les données sont transmises par une procédure automatisée à l'autorité compétente. » → C : simple transmission informatique.
+- « La vanne se ferme automatiquement lorsque le niveau dépasse le seuil fixé. » → C : mécanisme fixe, aucun jugement.
+
+Réponds par une seule lettre : A, B ou C."""
 
 USER_TEMPLATE = """Acte : {act_title}{act_meta}
 Emplacement : {breadcrumb}
@@ -52,9 +70,21 @@ Texte de l'article :
 
 Terme(s) repéré(s) dans cet article : {terms}
 
-Ce terme fait-il ici référence à de l'intelligence artificielle ? Réponds par un seul mot : SPECIFIQUE, NEUTRE ou NON."""
+À quelle catégorie renvoie ce terme dans cet article ? Réponds par une seule lettre : A, B ou C."""
 
 JUSTIF_SUFFIX = "\n\nJustification en une phrase, en citant le passage de l'article : "
+
+# Entrées « vides » pour la calibration contextuelle : on mesure la préférence du modèle
+# pour A/B/C sans contenu informatif, puis on la retire des probabilités.
+CONTENT_FREE_INPUTS: List[Dict[str, str]] = [
+    {"act_title": "N/A", "breadcrumb": "N/A", "article_label": "N/A", "article_text": "N/A", "terms": "« N/A »"},
+    {"act_title": "", "breadcrumb": "", "article_label": "", "article_text": "", "terms": ""},
+    {"act_title": "[ACTE]", "breadcrumb": "[EMPLACEMENT]", "article_label": "[ARTICLE]", "article_text": "[TEXTE]", "terms": "« [TERME] »"},
+]
+
+
+def content_free_prompts() -> List[str]:
+    return [USER_TEMPLATE.format(act_meta="", marginal="", **d) for d in CONTENT_FREE_INPUTS]
 
 
 def build_contexts(df: pd.DataFrame) -> Dict[int, Dict[str, str]]:

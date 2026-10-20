@@ -10,16 +10,18 @@
 #SBATCH --mail-user=maxime.kaiser@unil.ch
 #SBATCH --mail-type=END,FAIL
 
-# Step LLM 1 : pour chaque article (level 6) contenant un mot-clé, Apertus indique si le
-# terme repéré fait référence à de l'IA : SPECIFIQUE / NEUTRE / NON (cf. src/ai_relevance_prompts.py).
-# La réponse est obtenue par probabilité des trois mots (pas de génération à parser),
-# puis une justification d'une phrase est générée.
+# Step LLM 1 (v2) : pour chaque article (level 6) contenant un mot-clé, classement
+# SPECIFIQUE / NEUTRE / NON (cf. src/ai_relevance_prompts.py) :
+#   - IA nommée explicitement -> SPECIFIQUE par règle, sans LLM ;
+#   - sinon Apertus répond A/B/C ; on lit la probabilité des trois lettres (une passe par
+#     article, calibrée sur des prompts vides), puis une justification d'une phrase est générée.
 #
 # Usage :
 #   sbatch sbatch_ai_relevance.sh                       # entrée par défaut (filtre core+extended sur fedlex/all)
 #   LIMIT=10 sbatch sbatch_ai_relevance.sh              # test rapide sur 10 articles
 #   GOLD=/chemin/PORTFOLIO_NEW_GOLD.csv sbatch sbatch_ai_relevance.sh   # + comparaison au codage manuel
 #   INPUT=/chemin/…_annotated.parquet sbatch sbatch_ai_relevance.sh
+#   NO_CALIBRATION=1 sbatch sbatch_ai_relevance.sh      # label sur probabilités brutes
 
 dcsrsoft use 20241118
 
@@ -35,6 +37,7 @@ OUTBASE="${WORKDIR}/data/processed/fedlex/all/llm1_ai_relevance/ai_relevance"
 MODEL_PATH="${MODEL_PATH:-/reference/LLM/swiss-ai/Apertus-8B-Instruct-2509}"
 LIMIT="${LIMIT:-}"
 GOLD="${GOLD:-}"
+NO_CALIBRATION="${NO_CALIBRATION:-}"
 
 cd "$WORKDIR"
 source .venv/bin/activate
@@ -56,6 +59,7 @@ fi
 EXTRA_ARGS=()
 [ -n "$LIMIT" ] && EXTRA_ARGS+=(--limit "$LIMIT")
 [ -n "$GOLD" ] && EXTRA_ARGS+=(--gold "$GOLD")
+[ -n "$NO_CALIBRATION" ] && EXTRA_ARGS+=(--no_calibration)
 
 python scripts/run_ai_relevance.py \
   --input "$INPUT" \

@@ -166,6 +166,46 @@ class TransformersClient:
             del out, logits, logp
         return results
 
+    def option_first_tokens(self, options: List[str]) -> List[dict]:
+        """Tokenisation de chaque option, telle qu'elle suivrait le prompt (contrôle : une
+        option doit idéalement tenir en un seul token)."""
+        out = []
+        for o in options:
+            ids = self.tok(o, add_special_tokens=False)["input_ids"]
+            out.append({"option": o, "ids": ids, "tokens": self.tok.convert_ids_to_tokens(ids)})
+        return out
+
+    def next_token_logprobs(self, prompts: List[str], options: List[str], batch_size: int = 8) -> List[List[float]]:
+        """Log-probabilité du PREMIER token de chaque option comme prochain token après le
+        prompt. Une seule passe avant par prompt (au lieu d'une par option) ; à utiliser avec
+        des options d'un seul token (ex. "A", "B", "C"), cf. option_first_tokens()."""
+        torch = self.torch
+        first = [self.tok(o, add_special_tokens=False)["input_ids"][0] for o in options]
+        pad_id = self.tok.pad_token_id if self.tok.pad_token_id is not None else self.tok.eos_token_id
+        results: List[List[float]] = []
+        bs = max(1, int(batch_size))
+        for start in range(0, len(prompts), bs):
+            batch = [self.tok(p, add_special_tokens=False)["input_ids"] for p in prompts[start:start + bs]]
+            L = max(len(s) for s in batch)
+            input_ids = torch.full((len(batch), L), pad_id, dtype=torch.long)
+            attn = torch.zeros((len(batch), L), dtype=torch.long)
+            for i, s in enumerate(batch):          # padding à gauche : dernier token en L-1
+                input_ids[i, L - len(s):] = torch.tensor(s, dtype=torch.long)
+                attn[i, L - len(s):] = 1
+            pos = (attn.cumsum(-1) - 1).clamp(min=0)
+            dev = self.model.device
+            input_ids, attn, pos = input_ids.to(dev), attn.to(dev), pos.to(dev)
+            with torch.inference_mode():
+                try:
+                    out = self.model(input_ids=input_ids, attention_mask=attn, position_ids=pos, logits_to_keep=1)
+                except TypeError:
+                    out = self.model(input_ids=input_ids, attention_mask=attn, position_ids=pos)
+                logp = torch.log_softmax(out.logits[:, -1, :].float(), dim=-1)
+            for i in range(len(batch)):
+                results.append([float(logp[i, t].item()) for t in first])
+            del out, logp
+        return results
+
     def generate_from_prompts(self, prompts: List[str], max_new_tokens: int = 80, batch_size: int = 4) -> List[str]:
         """Génération gloutonne à partir de prompts déjà formatés (ex. prompt + début de réponse)."""
         res: List[str] = []
