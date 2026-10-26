@@ -143,6 +143,10 @@ def evaluate(out: pd.DataFrame, gold_path: str, report_path: str) -> None:
     sub_p = [m["POL_SUBTARGET"].iloc[i] or "(aucun)" for i in range(len(m)) if mech[i] and gs.iloc[i]]
     lines.append(pd.crosstab(pd.Series(sub_g, name="gold"), pd.Series(sub_p, name="prédit")).to_string())
 
+    for col, lab in [("POL_SUBTARGET_BRUT", "brute"), ("POL_SUBTARGET_CALIB", "calibrée")]:
+        if col in m.columns:
+            okx = [m[col].iloc[i] in gs.iloc[i] for i in both]
+            lines.append(f"Sous-catégorie {lab}, quand le cadran est juste : {sum(okx) / max(1, len(both)):.1%}")
     idx = [i for i in range(len(m)) if mech[i]]
     ok_i = [m["POL_INSTRUMENT"].iloc[i] in gi.iloc[i] for i in idx]
     ok_i2 = [ok or (m["POL_INSTRUMENT_2"].iloc[i] in gi.iloc[i]) for ok, i in zip(ok_i, idx)]
@@ -166,8 +170,8 @@ def main() -> int:
     ap.add_argument("--no_definitions", action="store_true")
     ap.add_argument("--debias", action="store_true",
                     help="cadran, sous-catégorie et instrument posés dans deux ordres (défaut : un seul, comme au run 66533384)")
-    ap.add_argument("--acc_threshold", type=float, default=0.5,
-                    help="probabilité de « oui » à partir de laquelle la sous-catégorie est ACCOUNTABILITY_TRANSPARENCY")
+    ap.add_argument("--sub_raw", action="store_true",
+                    help="sous-catégorie choisie sur les scores bruts (défaut : scores calibrés sur un article vide)")
     ap.add_argument("--no_justification", action="store_true")
     ap.add_argument("--max_new_tokens", type=int, default=90)
     ap.add_argument("--limit", type=int, default=None)
@@ -238,36 +242,42 @@ def main() -> int:
         examples["q1"] = ref1[todo[0]][0]
     mech = [i for i in todo if res[i]["POL_TARGET"]]
 
-    # ---- Q2 sous-catégorie
-    # cadrans « risque » : d'abord la question oui/non sur l'accountability (toujours posée
-    # dans les deux ordres, oui/non puis non/oui), puis choix parmi les 4 autres sous-catégories
-    risk = [i for i in mech if res[i]["POL_TARGET"].endswith("_RISK")]
-    support = [i for i in mech if not res[i]["POL_TARGET"].endswith("_RISK")]
-    acc_acc, ref_acc = score_question(client, risk, lambda i, o: Q.acc_system(o), user_fn("acc"), 2, True, args.batch_size)
-    accR, refR = score_question(client, risk, lambda i, o: Q.q2_system(res[i]["POL_TARGET"], o, exclude=["ACCOUNTABILITY_TRANSPARENCY"]),
-                                user_fn("q2"), 4, debias, args.batch_size)
-    accS, refS = score_question(client, support, lambda i, o: Q.q2_system(res[i]["POL_TARGET"], o), user_fn("q2"), 5, debias, args.batch_size)
-    for i in risk:
-        p_acc = acc_acc[i].get("OUI", 0.0)
-        others = ranked_dict(accR[i])
-        if p_acc >= args.acc_threshold:
-            r = [("ACCOUNTABILITY_TRANSPARENCY", p_acc)] + others
-        else:
-            r = others[:1] + [("ACCOUNTABILITY_TRANSPARENCY", p_acc)] + others[1:]
+    # ---- Q2 sous-catégorie : une question oui/non par sous-catégorie de la colonne du cadran,
+    # posée dans les deux ordres (oui/non puis non/oui). Score = probabilité moyenne du « oui ».
+    # Calibration : même question sur un article vide -> penchant du modèle pour « oui » propre à
+    # chaque question, retiré du score (score calibré). Sous-catégorie retenue = score le plus élevé.
+    pairs = [(i, sub) for i in mech for sub in Q.sub_codes(res[i]["POL_TARGET"])]
+    acc2, ref2 = score_question(client, pairs,
+                                lambda key, o: Q.sub_yesno_system(res[key[0]]["POL_TARGET"], key[1], o),
+                                lambda key, letters: Q.build_user_prompt(*base_args[key[0]], "sub_yesno", letters),
+                                2, True, args.batch_size)
+    cf_keys = sorted({(res[i]["POL_TARGET"], sub) for i, sub in pairs})
+    acc_cf, _ = score_question(client, cf_keys, lambda key, o: Q.sub_yesno_system(key[0], key[1], o),
+                               lambda key, letters: Q.content_free_user_prompt("sub_yesno", letters),
+                               2, True, args.batch_size)
+    p_cf = {k: min(max(acc_cf[k].get("OUI", 0.5), 1e-4), 1 - 1e-4) for k in cf_keys}
+    if cf_keys:
+        print("Penchant pour « oui » (article vide) : " + ", ".join(f"{q[3:]}/{sub}={p_cf[(q, sub)]:.2f}" for q, sub in cf_keys))
+
+    def calib(pv, pc):
+        pv = min(max(pv, 1e-4), 1 - 1e-4)
+        o = (pv / (1 - pv)) / (pc / (1 - pc))
+        return o / (1 + o)
+
+    for i in mech:
+        q = res[i]["POL_TARGET"]
+        raw = {sub: acc2[(i, sub)].get("OUI", 0.0) for sub in Q.sub_codes(q)}
+        cal = {sub: calib(raw[sub], p_cf[(q, sub)]) for sub in raw}
+        use = raw if args.sub_raw else cal
+        r = ranked_dict(use)
         res[i].update({"POL_SUBTARGET": r[0][0], "POL_SUBTARGET_P": round(r[0][1], 4),
                        "POL_SUBTARGET_2": r[1][0], "POL_SUBTARGET_2_P": round(r[1][1], 4),
-                       "POL_ACCOUNTABILITY_P": round(p_acc, 4),
-                       "POL_SUBTARGET_PROBS": f"ACCOUNTABILITY(oui):{p_acc:.3f} || " + dist_str(others)})
-    for i in support:
-        r = ranked_dict(accS[i])
-        res[i].update({"POL_SUBTARGET": r[0][0], "POL_SUBTARGET_P": round(r[0][1], 4),
-                       "POL_SUBTARGET_2": r[1][0], "POL_SUBTARGET_2_P": round(r[1][1], 4),
-                       "POL_SUBTARGET_PROBS": dist_str(r)})
-    if risk:
-        examples["acc"] = ref_acc[risk[0]][0]
-        examples["q2"] = refR[risk[0]][0]
-    elif support:
-        examples["q2"] = refS[support[0]][0]
+                       "POL_SUBTARGET_BRUT": ranked_dict(raw)[0][0],
+                       "POL_SUBTARGET_CALIB": ranked_dict(cal)[0][0],
+                       "POL_SUBTARGET_PROBS": dist_str(ranked_dict(raw)),
+                       "POL_SUBTARGET_PROBS_CALIB": dist_str(ranked_dict(cal))})
+    if pairs:
+        examples["q2"] = ref2[pairs[0]][0]
 
     # ---- Q3 instrument
     acc3, ref3 = score_question(client, mech, lambda i, o: Q.q3_system(o), user_fn("q3"),
@@ -303,7 +313,7 @@ def main() -> int:
     cols = ["POL_QUADRANT", "POL_TARGET", "POL_TARGET_P", "POL_TARGET_2", "POL_TARGET_2_P",
             "POL_SUBTARGET", "POL_SUBTARGET_P", "POL_SUBTARGET_2", "POL_SUBTARGET_2_P",
             "POL_INSTRUMENT", "POL_INSTRUMENT_P", "POL_INSTRUMENT_2", "POL_INSTRUMENT_2_P",
-            "POL_TARGET_PROBS", "POL_SUBTARGET_PROBS", "POL_INSTRUMENT_PROBS", "POL_ACCOUNTABILITY_P",
+            "POL_TARGET_PROBS", "POL_SUBTARGET_PROBS", "POL_SUBTARGET_PROBS_CALIB", "POL_SUBTARGET_BRUT", "POL_SUBTARGET_CALIB", "POL_INSTRUMENT_PROBS",
             "POL_DEFINITION", "POL_TARGET_JUSTIFICATION", "POL_INSTRUMENT_JUSTIFICATION"]
     for c in cols:
         df[c] = pd.NA

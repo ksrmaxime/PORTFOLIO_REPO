@@ -1,5 +1,5 @@
 # src/policy_classification_prompts.py
-"""Step LLM 2 (v4 : cadran identique au run 66533384 ; pour les cadrans « risque », question oui/non sur l'accountability avant la sous-catégorie ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
+"""Step LLM 2 (v5 : cadran identique au run 66533384 ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
 
 Cf. le codebook (Claude Docs « Codebook – Portfolio IA »). Trois questions, chacune posée avec
 toutes ses options à la fois, réponse en une lettre (lecture de la probabilité des lettres) :
@@ -110,26 +110,55 @@ FOCUS = {"AI_PRODUCTION": "la ressource que l'État fournit ou facilite par cet 
          "AI_PRODUCTION_RISK": "l'intérêt que cet article protège",
          "AI_ADOPTION_RISK": "l'intérêt que cet article protège"}
 
-# ------------------------------------------------------------------ Q2bis accountability (cadrans « risque »)
-# Question oui/non posée AVANT le choix de la sous-catégorie pour les cadrans *_RISK : si
-# l'article sert surtout à la responsabilité (accountability), la sous-catégorie est
-# ACCOUNTABILITY_TRANSPARENCY ; sinon le modèle choisit parmi les 4 autres sous-catégories.
-ACC_OPTIONS: List[Tuple[str, str]] = [
-    ("OUI", "Oui : l'article sert surtout à la RESPONSABILITÉ (accountability), c'est-à-dire à pouvoir établir après coup qui a fait quoi et qui en répond."),
-    ("NON", "Non : l'article sert surtout à autre chose — exigences techniques de sécurité, contrôles, entretien, restrictions d'usage, protection des données personnelles, propriété, effets sur la société."),
-]
+# ------------------------------------------------------------------ Q2 en questions oui/non
+# Pass 2 : pour le cadran choisi, l'article est soumis à UNE question oui/non PAR sous-catégorie
+# de sa colonne (5 questions), toutes construites sur le même modèle. Chaque question donne une
+# probabilité de « oui » ; la sous-catégorie retenue est celle qui a la probabilité la plus élevée.
+# Toutes les sous-catégories sont traitées de la même façon (aucune règle propre à l'une d'elles).
 
-ACC_SYSTEM = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).
+SUB_NAMES: Dict[str, str] = {
+    "DATA": "les données", "SKILLS": "les compétences", "RESEARCH_INNOVATION": "la recherche et l'innovation",
+    "INFRASTRUCTURE": "les infrastructures", "GOVERNANCE": "la gouvernance",
+    "PRIVACY_RIGHTS": "la vie privée et les droits des personnes", "SAFETY_SECURITY": "la sécurité",
+    "ACCOUNTABILITY_TRANSPARENCY": "la responsabilité (accountability) et la transparence",
+    "PROPERTY_ECONOMY": "la propriété et l'économie", "SOCIETY": "la société",
+}
 
-L'article ci-dessous limite les risques liés à un système d'IA ou à un système qui en dépend. Ta tâche : dire si cet article sert surtout à la RESPONSABILITÉ (accountability), c'est-à-dire à pouvoir établir après coup qui a fait quoi et qui en répond.
+# deux exemples inventés et généraux par sous-catégorie ; dans la question d'une sous-catégorie,
+# ses exemples servent de « oui » et un exemple de chacune des autres de la même colonne de « non »
+SUB_EXAMPLES: Dict[str, List[str]] = {
+    "DATA": ["Les jeux de données publics sont mis à disposition pour entraîner des modèles.",
+             "Les services partagent leurs données dans un format commun pour les applications d'IA."],
+    "SKILLS": ["Un programme forme les agents publics à l'utilisation des outils d'IA.",
+               "Des bourses sont créées pour former des spécialistes en apprentissage automatique."],
+    "RESEARCH_INNOVATION": ["La Confédération finance un centre de recherche en IA.",
+                            "L'office développe un outil de prévision fondé sur l'IA."],
+    "INFRASTRUCTURE": ["Un supercalculateur est mis à disposition des chercheurs.",
+                       "Des emplacements réservés aux robots de livraison sont aménagés."],
+    "GOVERNANCE": ["Un service est chargé de coordonner l'usage de l'IA dans l'administration.",
+                   "Les autorités peuvent utiliser un logiciel de traduction automatique."],
+    "PRIVACY_RIGHTS": ["Les images saisies par le système sont effacées après dix jours.",
+                       "Le système ne peut être utilisé que pour identifier des personnes recherchées."],
+    "SAFETY_SECURITY": ["Le robot doit résister aux cyberattaques et passer un contrôle technique annuel.",
+                        "Le système doit pouvoir s'arrêter sans danger en cas de panne."],
+    "ACCOUNTABILITY_TRANSPARENCY": ["Le robot de livraison enregistre chaque arrêt d'urgence avec l'heure et la cause.",
+                                    "Une personne doit surveiller le drone et pouvoir en reprendre le contrôle."],
+    "PROPERTY_ECONOMY": ["Les œuvres protégées ne peuvent pas servir à entraîner un modèle sans l'accord des auteurs.",
+                         "Les droits sur les textes générés par l'IA reviennent à l'utilisateur."],
+    "SOCIETY": ["Les hypertrucages destinés à tromper les électeurs sont interdits pendant les campagnes.",
+                "L'impact de l'automatisation sur l'emploi fait l'objet d'un suivi."],
+}
 
-## Ce qui relève de la responsabilité (accountability)
-- enregistrer ou tracer ce que fait le système (enregistreur, journal des événements, horodatage) ;
-- régler l'accès aux données enregistrées pour établir les faits après un accident ou une infraction ;
-- exiger qu'une personne surveille le système ou puisse reprendre le contrôle (contrôle humain) ;
-- désigner qui est responsable du système ou de son usage ;
-- exiger de remettre des instructions ou des explications aux utilisateurs, d'informer les personnes ou de signaler l'usage de l'IA.
-Même si le but final est la sécurité, un article de ce type relève de la responsabilité.
+YESNO_OPTIONS: List[Tuple[str, str]] = [("OUI", "Oui"), ("NON", "Non")]
+
+SUB_YESNO_SYSTEM = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).
+
+L'article ci-dessous a été classé dans la catégorie suivante : {quadrant_desc}
+
+Ta tâche : dire si cet article vise surtout {sub_name}.
+
+## Définition
+{definition}
 
 ## Réponses possibles
 {options}
@@ -139,13 +168,28 @@ Même si le but final est la sécurité, un article de ce type relève de la res
 
 Réponds par une seule lettre : {letters}."""
 
-ACC_EXAMPLES: List[Tuple[str, str]] = [
-    ("Le robot de livraison enregistre chaque arrêt d'urgence avec l'heure et la cause.", "OUI"),
-    ("L'opérateur doit surveiller le vol du drone et pouvoir l'arrêter à tout moment.", "OUI"),
-    ("Le vendeur remet à l'acheteur une notice expliquant le fonctionnement du système.", "OUI"),
-    ("Le système doit résister aux cyberattaques et être contrôlé chaque année.", "NON"),
-    ("Les images enregistrées sont effacées après dix jours.", "NON"),
-]
+
+def sub_codes(quadrant: str) -> List[str]:
+    return RISK_SUBS if quadrant.endswith("_RISK") else SUPPORT_SUBS
+
+
+def sub_yesno_system(quadrant: str, sub: str, order: List[int] = None):
+    order = order or [0, 1]
+    block, letters, codes = _render(YESNO_OPTIONS, order)
+    pos = {c: l for l, c in zip(letters, codes)}
+    ex = [f"- « {t} » → {pos['OUI']}" for t in SUB_EXAMPLES[sub]]
+    ex += [f"- « {SUB_EXAMPLES[o][0]} » → {pos['NON']}" for o in sub_codes(quadrant) if o != sub]
+    return SUB_YESNO_SYSTEM.format(quadrant_desc=dict(QUADRANTS)[quadrant], sub_name=SUB_NAMES[sub],
+                                   definition=SUB_DESC[quadrant][sub], options=block,
+                                   letters=", ".join(letters), examples="\n".join(ex)), letters, codes
+
+
+def content_free_user_prompt(question: str, letters: List[str]) -> str:
+    """Prompt utilisateur sans contenu (calibration : penchant du modèle pour « oui »)."""
+    return USER_TEMPLATE.format(act_title="N/A", act_meta="", breadcrumb="N/A", definitions="",
+                                article_label="N/A", marginal="", article_text="N/A", terms="« N/A »",
+                                question=Q_LINES[question].format(letters=", ".join(letters)))
+
 
 # ------------------------------------------------------------------ Q3 instrument
 INSTRUMENTS: List[Tuple[str, str]] = [
@@ -202,7 +246,7 @@ Système concerné (terme repéré) : {terms}
 Q_LINES = {
     "q1": "Que fait l'État avec cet article ? Réponds par une seule lettre : {letters}.",
     "q2": "Quelle sous-catégorie ? Réponds par une seule lettre : {letters}.",
-    "acc": "Cet article sert-il surtout à la responsabilité (accountability) ? Réponds par une seule lettre : {letters}.",
+    "sub_yesno": "Cet article vise-t-il surtout cette sous-catégorie ? Réponds par une seule lettre : {letters}.",
     "q3": "Quel est l'instrument ? Réponds par une seule lettre : {letters}.",
 }
 
@@ -237,13 +281,6 @@ def q1_system(order: List[int] = None):
     block, letters, codes = _render(QUADRANTS, order)
     return Q1_SYSTEM.format(options=block, letters=", ".join(letters),
                             examples=_examples(Q1_EXAMPLES, letters, codes)), letters, codes
-
-
-def acc_system(order: List[int] = None):
-    order = order or [0, 1]
-    block, letters, codes = _render(ACC_OPTIONS, order)
-    return ACC_SYSTEM.format(options=block, letters=", ".join(letters),
-                             examples=_examples(ACC_EXAMPLES, letters, codes)), letters, codes
 
 
 def q2_system(quadrant: str, order: List[int] = None, exclude: List[str] = None):
