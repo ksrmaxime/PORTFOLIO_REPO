@@ -130,6 +130,11 @@ def evaluate(out: pd.DataFrame, gold_path: str, report_path: str) -> None:
     ok_t = [(p in t) if t else (p == "") for p, t in zip(pt, gt)]
     ok_t2 = [ok or (str(p2) in t) for ok, p2, t in zip(ok_t, m["POL_TARGET_2"].fillna(""), gt)]
     lines.append(f"\nCadran : exactitude {sum(ok_t) / len(m):.1%}   (vrai dans les 2 premières réponses : {sum(ok_t2) / len(m):.1%})")
+    for col, lab in [("POL_TARGET_BRUT", "brut"), ("POL_TARGET_CALIB", "corrigé")]:
+        if col in m.columns and (m[col] != "").any():
+            pc = m[col].replace("AUCUN", "")
+            okc = [(p in t) if t else (p == "") for p, t in zip(pc, gt)]
+            lines.append(f"Cadran {lab} : exactitude {sum(okc) / len(m):.1%}")
     gt1 = [t[0] if t else "(aucun)" for t in gt]
     lines.append(pd.crosstab(pd.Series(gt1, name="gold"), pt.replace("", "(aucun)").rename("prédit")).to_string())
 
@@ -170,6 +175,10 @@ def main() -> int:
     ap.add_argument("--no_definitions", action="store_true")
     ap.add_argument("--debias", action="store_true",
                     help="cadran, sous-catégorie et instrument posés dans deux ordres (défaut : un seul, comme au run 66533384)")
+    ap.add_argument("--q1_multichoice", action="store_true",
+                    help="cadran : ancienne question à 5 options (défaut : une question oui/non par option)")
+    ap.add_argument("--target_raw", action="store_true",
+                    help="cadran choisi sur les scores bruts (défaut : scores corrigés sur un article vide)")
     ap.add_argument("--sub_raw", action="store_true",
                     help="sous-catégorie choisie sur les scores bruts (défaut : scores calibrés sur un article vide)")
     ap.add_argument("--no_justification", action="store_true")
@@ -230,16 +239,48 @@ def main() -> int:
     def user_fn(question):
         return lambda i, letters: Q.build_user_prompt(*base_args[i], question, letters)
 
+    def calib(pv, pc):
+        pv = min(max(pv, 1e-4), 1 - 1e-4)
+        o = (pv / (1 - pv)) / (pc / (1 - pc))
+        return o / (1 + o)
+
     # ---- Q1 cadran
-    acc1, ref1 = score_question(client, todo, lambda i, o: Q.q1_system(o), user_fn("q1"),
-                                len(Q.QUADRANTS), debias, args.batch_size)
-    for i in todo:
-        r = ranked_dict(acc1[i])
-        res[i].update({"POL_QUADRANT": r[0][0] or "AUCUN", "POL_TARGET": r[0][0], "POL_TARGET_P": round(r[0][1], 4),
-                       "POL_TARGET_2": r[1][0] or "AUCUN", "POL_TARGET_2_P": round(r[1][1], 4),
-                       "POL_TARGET_PROBS": dist_str(r)})
-    if todo:
-        examples["q1"] = ref1[todo[0]][0]
+    if args.q1_multichoice:
+        # ancienne méthode : une question à 5 options
+        acc1, ref1 = score_question(client, todo, lambda i, o: Q.q1_system(o), user_fn("q1"),
+                                    len(Q.QUADRANTS), debias, args.batch_size)
+        for i in todo:
+            r = ranked_dict(acc1[i])
+            res[i].update({"POL_QUADRANT": r[0][0] or "AUCUN", "POL_TARGET": r[0][0], "POL_TARGET_P": round(r[0][1], 4),
+                           "POL_TARGET_2": r[1][0] or "AUCUN", "POL_TARGET_2_P": round(r[1][1], 4),
+                           "POL_TARGET_PROBS": dist_str(r)})
+        if todo:
+            examples["q1"] = ref1[todo[0]][0]
+    else:
+        # une question oui/non par option (4 cadrans + aucun mécanisme), posée dans les deux
+        # ordres ; score = probabilité du « oui », corrigée du penchant mesuré sur un article vide
+        qcodes = Q.quadrant_codes()
+        pairs1 = [(i, c) for i in todo for c in qcodes]
+        acc1, ref1 = score_question(client, pairs1, lambda key, o: Q.quadrant_yesno_system(key[1], o),
+                                    lambda key, letters: Q.build_user_prompt(*base_args[key[0]], "q1_yesno", letters),
+                                    2, True, args.batch_size)
+        acc1_cf, _ = score_question(client, qcodes, lambda key, o: Q.quadrant_yesno_system(key, o),
+                                    lambda key, letters: Q.content_free_user_prompt("q1_yesno", letters),
+                                    2, True, args.batch_size)
+        p1_cf = {c: min(max(acc1_cf[c].get("OUI", 0.5), 1e-4), 1 - 1e-4) for c in qcodes}
+        print("Cadran — penchant pour « oui » (article vide) : " + ", ".join(f"{c or 'AUCUN'}={v:.2f}" for c, v in p1_cf.items()))
+        for i in todo:
+            raw = {c: acc1[(i, c)].get("OUI", 0.0) for c in qcodes}
+            cal = {c: calib(raw[c], p1_cf[c]) for c in qcodes}
+            r = ranked_dict(raw if args.target_raw else cal)
+            res[i].update({"POL_QUADRANT": r[0][0] or "AUCUN", "POL_TARGET": r[0][0], "POL_TARGET_P": round(r[0][1], 4),
+                           "POL_TARGET_2": r[1][0] or "AUCUN", "POL_TARGET_2_P": round(r[1][1], 4),
+                           "POL_TARGET_BRUT": ranked_dict(raw)[0][0] or "AUCUN",
+                           "POL_TARGET_CALIB": ranked_dict(cal)[0][0] or "AUCUN",
+                           "POL_TARGET_PROBS": dist_str(ranked_dict(raw)),
+                           "POL_TARGET_PROBS_CALIB": dist_str(ranked_dict(cal))})
+        if todo:
+            examples["q1"] = ref1[pairs1[0]][0]
     mech = [i for i in todo if res[i]["POL_TARGET"]]
 
     # ---- Q2 sous-catégorie : une question oui/non par sous-catégorie de la colonne du cadran,
@@ -258,11 +299,6 @@ def main() -> int:
     p_cf = {k: min(max(acc_cf[k].get("OUI", 0.5), 1e-4), 1 - 1e-4) for k in cf_keys}
     if cf_keys:
         print("Penchant pour « oui » (article vide) : " + ", ".join(f"{q[3:]}/{sub}={p_cf[(q, sub)]:.2f}" for q, sub in cf_keys))
-
-    def calib(pv, pc):
-        pv = min(max(pv, 1e-4), 1 - 1e-4)
-        o = (pv / (1 - pv)) / (pc / (1 - pc))
-        return o / (1 + o)
 
     for i in mech:
         q = res[i]["POL_TARGET"]
@@ -291,8 +327,12 @@ def main() -> int:
         examples["q3"] = ref3[mech[0]][0]
 
     # lettres et prompts de référence pour les justifications
-    p1 = [ref1[i][0] for i in todo]
-    letter1 = {i: ref1[i][1][ref1[i][2].index(res[i]["POL_TARGET"])] for i in todo}
+    if args.q1_multichoice:
+        p1 = [ref1[i][0] for i in todo]
+        letter1 = {i: ref1[i][1][ref1[i][2].index(res[i]["POL_TARGET"])] for i in todo}
+    else:   # justification = suite du prompt oui/non de l'option retenue, après « oui »
+        p1 = [ref1[(i, res[i]["POL_TARGET"])][0] for i in todo]
+        letter1 = {i: ref1[(i, res[i]["POL_TARGET"])][1][ref1[(i, res[i]["POL_TARGET"])][2].index("OUI")] for i in todo}
     p3 = {i: ref3[i][0] for i in mech}
     letter3 = {i: ref3[i][1][ref3[i][2].index(res[i]["POL_INSTRUMENT"])] for i in mech}
 
@@ -313,7 +353,7 @@ def main() -> int:
     cols = ["POL_QUADRANT", "POL_TARGET", "POL_TARGET_P", "POL_TARGET_2", "POL_TARGET_2_P",
             "POL_SUBTARGET", "POL_SUBTARGET_P", "POL_SUBTARGET_2", "POL_SUBTARGET_2_P",
             "POL_INSTRUMENT", "POL_INSTRUMENT_P", "POL_INSTRUMENT_2", "POL_INSTRUMENT_2_P",
-            "POL_TARGET_PROBS", "POL_SUBTARGET_PROBS", "POL_SUBTARGET_PROBS_CALIB", "POL_SUBTARGET_BRUT", "POL_SUBTARGET_CALIB", "POL_INSTRUMENT_PROBS",
+            "POL_TARGET_PROBS", "POL_TARGET_PROBS_CALIB", "POL_TARGET_BRUT", "POL_TARGET_CALIB", "POL_SUBTARGET_PROBS", "POL_SUBTARGET_PROBS_CALIB", "POL_SUBTARGET_BRUT", "POL_SUBTARGET_CALIB", "POL_INSTRUMENT_PROBS",
             "POL_DEFINITION", "POL_TARGET_JUSTIFICATION", "POL_INSTRUMENT_JUSTIFICATION"]
     for c in cols:
         df[c] = pd.NA
