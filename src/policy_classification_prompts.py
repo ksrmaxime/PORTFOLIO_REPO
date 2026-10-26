@@ -1,5 +1,5 @@
 # src/policy_classification_prompts.py
-"""Step LLM 2 (v3 : options présentées dans deux ordres et probabilités moyennées ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
+"""Step LLM 2 (v4 : cadran identique au run 66533384 ; pour les cadrans « risque », question oui/non sur l'accountability avant la sous-catégorie ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
 
 Cf. le codebook (Claude Docs « Codebook – Portfolio IA »). Trois questions, chacune posée avec
 toutes ses options à la fois, réponse en une lettre (lecture de la probabilité des lettres) :
@@ -18,10 +18,10 @@ LETTERS = list("ABCDEFGHI")
 
 # ------------------------------------------------------------------ Q1 cadran
 QUADRANTS: List[Tuple[str, str]] = [
-    ("AI_PRODUCTION", "Encourager la production, sans conditions : l'État fournit ou facilite les moyens de produire l'IA (données d'entraînement, serveurs et puces pour l'entraînement, recherche, appui au développement de l'IA comme un soutien en science des données et en IA, formation de développeurs)."),
+    ("AI_PRODUCTION", "Encourager la production, sans conditions : l'État fournit ou facilite les moyens de produire l'IA (données d'entraînement, serveurs et puces pour l'entraînement, recherche, formation de développeurs)."),
     ("AI_ADOPTION", "Encourager l'adoption, sans conditions : l'État donne ou encourage directement l'utilisation (créer une cellule ou un réseau, coordonner, financer, aménager une infrastructure pour l'usage, permettre un usage sans le conditionner)."),
-    ("AI_PRODUCTION_RISK", "Limiter les risques de la production : conditions ou exigences sur les moyens de produire l'IA eux-mêmes (données d'entraînement, infrastructure de calcul, code du modèle en cours de développement). Ne concerne jamais l'homologation, la réception par type ni les exigences sur un véhicule ou un système destiné à être utilisé."),
-    ("AI_ADOPTION_RISK", "Limiter les risques de l'adoption : conditions, limites, exigences ou garanties sur le produit final, son utilisation, sa mise en circulation ou sa vente — y compris les obligations du constructeur sur ce produit (usage autorisé sous conditions, homologation et réception par type, exigences techniques sur le système, cybersécurité et mises à jour du produit, enregistrement des événements, notification des incidents, contrôle humain, données traitées et leur effacement, sanctions, interdiction de vendre ou de fournir le service)."),
+    ("AI_PRODUCTION_RISK", "Limiter les risques de la production : conditions ou exigences sur les moyens de produire l'IA (solidité du code : cybersécurité et gestion des mises à jour logicielles chez le développeur ; données d'entraînement ; infrastructure de calcul)."),
+    ("AI_ADOPTION_RISK", "Limiter les risques de l'adoption : conditions, limites, exigences ou garanties sur le produit final, son utilisation, sa mise en circulation ou sa vente (usage autorisé sous conditions, homologation, exigences techniques sur le système mis en circulation, enregistrement des événements, contrôle humain, données traitées et leur effacement, sanctions, interdiction de vendre ou de fournir le service)."),
     ("", "Aucun mécanisme : l'article définit seulement un terme ou décrit l'objet de l'acte, sans règle propre."),
 ]
 
@@ -33,7 +33,7 @@ L'article ci-dessous concerne un système d'IA ou un système qui en dépend (co
 Dès que l'article pose des conditions, des limites, des exigences ou des garanties, il limite les risques, MÊME s'il autorise l'utilisation. L'article n'est hors risque que si l'État donne ou encourage directement, sans conditions.
 
 ## Règle 2 — Production ou adoption
-« Production » est réservé aux moyens de produire l'IA eux-mêmes : données d'entraînement, code du modèle en cours de développement, serveurs et puces pour l'entraînement, recherche et appui au développement de l'IA. Tout ce qui porte sur le produit (un véhicule, un système, un service) relève de l'« adoption » : son utilisation, la sécurité de son fonctionnement, sa cybersécurité et ses mises à jour, son homologation et sa réception par type, sa mise en circulation, sa vente ou la fourniture de son service à des tiers — même quand l'obligation pèse sur le constructeur et même si elle s'applique avant la mise en circulation.
+« Production » est réservé aux moyens de produire l'IA : données d'entraînement, solidité du code (cybersécurité, mises à jour logicielles chez le développeur), serveurs et puces pour l'entraînement, recherche. Tout ce qui porte sur le produit final relève de l'« adoption » : son utilisation, la sécurité de son utilisation, sa mise en circulation et son homologation, sa vente ou la fourniture de son service à des tiers, même quand l'obligation pèse sur le constructeur.
 
 ## Réponses possibles
 {options}
@@ -49,8 +49,8 @@ Réponds par une seule lettre : {letters}."""
 Q1_EXAMPLES: List[Tuple[str, str]] = [
     ("La Confédération soutient des programmes de recherche en apprentissage automatique.", "AI_PRODUCTION"),
     ("L'office crée un centre de compétences pour accompagner les services qui utilisent l'IA.", "AI_ADOPTION"),
-    ("Les données utilisées pour entraîner un modèle doivent être protégées contre les accès non autorisés.", "AI_PRODUCTION_RISK"),
-    ("Le constructeur doit faire homologuer le système et assurer sa cybersécurité et ses mises à jour.", "AI_ADOPTION_RISK"),
+    ("Le développeur doit protéger le code et les données d'entraînement de son modèle contre les intrusions.", "AI_PRODUCTION_RISK"),
+    ("Le fabricant d'un robot de soins doit démontrer sa sécurité avant la mise sur le marché.", "AI_ADOPTION_RISK"),
     ("L'office peut recourir à un logiciel d'analyse d'images si les personnes concernées en sont informées.", "AI_ADOPTION_RISK"),
     ("Au sens de la présente loi, on entend par drone autonome un aéronef capable de voler sans pilote.", ""),
 ]
@@ -61,9 +61,9 @@ RISK_SUBS = ["PRIVACY_RIGHTS", "SAFETY_SECURITY", "ACCOUNTABILITY_TRANSPARENCY",
 
 SUB_DESC: Dict[str, Dict[str, str]] = {
     "AI_PRODUCTION": {
-        "DATA": "Données : accès aux données d'entraînement (uniquement l'accès), partage de données pour développer des systèmes.",
+        "DATA": "Données : accès aux données d'entraînement, partage de données pour développer des systèmes.",
         "SKILLS": "Compétences : formation de développeurs, de chercheurs et de spécialistes de l'IA.",
-        "RESEARCH_INNOVATION": "Recherche et innovation : recherche en IA, instituts, programmes de développement, appui ou soutien au développement de l'IA (science des données, IA).",
+        "RESEARCH_INNOVATION": "Recherche et innovation : recherche en IA, instituts, programmes de développement.",
         "INFRASTRUCTURE": "Infrastructures : capacités de calcul, supercalculateurs, plateformes de développement.",
         "GOVERNANCE": "Gouvernance : sécurité juridique, coordination ou cadre favorable au développement.",
     },
@@ -76,7 +76,7 @@ SUB_DESC: Dict[str, Dict[str, str]] = {
     },
     "AI_PRODUCTION_RISK": {
         "PRIVACY_RIGHTS": "Vie privée et droits : données personnelles utilisées pour l'entraînement, biais introduits à l'entraînement.",
-        "SAFETY_SECURITY": "Sécurité : solidité du code pendant le développement, sécurité de l'infrastructure d'entraînement.",
+        "SAFETY_SECURITY": "Sécurité : solidité du code (cybersécurité, gestion des mises à jour logicielles chez le développeur), sécurité de l'infrastructure d'entraînement.",
         "ACCOUNTABILITY_TRANSPARENCY": "Responsabilité (accountability), puis transparence : pouvoir établir après coup comment le système a été développé et qui en répond — documentation du développement et des données d'entraînement.",
         "PROPERTY_ECONOMY": "Propriété et économie : droits d'auteur sur les données d'entraînement, concurrence entre fournisseurs.",
         "SOCIETY": "Société : effets collectifs de la production (environnement, consommation d'énergie du calcul).",
@@ -109,6 +109,43 @@ FOCUS = {"AI_PRODUCTION": "la ressource que l'État fournit ou facilite par cet 
          "AI_ADOPTION": "la ressource que l'État fournit ou facilite par cet article",
          "AI_PRODUCTION_RISK": "l'intérêt que cet article protège",
          "AI_ADOPTION_RISK": "l'intérêt que cet article protège"}
+
+# ------------------------------------------------------------------ Q2bis accountability (cadrans « risque »)
+# Question oui/non posée AVANT le choix de la sous-catégorie pour les cadrans *_RISK : si
+# l'article sert surtout à la responsabilité (accountability), la sous-catégorie est
+# ACCOUNTABILITY_TRANSPARENCY ; sinon le modèle choisit parmi les 4 autres sous-catégories.
+ACC_OPTIONS: List[Tuple[str, str]] = [
+    ("OUI", "Oui : l'article sert surtout à la RESPONSABILITÉ (accountability), c'est-à-dire à pouvoir établir après coup qui a fait quoi et qui en répond."),
+    ("NON", "Non : l'article sert surtout à autre chose — exigences techniques de sécurité, contrôles, entretien, restrictions d'usage, protection des données personnelles, propriété, effets sur la société."),
+]
+
+ACC_SYSTEM = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).
+
+L'article ci-dessous limite les risques liés à un système d'IA ou à un système qui en dépend. Ta tâche : dire si cet article sert surtout à la RESPONSABILITÉ (accountability), c'est-à-dire à pouvoir établir après coup qui a fait quoi et qui en répond.
+
+## Ce qui relève de la responsabilité (accountability)
+- enregistrer ou tracer ce que fait le système (enregistreur, journal des événements, horodatage) ;
+- régler l'accès aux données enregistrées pour établir les faits après un accident ou une infraction ;
+- exiger qu'une personne surveille le système ou puisse reprendre le contrôle (contrôle humain) ;
+- désigner qui est responsable du système ou de son usage ;
+- exiger de remettre des instructions ou des explications aux utilisateurs, d'informer les personnes ou de signaler l'usage de l'IA.
+Même si le but final est la sécurité, un article de ce type relève de la responsabilité.
+
+## Réponses possibles
+{options}
+
+## Exemples (inventés, pour illustrer le raisonnement)
+{examples}
+
+Réponds par une seule lettre : {letters}."""
+
+ACC_EXAMPLES: List[Tuple[str, str]] = [
+    ("Le robot de livraison enregistre chaque arrêt d'urgence avec l'heure et la cause.", "OUI"),
+    ("L'opérateur doit surveiller le vol du drone et pouvoir l'arrêter à tout moment.", "OUI"),
+    ("Le vendeur remet à l'acheteur une notice expliquant le fonctionnement du système.", "OUI"),
+    ("Le système doit résister aux cyberattaques et être contrôlé chaque année.", "NON"),
+    ("Les images enregistrées sont effacées après dix jours.", "NON"),
+]
 
 # ------------------------------------------------------------------ Q3 instrument
 INSTRUMENTS: List[Tuple[str, str]] = [
@@ -165,6 +202,7 @@ Système concerné (terme repéré) : {terms}
 Q_LINES = {
     "q1": "Que fait l'État avec cet article ? Réponds par une seule lettre : {letters}.",
     "q2": "Quelle sous-catégorie ? Réponds par une seule lettre : {letters}.",
+    "acc": "Cet article sert-il surtout à la responsabilité (accountability) ? Réponds par une seule lettre : {letters}.",
     "q3": "Quel est l'instrument ? Réponds par une seule lettre : {letters}.",
 }
 
@@ -201,8 +239,16 @@ def q1_system(order: List[int] = None):
                             examples=_examples(Q1_EXAMPLES, letters, codes)), letters, codes
 
 
-def q2_system(quadrant: str, order: List[int] = None):
+def acc_system(order: List[int] = None):
+    order = order or [0, 1]
+    block, letters, codes = _render(ACC_OPTIONS, order)
+    return ACC_SYSTEM.format(options=block, letters=", ".join(letters),
+                             examples=_examples(ACC_EXAMPLES, letters, codes)), letters, codes
+
+
+def q2_system(quadrant: str, order: List[int] = None, exclude: List[str] = None):
     subs = RISK_SUBS if quadrant.endswith("_RISK") else SUPPORT_SUBS
+    subs = [c for c in subs if c not in (exclude or [])]
     items = [(c, SUB_DESC[quadrant][c]) for c in subs]
     order = order or list(range(len(items)))
     block, letters, codes = _render(items, order)

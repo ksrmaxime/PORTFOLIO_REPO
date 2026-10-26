@@ -164,7 +164,10 @@ def main() -> int:
     ap.add_argument("--trust_remote_code", action="store_true")
     ap.add_argument("--batch_size", type=int, default=4)
     ap.add_argument("--no_definitions", action="store_true")
-    ap.add_argument("--no_debias", action="store_true", help="un seul ordre des options (pas de moyenne sur deux ordres)")
+    ap.add_argument("--debias", action="store_true",
+                    help="cadran, sous-catégorie et instrument posés dans deux ordres (défaut : un seul, comme au run 66533384)")
+    ap.add_argument("--acc_threshold", type=float, default=0.5,
+                    help="probabilité de « oui » à partir de laquelle la sous-catégorie est ACCOUNTABILITY_TRANSPARENCY")
     ap.add_argument("--no_justification", action="store_true")
     ap.add_argument("--max_new_tokens", type=int, default=90)
     ap.add_argument("--limit", type=int, default=None)
@@ -217,7 +220,7 @@ def main() -> int:
 
     res = {i: {} for i in todo}
     examples = {}
-    debias = not args.no_debias
+    debias = args.debias
     print(f"Ordres de présentation des options : {'2 (référence + décalé, probabilités moyennées)' if debias else '1'}")
 
     def user_fn(question):
@@ -235,16 +238,36 @@ def main() -> int:
         examples["q1"] = ref1[todo[0]][0]
     mech = [i for i in todo if res[i]["POL_TARGET"]]
 
-    # ---- Q2 sous-catégorie (prompt système selon le cadran)
-    acc2, ref2 = score_question(client, mech, lambda i, o: Q.q2_system(res[i]["POL_TARGET"], o), user_fn("q2"),
-                                5, debias, args.batch_size)
-    for i in mech:
-        r = ranked_dict(acc2[i])
+    # ---- Q2 sous-catégorie
+    # cadrans « risque » : d'abord la question oui/non sur l'accountability (toujours posée
+    # dans les deux ordres, oui/non puis non/oui), puis choix parmi les 4 autres sous-catégories
+    risk = [i for i in mech if res[i]["POL_TARGET"].endswith("_RISK")]
+    support = [i for i in mech if not res[i]["POL_TARGET"].endswith("_RISK")]
+    acc_acc, ref_acc = score_question(client, risk, lambda i, o: Q.acc_system(o), user_fn("acc"), 2, True, args.batch_size)
+    accR, refR = score_question(client, risk, lambda i, o: Q.q2_system(res[i]["POL_TARGET"], o, exclude=["ACCOUNTABILITY_TRANSPARENCY"]),
+                                user_fn("q2"), 4, debias, args.batch_size)
+    accS, refS = score_question(client, support, lambda i, o: Q.q2_system(res[i]["POL_TARGET"], o), user_fn("q2"), 5, debias, args.batch_size)
+    for i in risk:
+        p_acc = acc_acc[i].get("OUI", 0.0)
+        others = ranked_dict(accR[i])
+        if p_acc >= args.acc_threshold:
+            r = [("ACCOUNTABILITY_TRANSPARENCY", p_acc)] + others
+        else:
+            r = others[:1] + [("ACCOUNTABILITY_TRANSPARENCY", p_acc)] + others[1:]
+        res[i].update({"POL_SUBTARGET": r[0][0], "POL_SUBTARGET_P": round(r[0][1], 4),
+                       "POL_SUBTARGET_2": r[1][0], "POL_SUBTARGET_2_P": round(r[1][1], 4),
+                       "POL_ACCOUNTABILITY_P": round(p_acc, 4),
+                       "POL_SUBTARGET_PROBS": f"ACCOUNTABILITY(oui):{p_acc:.3f} || " + dist_str(others)})
+    for i in support:
+        r = ranked_dict(accS[i])
         res[i].update({"POL_SUBTARGET": r[0][0], "POL_SUBTARGET_P": round(r[0][1], 4),
                        "POL_SUBTARGET_2": r[1][0], "POL_SUBTARGET_2_P": round(r[1][1], 4),
                        "POL_SUBTARGET_PROBS": dist_str(r)})
-    if mech:
-        examples["q2"] = ref2[mech[0]][0]
+    if risk:
+        examples["acc"] = ref_acc[risk[0]][0]
+        examples["q2"] = refR[risk[0]][0]
+    elif support:
+        examples["q2"] = refS[support[0]][0]
 
     # ---- Q3 instrument
     acc3, ref3 = score_question(client, mech, lambda i, o: Q.q3_system(o), user_fn("q3"),
@@ -280,7 +303,7 @@ def main() -> int:
     cols = ["POL_QUADRANT", "POL_TARGET", "POL_TARGET_P", "POL_TARGET_2", "POL_TARGET_2_P",
             "POL_SUBTARGET", "POL_SUBTARGET_P", "POL_SUBTARGET_2", "POL_SUBTARGET_2_P",
             "POL_INSTRUMENT", "POL_INSTRUMENT_P", "POL_INSTRUMENT_2", "POL_INSTRUMENT_2_P",
-            "POL_TARGET_PROBS", "POL_SUBTARGET_PROBS", "POL_INSTRUMENT_PROBS",
+            "POL_TARGET_PROBS", "POL_SUBTARGET_PROBS", "POL_INSTRUMENT_PROBS", "POL_ACCOUNTABILITY_P",
             "POL_DEFINITION", "POL_TARGET_JUSTIFICATION", "POL_INSTRUMENT_JUSTIFICATION"]
     for c in cols:
         df[c] = pd.NA
