@@ -1,5 +1,5 @@
 # src/policy_classification_prompts.py
-"""Step LLM 2 (v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
+"""Step LLM 2 (v3 : options présentées dans deux ordres et probabilités moyennées ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
 
 Cf. le codebook (Claude Docs « Codebook – Portfolio IA »). Trois questions, chacune posée avec
 toutes ses options à la fois, réponse en une lettre (lecture de la probabilité des lettres) :
@@ -20,8 +20,8 @@ LETTERS = list("ABCDEFGHI")
 QUADRANTS: List[Tuple[str, str]] = [
     ("AI_PRODUCTION", "Encourager la production, sans conditions : l'État fournit ou facilite les moyens de produire l'IA (données d'entraînement, serveurs et puces pour l'entraînement, recherche, appui au développement de l'IA comme un soutien en science des données et en IA, formation de développeurs)."),
     ("AI_ADOPTION", "Encourager l'adoption, sans conditions : l'État donne ou encourage directement l'utilisation (créer une cellule ou un réseau, coordonner, financer, aménager une infrastructure pour l'usage, permettre un usage sans le conditionner)."),
-    ("AI_PRODUCTION_RISK", "Limiter les risques de la production : conditions ou exigences sur les moyens de produire l'IA, avant que le produit existe (solidité du code pendant le développement ; données d'entraînement ; infrastructure de calcul)."),
-    ("AI_ADOPTION_RISK", "Limiter les risques de l'adoption : conditions, limites, exigences ou garanties sur le produit final, son utilisation, sa mise en circulation ou sa vente (usage autorisé sous conditions, homologation, exigences techniques sur le système mis en circulation, enregistrement des événements, contrôle humain, données traitées et leur effacement, sanctions, interdiction de vendre ou de fournir le service)."),
+    ("AI_PRODUCTION_RISK", "Limiter les risques de la production : conditions ou exigences sur les moyens de produire l'IA eux-mêmes (données d'entraînement, infrastructure de calcul, code du modèle en cours de développement). Ne concerne jamais l'homologation, la réception par type ni les exigences sur un véhicule ou un système destiné à être utilisé."),
+    ("AI_ADOPTION_RISK", "Limiter les risques de l'adoption : conditions, limites, exigences ou garanties sur le produit final, son utilisation, sa mise en circulation ou sa vente — y compris les obligations du constructeur sur ce produit (usage autorisé sous conditions, homologation et réception par type, exigences techniques sur le système, cybersécurité et mises à jour du produit, enregistrement des événements, notification des incidents, contrôle humain, données traitées et leur effacement, sanctions, interdiction de vendre ou de fournir le service)."),
     ("", "Aucun mécanisme : l'article définit seulement un terme ou décrit l'objet de l'acte, sans règle propre."),
 ]
 
@@ -33,7 +33,7 @@ L'article ci-dessous concerne un système d'IA ou un système qui en dépend (co
 Dès que l'article pose des conditions, des limites, des exigences ou des garanties, il limite les risques, MÊME s'il autorise l'utilisation. L'article n'est hors risque que si l'État donne ou encourage directement, sans conditions.
 
 ## Règle 2 — Production ou adoption
-« Production » est réservé aux moyens de produire l'IA, avant que le produit existe : données d'entraînement, solidité du code pendant le développement, serveurs et puces pour l'entraînement, recherche et appui au développement de l'IA. Tout ce qui porte sur un produit existant relève de l'« adoption » : son utilisation, la sécurité de son fonctionnement (y compris sa cybersécurité et ses mises à jour), sa mise en circulation et son homologation, sa vente ou la fourniture de son service à des tiers, même quand l'obligation pèse sur le constructeur.
+« Production » est réservé aux moyens de produire l'IA eux-mêmes : données d'entraînement, code du modèle en cours de développement, serveurs et puces pour l'entraînement, recherche et appui au développement de l'IA. Tout ce qui porte sur le produit (un véhicule, un système, un service) relève de l'« adoption » : son utilisation, la sécurité de son fonctionnement, sa cybersécurité et ses mises à jour, son homologation et sa réception par type, sa mise en circulation, sa vente ou la fourniture de son service à des tiers — même quand l'obligation pèse sur le constructeur et même si elle s'applique avant la mise en circulation.
 
 ## Réponses possibles
 {options}
@@ -42,15 +42,18 @@ Dès que l'article pose des conditions, des limites, des exigences ou des garant
 - Une seule réponse, selon la fonction principale de l'article (premier alinéa et essentiel du texte).
 
 ## Exemples (inventés, pour illustrer le raisonnement)
-- « La Confédération soutient des programmes de recherche en apprentissage automatique. » → A
-- « L'office crée un centre de compétences pour accompagner les services qui utilisent l'IA. » → B
-- « Pendant le développement, le code et les données d'entraînement du modèle doivent être protégés contre les intrusions. » → C
-- « Le constructeur assure la cybersécurité et les mises à jour du logiciel des véhicules en circulation. » → D
-- « Le fabricant d'un robot de soins doit démontrer sa sécurité avant la mise sur le marché. » → D
-- « L'office peut recourir à un logiciel d'analyse d'images si les personnes concernées en sont informées. » → D
-- « Au sens de la présente loi, on entend par drone autonome un aéronef capable de voler sans pilote. » → E
+{examples}
 
 Réponds par une seule lettre : {letters}."""
+
+Q1_EXAMPLES: List[Tuple[str, str]] = [
+    ("La Confédération soutient des programmes de recherche en apprentissage automatique.", "AI_PRODUCTION"),
+    ("L'office crée un centre de compétences pour accompagner les services qui utilisent l'IA.", "AI_ADOPTION"),
+    ("Les données utilisées pour entraîner un modèle doivent être protégées contre les accès non autorisés.", "AI_PRODUCTION_RISK"),
+    ("Le constructeur doit faire homologuer le système et assurer sa cybersécurité et ses mises à jour.", "AI_ADOPTION_RISK"),
+    ("L'office peut recourir à un logiciel d'analyse d'images si les personnes concernées en sont informées.", "AI_ADOPTION_RISK"),
+    ("Au sens de la présente loi, on entend par drone autonome un aéronef capable de voler sans pilote.", ""),
+]
 
 # ------------------------------------------------------------------ Q2 sous-cible
 SUPPORT_SUBS = ["DATA", "SKILLS", "RESEARCH_INNOVATION", "INFRASTRUCTURE", "GOVERNANCE"]
@@ -133,15 +136,19 @@ L'article ci-dessous concerne un système d'IA ou un système qui en dépend. Ta
 - Un article qui fixe la procédure ou les conditions d'une autorisation relève de l'autorisation.
 
 ## Exemples (inventés, pour illustrer le raisonnement)
-- « L'agence nationale est chargée de surveiller les systèmes d'IA utilisés par l'administration. » → A
-- « La police peut utiliser des caméras à reconnaissance faciale lors de grands événements. » → B
-- « L'exploitant doit informer les clients qu'ils dialoguent avec un agent conversationnel. » → C
-- « La vente de jouets connectés capables d'enregistrer les conversations est interdite. » → D
-- « Est puni d'une amende quiconque met en service un drone autonome sans homologation. » → E
-- « Les cantons reçoivent une contribution aux frais d'acquisition du système. » → F
-- « L'office mène des essais pilotes et publie un rapport d'évaluation. » → H
+{examples}
 
 Réponds par une seule lettre : {letters}."""
+
+Q3_EXAMPLES: List[Tuple[str, str]] = [
+    ("L'agence nationale est chargée de surveiller les systèmes d'IA utilisés par l'administration.", "ORGANISATION"),
+    ("La police peut utiliser des caméras à reconnaissance faciale lors de grands événements.", "AUTHORIZATION"),
+    ("L'exploitant doit informer les clients qu'ils dialoguent avec un agent conversationnel.", "OBLIGATION"),
+    ("La vente de jouets connectés capables d'enregistrer les conversations est interdite.", "PROHIBITION_BAN"),
+    ("Est puni d'une amende quiconque met en service un drone autonome sans homologation.", "LIABILITY"),
+    ("Les cantons reçoivent une contribution aux frais d'acquisition du système.", "TAXES_SUBSIDIES"),
+    ("L'office mène des essais pilotes et publie un rapport d'évaluation.", "PLANNING_EVALUATION"),
+]
 
 # ------------------------------------------------------------------ prompt utilisateur
 USER_TEMPLATE = """Acte : {act_title}{act_meta}
@@ -164,26 +171,51 @@ Q_LINES = {
 JUSTIF_SUFFIX = "\n\nJustification en une phrase, en tes propres mots, en citant le passage décisif de l'article : "
 
 
-def _options(items: List[str]) -> Tuple[str, List[str]]:
+def _render(items: List[Tuple[str, str]], order: List[int]):
+    """items = [(code, description)] ; order = permutation des indices. Retourne le bloc
+    d'options, les lettres et les codes dans l'ordre présenté."""
     letters = LETTERS[: len(items)]
-    return "\n".join(f"{l} — {t}" for l, t in zip(letters, items)), letters
+    codes = [items[k][0] for k in order]
+    block = "\n".join(f"{l} — {items[k][1]}" for l, k in zip(letters, order))
+    return block, letters, codes
 
 
-def q1_system() -> Tuple[str, List[str]]:
-    opts, letters = _options([d for _, d in QUADRANTS])
-    return Q1_SYSTEM.format(options=opts, letters=", ".join(letters)), letters
+def _examples(examples: List[Tuple[str, str]], letters: List[str], codes: List[str]) -> str:
+    pos = {c: l for l, c in zip(letters, codes)}
+    return "\n".join(f"- « {t} » → {pos[c]}" for t, c in examples if c in pos)
 
 
-def q2_system(quadrant: str) -> Tuple[str, List[str], List[str]]:
+def orders(n: int, debias: bool) -> List[List[int]]:
+    """Ordres de présentation des options : l'ordre de référence et, si debias, un décalage
+    circulaire d'une demi-liste (chaque option change de position et de lettre, y compris
+    celle du milieu, ce qu'un simple renversement ne ferait pas pour un nombre impair)."""
+    base = list(range(n))
+    k = (n + 1) // 2
+    return [base, base[k:] + base[:k]] if debias else [base]
+
+
+def q1_system(order: List[int] = None):
+    order = order or list(range(len(QUADRANTS)))
+    block, letters, codes = _render(QUADRANTS, order)
+    return Q1_SYSTEM.format(options=block, letters=", ".join(letters),
+                            examples=_examples(Q1_EXAMPLES, letters, codes)), letters, codes
+
+
+def q2_system(quadrant: str, order: List[int] = None):
     subs = RISK_SUBS if quadrant.endswith("_RISK") else SUPPORT_SUBS
-    opts, letters = _options([SUB_DESC[quadrant][s] for s in subs])
+    items = [(c, SUB_DESC[quadrant][c]) for c in subs]
+    order = order or list(range(len(items)))
+    block, letters, codes = _render(items, order)
     qdesc = dict(QUADRANTS)[quadrant]
-    return Q2_SYSTEM.format(quadrant_desc=qdesc, focus=FOCUS[quadrant], options=opts, letters=", ".join(letters)), letters, subs
+    return Q2_SYSTEM.format(quadrant_desc=qdesc, focus=FOCUS[quadrant], options=block,
+                            letters=", ".join(letters)), letters, codes
 
 
-def q3_system() -> Tuple[str, List[str]]:
-    opts, letters = _options([d for _, d in INSTRUMENTS])
-    return Q3_SYSTEM.format(options=opts, letters=", ".join(letters)), letters
+def q3_system(order: List[int] = None):
+    order = order or list(range(len(INSTRUMENTS)))
+    block, letters, codes = _render(INSTRUMENTS, order)
+    return Q3_SYSTEM.format(options=block, letters=", ".join(letters),
+                            examples=_examples(Q3_EXAMPLES, letters, codes)), letters, codes
 
 
 def build_user_prompt(row, ctx: Dict[str, str], terms: List[str], definitions: str, question: str, letters: List[str]) -> str:

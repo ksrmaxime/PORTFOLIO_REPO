@@ -14,6 +14,8 @@
 # à l'étape 1 (cf. src/policy_classification_prompts.py et le codebook).
 # Trois questions par article, réponse en une lettre lue par probabilité :
 #   Q1 cadran (ou « aucun mécanisme ») -> Q2 sous-catégorie -> Q3 instrument.
+#   Chaque question est posée avec les options dans deux ordres (probabilités moyennées) ;
+#   NO_DEBIAS=1 pour un seul ordre.
 #
 # Usage :
 #   sbatch sbatch_policy_classification.sh                          # dernière sortie de l'étape 1
@@ -37,6 +39,7 @@ LIMIT="${LIMIT:-}"
 GOLD="${GOLD:-}"
 NO_DEFINITIONS="${NO_DEFINITIONS:-}"
 FROM_GOLD="${FROM_GOLD:-}"
+NO_DEBIAS="${NO_DEBIAS:-}"
 
 cd "$WORKDIR"
 source .venv/bin/activate
@@ -64,6 +67,7 @@ EXTRA_ARGS=()
 [ -n "$GOLD" ] && EXTRA_ARGS+=(--gold "$GOLD")
 [ -n "$NO_DEFINITIONS" ] && EXTRA_ARGS+=(--no_definitions)
 [ -n "$FROM_GOLD" ] && EXTRA_ARGS+=(--select_from_gold)
+[ -n "$NO_DEBIAS" ] && EXTRA_ARGS+=(--no_debias)
 
 python scripts/run_policy_classification.py \
   --input "$INPUT" \

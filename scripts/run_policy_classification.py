@@ -3,7 +3,8 @@
 Entrée : sortie de l'étape 1 (ai_relevance_job<ID>.parquet/.csv). Seuls les articles avec
 AIREL_LABEL == SPECIFIQUE sont classés.
 Trois questions par article (src/policy_classification_prompts.py), réponse en une lettre lue
-par probabilité (une passe avant par question) :
+par probabilité. Chaque question est posée deux fois, options dans l'ordre de référence puis
+dans un ordre décalé, et les probabilités par code sont moyennées (--no_debias pour un seul ordre) :
   Q1 cadran (ou E = aucun mécanisme) -> Q2 sous-catégorie du cadran -> Q3 instrument.
 Q2 et Q3 sont sautées pour les articles « aucun mécanisme ».
 Une justification d'une phrase est générée pour la cible et pour l'instrument.
@@ -48,6 +49,43 @@ def softmax(xs):
 def ranked(probs, codes):
     order = sorted(range(len(probs)), key=lambda j: -probs[j])
     return [(codes[j], probs[j]) for j in order]
+
+
+def ranked_dict(d):
+    return sorted(d.items(), key=lambda kv: -kv[1])
+
+
+def dist_str(r):
+    return " | ".join(f"{(c or 'AUCUN')}:{p:.3f}" for c, p in r)
+
+
+def score_question(client, idx, system_fn, user_fn, n_opts, debias, batch_size):
+    """Pose une question à choix (réponse = une lettre) pour chaque article de idx.
+    system_fn(i, order) -> (prompt système, lettres, codes dans l'ordre présenté).
+    Avec debias, la question est posée avec les options dans l'ordre de référence puis dans
+    un ordre décalé d'une demi-liste, et les probabilités de chaque code sont moyennées : la préférence du
+    modèle pour une position ou une lettre s'annule.
+    Retourne ({i: {code: proba}}, {i: (prompt, lettres, codes) de l'ordre de référence})."""
+    acc = {i: {} for i in idx}
+    ref = {}
+    if not idx:
+        return acc, ref
+    ords = Q.orders(n_opts, debias)
+    t0 = time.time()
+    for oi, order in enumerate(ords):
+        prompts, meta = [], []
+        for i in idx:
+            sys_, letters, codes = system_fn(i, order)
+            prompts.append(client.build_chat_prompt(sys_, user_fn(i, letters)))
+            meta.append(codes)
+            if oi == 0:
+                ref[i] = (prompts[-1], letters, codes)
+        lps = client.next_token_logprobs(prompts, Q.LETTERS[:n_opts], batch_size=batch_size)
+        for i, lp, codes in zip(idx, lps, meta):
+            for c, pr in zip(codes, softmax(lp)):
+                acc[i][c] = acc[i].get(c, 0.0) + pr / len(ords)
+    print(f"  {len(idx)} articles x {len(ords)} ordre(s) en {time.time() - t0:.0f} s")
+    return acc, ref
 
 
 def check_letters(client, letters):
@@ -126,6 +164,7 @@ def main() -> int:
     ap.add_argument("--trust_remote_code", action="store_true")
     ap.add_argument("--batch_size", type=int, default=4)
     ap.add_argument("--no_definitions", action="store_true")
+    ap.add_argument("--no_debias", action="store_true", help="un seul ordre des options (pas de moyenne sur deux ordres)")
     ap.add_argument("--no_justification", action="store_true")
     ap.add_argument("--max_new_tokens", type=int, default=90)
     ap.add_argument("--limit", type=int, default=None)
@@ -178,54 +217,51 @@ def main() -> int:
 
     res = {i: {} for i in todo}
     examples = {}
+    debias = not args.no_debias
+    print(f"Ordres de présentation des options : {'2 (référence + décalé, probabilités moyennées)' if debias else '1'}")
+
+    def user_fn(question):
+        return lambda i, letters: Q.build_user_prompt(*base_args[i], question, letters)
 
     # ---- Q1 cadran
-    sys1, let1 = Q.q1_system()
-    codes1 = [c for c, _ in Q.QUADRANTS]
-    p1 = [client.build_chat_prompt(sys1, Q.build_user_prompt(*base_args[i], "q1", let1)) for i in todo]
-    t0 = time.time()
-    lp1 = client.next_token_logprobs(p1, let1, batch_size=args.batch_size)
-    print(f"Q1 cadran : {len(todo)} articles en {time.time() - t0:.0f} s")
-    letter1 = {}
-    for i, prompt, lp in zip(todo, p1, lp1):
-        r = ranked(softmax(lp), codes1)
+    acc1, ref1 = score_question(client, todo, lambda i, o: Q.q1_system(o), user_fn("q1"),
+                                len(Q.QUADRANTS), debias, args.batch_size)
+    for i in todo:
+        r = ranked_dict(acc1[i])
         res[i].update({"POL_QUADRANT": r[0][0] or "AUCUN", "POL_TARGET": r[0][0], "POL_TARGET_P": round(r[0][1], 4),
-                       "POL_TARGET_2": r[1][0] or "AUCUN", "POL_TARGET_2_P": round(r[1][1], 4)})
-        letter1[i] = let1[codes1.index(r[0][0])]
-        examples.setdefault("q1", prompt)
+                       "POL_TARGET_2": r[1][0] or "AUCUN", "POL_TARGET_2_P": round(r[1][1], 4),
+                       "POL_TARGET_PROBS": dist_str(r)})
+    if todo:
+        examples["q1"] = ref1[todo[0]][0]
     mech = [i for i in todo if res[i]["POL_TARGET"]]
 
     # ---- Q2 sous-catégorie (prompt système selon le cadran)
-    p2, codes2, let2 = {}, {}, {}
+    acc2, ref2 = score_question(client, mech, lambda i, o: Q.q2_system(res[i]["POL_TARGET"], o), user_fn("q2"),
+                                5, debias, args.batch_size)
     for i in mech:
-        sys2, l2, subs = Q.q2_system(res[i]["POL_TARGET"])
-        p2[i] = client.build_chat_prompt(sys2, Q.build_user_prompt(*base_args[i], "q2", l2))
-        codes2[i], let2[i] = subs, l2
-        examples.setdefault("q2", p2[i])
+        r = ranked_dict(acc2[i])
+        res[i].update({"POL_SUBTARGET": r[0][0], "POL_SUBTARGET_P": round(r[0][1], 4),
+                       "POL_SUBTARGET_2": r[1][0], "POL_SUBTARGET_2_P": round(r[1][1], 4),
+                       "POL_SUBTARGET_PROBS": dist_str(r)})
     if mech:
-        t0 = time.time()
-        lp2 = client.next_token_logprobs([p2[i] for i in mech], Q.LETTERS[:5], batch_size=args.batch_size)
-        print(f"Q2 sous-catégorie : {len(mech)} articles en {time.time() - t0:.0f} s")
-        for i, lp in zip(mech, lp2):
-            r = ranked(softmax(lp), codes2[i])
-            res[i].update({"POL_SUBTARGET": r[0][0], "POL_SUBTARGET_P": round(r[0][1], 4),
-                           "POL_SUBTARGET_2": r[1][0], "POL_SUBTARGET_2_P": round(r[1][1], 4)})
+        examples["q2"] = ref2[mech[0]][0]
 
     # ---- Q3 instrument
-    sys3, let3 = Q.q3_system()
-    codes3 = [c for c, _ in Q.INSTRUMENTS]
-    p3 = {i: client.build_chat_prompt(sys3, Q.build_user_prompt(*base_args[i], "q3", let3)) for i in mech}
-    letter3 = {}
+    acc3, ref3 = score_question(client, mech, lambda i, o: Q.q3_system(o), user_fn("q3"),
+                                len(Q.INSTRUMENTS), debias, args.batch_size)
+    for i in mech:
+        r = ranked_dict(acc3[i])
+        res[i].update({"POL_INSTRUMENT": r[0][0], "POL_INSTRUMENT_P": round(r[0][1], 4),
+                       "POL_INSTRUMENT_2": r[1][0], "POL_INSTRUMENT_2_P": round(r[1][1], 4),
+                       "POL_INSTRUMENT_PROBS": dist_str(r)})
     if mech:
-        examples["q3"] = p3[mech[0]]
-        t0 = time.time()
-        lp3 = client.next_token_logprobs([p3[i] for i in mech], let3, batch_size=args.batch_size)
-        print(f"Q3 instrument : {len(mech)} articles en {time.time() - t0:.0f} s")
-        for i, lp in zip(mech, lp3):
-            r = ranked(softmax(lp), codes3)
-            res[i].update({"POL_INSTRUMENT": r[0][0], "POL_INSTRUMENT_P": round(r[0][1], 4),
-                           "POL_INSTRUMENT_2": r[1][0], "POL_INSTRUMENT_2_P": round(r[1][1], 4)})
-            letter3[i] = let3[codes3.index(r[0][0])]
+        examples["q3"] = ref3[mech[0]][0]
+
+    # lettres et prompts de référence pour les justifications
+    p1 = [ref1[i][0] for i in todo]
+    letter1 = {i: ref1[i][1][ref1[i][2].index(res[i]["POL_TARGET"])] for i in todo}
+    p3 = {i: ref3[i][0] for i in mech}
+    letter3 = {i: ref3[i][1][ref3[i][2].index(res[i]["POL_INSTRUMENT"])] for i in mech}
 
     # ---- justifications
     if not args.no_justification and todo:
@@ -244,6 +280,7 @@ def main() -> int:
     cols = ["POL_QUADRANT", "POL_TARGET", "POL_TARGET_P", "POL_TARGET_2", "POL_TARGET_2_P",
             "POL_SUBTARGET", "POL_SUBTARGET_P", "POL_SUBTARGET_2", "POL_SUBTARGET_2_P",
             "POL_INSTRUMENT", "POL_INSTRUMENT_P", "POL_INSTRUMENT_2", "POL_INSTRUMENT_2_P",
+            "POL_TARGET_PROBS", "POL_SUBTARGET_PROBS", "POL_INSTRUMENT_PROBS",
             "POL_DEFINITION", "POL_TARGET_JUSTIFICATION", "POL_INSTRUMENT_JUSTIFICATION"]
     for c in cols:
         df[c] = pd.NA
