@@ -1,5 +1,5 @@
 # src/policy_classification_prompts.py
-"""Step LLM 2 (v6 : cadran = une question oui/non par option (4 cadrans + aucun), la plus probable est retenue ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
+"""Step LLM 2 (v7 : cadran = une question oui/non par option, critère du BUT PRINCIPAL de l'article ; (4 cadrans + aucun), la plus probable est retenue ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
 
 Cf. le codebook (Claude Docs « Codebook – Portfolio IA »). Trois questions, chacune posée avec
 toutes ses options à la fois, réponse en une lettre (lecture de la probabilité des lettres) :
@@ -116,12 +116,29 @@ FOCUS = {"AI_PRODUCTION": "la ressource que l'État fournit ou facilite par cet 
 # de l'option (textes de QUADRANTS, version du run 66533384), deux exemples inventés « oui » et un
 # exemple de chacune des autres options en « non ». L'option la plus probable est retenue.
 QUADRANT_NAMES: Dict[str, str] = {
-    "AI_PRODUCTION": "encourager la production de l'IA, sans conditions",
-    "AI_ADOPTION": "encourager l'adoption de l'IA, sans conditions",
+    "AI_PRODUCTION": "encourager la production de l'IA",
+    "AI_ADOPTION": "encourager l'adoption de l'IA",
     "AI_PRODUCTION_RISK": "limiter les risques de la production de l'IA",
     "AI_ADOPTION_RISK": "limiter les risques de l'adoption de l'IA",
     "": "aucun mécanisme (définition ou objet de l'acte)",
 }
+
+# définitions utilisées dans les questions oui/non (critère : but principal de l'article) ;
+# QUADRANTS (question à 5 options, run 66533384) reste inchangé
+QUADRANT_YESNO_DEFS: Dict[str, str] = {
+    "AI_PRODUCTION": "Le but principal de l'article est de développer ou de faciliter la production de l'IA : l'État fournit ou facilite les moyens de produire l'IA (données d'entraînement, serveurs et puces pour l'entraînement, recherche, formation de développeurs).",
+    "AI_ADOPTION": "Le but principal de l'article est de développer ou de faciliter l'utilisation de l'IA : l'État crée un service ou un réseau, coordonne, finance, aménage une infrastructure pour l'usage, forme les utilisateurs ou permet un usage.",
+    "AI_PRODUCTION_RISK": "Le but principal de l'article est d'encadrer la production de l'IA : conditions ou exigences sur les moyens de produire l'IA (solidité du code : cybersécurité et gestion des mises à jour logicielles chez le développeur ; données d'entraînement ; infrastructure de calcul).",
+    "AI_ADOPTION_RISK": "Le but principal de l'article est d'encadrer l'utilisation de l'IA : conditions, limites, exigences ou garanties sur le produit final, son utilisation, sa mise en circulation ou sa vente (usage autorisé sous conditions, homologation, exigences techniques sur le système mis en circulation, enregistrement des événements, contrôle humain, données traitées et leur effacement, sanctions, interdiction de vendre ou de fournir le service).",
+    "": "L'article définit seulement un terme ou décrit l'objet de l'acte, sans règle propre.",
+}
+
+QUADRANT_YESNO_RULES = """## Règle 1 — Encourager ou encadrer : le but principal
+On regarde le but principal de l'article, c'est-à-dire ce que fait l'essentiel de son texte.
+- Encourager : le but principal est de développer, de permettre ou de faciliter l'IA (créer un service ou un réseau, lui confier des missions, coordonner, financer, former, permettre un usage).
+- Limiter les risques : le but principal est d'encadrer l'IA (poser des conditions, des limites, des exigences, des garanties, des interdictions ou des sanctions). Un article qui permet un usage mais dont l'essentiel du texte fixe les conditions de cet usage a pour but principal de l'encadrer.
+
+"""
 
 QUADRANT_EXAMPLES: Dict[str, List[str]] = {
     "AI_PRODUCTION": ["La Confédération soutient des programmes de recherche en apprentissage automatique.",
@@ -138,11 +155,11 @@ QUADRANT_EXAMPLES: Dict[str, List[str]] = {
 
 QUADRANT_YESNO_SYSTEM = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).
 
-L'article ci-dessous concerne un système d'IA ou un système qui en dépend (conduite automatisée, reconnaissance faciale…). On classe ce que l'État fait avec chaque article selon deux règles.
+L'article ci-dessous concerne un système d'IA ou un système qui en dépend (conduite automatisée, reconnaissance faciale…). On classe chaque article selon deux règles.
 
 {rules}
 ## Ta tâche
-Dire si cet article relève de la catégorie : {name}.
+Dire si le but principal de cet article est : {name}.
 
 ## Définition
 {definition}
@@ -156,8 +173,9 @@ Dire si cet article relève de la catégorie : {name}.
 Réponds par une seule lettre : {letters}."""
 
 
-def _q1_rules() -> str:
-    a = Q1_SYSTEM.index("## Règle 1")
+def _q1_rule2() -> str:
+    """Règle production / adoption, texte exact de la question à 5 options (run 66533384)."""
+    a = Q1_SYSTEM.index("## Règle 2")
     b = Q1_SYSTEM.index("## Réponses possibles")
     return Q1_SYSTEM[a:b].rstrip() + "\n"
 
@@ -172,8 +190,8 @@ def quadrant_yesno_system(code: str, order: List[int] = None):
     pos = {c: l for l, c in zip(letters, codes)}
     ex = [f"- « {t} » → {pos['OUI']}" for t in QUADRANT_EXAMPLES[code]]
     ex += [f"- « {QUADRANT_EXAMPLES[o][0]} » → {pos['NON']}" for o in quadrant_codes() if o != code]
-    return QUADRANT_YESNO_SYSTEM.format(rules=_q1_rules(), name=QUADRANT_NAMES[code],
-                                        definition=dict(QUADRANTS)[code], options=block,
+    return QUADRANT_YESNO_SYSTEM.format(rules=QUADRANT_YESNO_RULES + _q1_rule2(), name=QUADRANT_NAMES[code],
+                                        definition=QUADRANT_YESNO_DEFS[code], options=block,
                                         letters=", ".join(letters), examples="\n".join(ex)), letters, codes
 
 
@@ -314,7 +332,7 @@ Q_LINES = {
     "q1": "Que fait l'État avec cet article ? Réponds par une seule lettre : {letters}.",
     "q2": "Quelle sous-catégorie ? Réponds par une seule lettre : {letters}.",
     "sub_yesno": "Cet article vise-t-il surtout cette sous-catégorie ? Réponds par une seule lettre : {letters}.",
-    "q1_yesno": "Cet article relève-t-il de cette catégorie ? Réponds par une seule lettre : {letters}.",
+    "q1_yesno": "Le but principal de cet article est-il celui de cette catégorie ? Réponds par une seule lettre : {letters}.",
     "q3": "Quel est l'instrument ? Réponds par une seule lettre : {letters}.",
 }
 
