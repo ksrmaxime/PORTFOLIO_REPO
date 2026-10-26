@@ -18,9 +18,9 @@ LETTERS = list("ABCDEFGHI")
 
 # ------------------------------------------------------------------ Q1 cadran
 QUADRANTS: List[Tuple[str, str]] = [
-    ("AI_PRODUCTION", "Encourager la production, sans conditions : l'État fournit ou facilite les moyens de produire l'IA (données d'entraînement, serveurs et puces pour l'entraînement, recherche, formation de développeurs)."),
+    ("AI_PRODUCTION", "Encourager la production, sans conditions : l'État fournit ou facilite les moyens de produire l'IA (données d'entraînement, serveurs et puces pour l'entraînement, recherche, appui au développement de l'IA comme un soutien en science des données et en IA, formation de développeurs)."),
     ("AI_ADOPTION", "Encourager l'adoption, sans conditions : l'État donne ou encourage directement l'utilisation (créer une cellule ou un réseau, coordonner, financer, aménager une infrastructure pour l'usage, permettre un usage sans le conditionner)."),
-    ("AI_PRODUCTION_RISK", "Limiter les risques de la production : conditions ou exigences sur les moyens de produire l'IA (solidité du code : cybersécurité et gestion des mises à jour logicielles chez le développeur ; données d'entraînement ; infrastructure de calcul)."),
+    ("AI_PRODUCTION_RISK", "Limiter les risques de la production : conditions ou exigences sur les moyens de produire l'IA, avant que le produit existe (solidité du code pendant le développement ; données d'entraînement ; infrastructure de calcul)."),
     ("AI_ADOPTION_RISK", "Limiter les risques de l'adoption : conditions, limites, exigences ou garanties sur le produit final, son utilisation, sa mise en circulation ou sa vente (usage autorisé sous conditions, homologation, exigences techniques sur le système mis en circulation, enregistrement des événements, contrôle humain, données traitées et leur effacement, sanctions, interdiction de vendre ou de fournir le service)."),
     ("", "Aucun mécanisme : l'article définit seulement un terme ou décrit l'objet de l'acte, sans règle propre."),
 ]
@@ -33,7 +33,7 @@ L'article ci-dessous concerne un système d'IA ou un système qui en dépend (co
 Dès que l'article pose des conditions, des limites, des exigences ou des garanties, il limite les risques, MÊME s'il autorise l'utilisation. L'article n'est hors risque que si l'État donne ou encourage directement, sans conditions.
 
 ## Règle 2 — Production ou adoption
-« Production » est réservé aux moyens de produire l'IA : données d'entraînement, solidité du code (cybersécurité, mises à jour logicielles chez le développeur), serveurs et puces pour l'entraînement, recherche. Tout ce qui porte sur le produit final relève de l'« adoption » : son utilisation, la sécurité de son utilisation, sa mise en circulation et son homologation, sa vente ou la fourniture de son service à des tiers, même quand l'obligation pèse sur le constructeur.
+« Production » est réservé aux moyens de produire l'IA, avant que le produit existe : données d'entraînement, solidité du code pendant le développement, serveurs et puces pour l'entraînement, recherche et appui au développement de l'IA. Tout ce qui porte sur un produit existant relève de l'« adoption » : son utilisation, la sécurité de son fonctionnement (y compris sa cybersécurité et ses mises à jour), sa mise en circulation et son homologation, sa vente ou la fourniture de son service à des tiers, même quand l'obligation pèse sur le constructeur.
 
 ## Réponses possibles
 {options}
@@ -44,7 +44,8 @@ Dès que l'article pose des conditions, des limites, des exigences ou des garant
 ## Exemples (inventés, pour illustrer le raisonnement)
 - « La Confédération soutient des programmes de recherche en apprentissage automatique. » → A
 - « L'office crée un centre de compétences pour accompagner les services qui utilisent l'IA. » → B
-- « Le développeur doit protéger le code et les données d'entraînement de son modèle contre les intrusions. » → C
+- « Pendant le développement, le code et les données d'entraînement du modèle doivent être protégés contre les intrusions. » → C
+- « Le constructeur assure la cybersécurité et les mises à jour du logiciel des véhicules en circulation. » → D
 - « Le fabricant d'un robot de soins doit démontrer sa sécurité avant la mise sur le marché. » → D
 - « L'office peut recourir à un logiciel d'analyse d'images si les personnes concernées en sont informées. » → D
 - « Au sens de la présente loi, on entend par drone autonome un aéronef capable de voler sans pilote. » → E
@@ -53,13 +54,13 @@ Réponds par une seule lettre : {letters}."""
 
 # ------------------------------------------------------------------ Q2 sous-cible
 SUPPORT_SUBS = ["DATA", "SKILLS", "RESEARCH_INNOVATION", "INFRASTRUCTURE", "GOVERNANCE"]
-RISK_SUBS = ["PRIVACY_RIGHTS", "SAFETY_SECURITY", "TRANSPARENCY_ACCOUNTABILITY", "PROPERTY_ECONOMY", "SOCIETY"]
+RISK_SUBS = ["PRIVACY_RIGHTS", "SAFETY_SECURITY", "ACCOUNTABILITY_TRANSPARENCY", "PROPERTY_ECONOMY", "SOCIETY"]
 
 SUB_DESC: Dict[str, Dict[str, str]] = {
     "AI_PRODUCTION": {
-        "DATA": "Données : accès aux données d'entraînement, partage de données pour développer des systèmes.",
+        "DATA": "Données : accès aux données d'entraînement (uniquement l'accès), partage de données pour développer des systèmes.",
         "SKILLS": "Compétences : formation de développeurs, de chercheurs et de spécialistes de l'IA.",
-        "RESEARCH_INNOVATION": "Recherche et innovation : recherche en IA, instituts, programmes de développement.",
+        "RESEARCH_INNOVATION": "Recherche et innovation : recherche en IA, instituts, programmes de développement, appui ou soutien au développement de l'IA (science des données, IA).",
         "INFRASTRUCTURE": "Infrastructures : capacités de calcul, supercalculateurs, plateformes de développement.",
         "GOVERNANCE": "Gouvernance : sécurité juridique, coordination ou cadre favorable au développement.",
     },
@@ -72,15 +73,15 @@ SUB_DESC: Dict[str, Dict[str, str]] = {
     },
     "AI_PRODUCTION_RISK": {
         "PRIVACY_RIGHTS": "Vie privée et droits : données personnelles utilisées pour l'entraînement, biais introduits à l'entraînement.",
-        "SAFETY_SECURITY": "Sécurité : solidité du code (cybersécurité, gestion des mises à jour logicielles chez le développeur), sécurité de l'infrastructure d'entraînement.",
-        "TRANSPARENCY_ACCOUNTABILITY": "Transparence et responsabilité : documentation du développement et des données d'entraînement.",
+        "SAFETY_SECURITY": "Sécurité : solidité du code pendant le développement, sécurité de l'infrastructure d'entraînement.",
+        "ACCOUNTABILITY_TRANSPARENCY": "Responsabilité (accountability), puis transparence : pouvoir établir après coup comment le système a été développé et qui en répond — documentation du développement et des données d'entraînement.",
         "PROPERTY_ECONOMY": "Propriété et économie : droits d'auteur sur les données d'entraînement, concurrence entre fournisseurs.",
         "SOCIETY": "Société : effets collectifs de la production (environnement, consommation d'énergie du calcul).",
     },
     "AI_ADOPTION_RISK": {
         "PRIVACY_RIGHTS": "Vie privée et droits : données personnelles traitées par le système en usage, limitation des cas d'usage, consultation, effacement, profilage, non-discrimination.",
         "SAFETY_SECURITY": "Sécurité : exigences techniques sur le produit final, homologation, surveillance des systèmes en circulation, incidents, contrôles, entretien, conditions de sécurité d'une autorisation, restrictions d'usage, interdiction de vendre ou de fournir le service (sécurité nationale).",
-        "TRANSPARENCY_ACCOUNTABILITY": "Transparence et responsabilité : enregistrement des événements (enregistreur), information des personnes et des utilisateurs, signalement de l'usage de l'IA, contrôle humain (surveillance par une personne, reprise du contrôle), attribution des responsabilités.",
+        "ACCOUNTABILITY_TRANSPARENCY": "Responsabilité (accountability), puis transparence. Responsabilité : pouvoir établir après coup qui a fait quoi et qui en répond — enregistrement des événements (enregistreur), traçabilité, accès aux données enregistrées pour établir les faits après un accident, contrôle humain (surveillance par une personne, reprise du contrôle), désignation des responsables, instructions et explications remises aux utilisateurs. Transparence, en second lieu : information des personnes, signalement de l'usage de l'IA.",
         "PROPERTY_ECONOMY": "Propriété et économie : droits sur les contenus générés, effets économiques de l'usage.",
         "SOCIETY": "Société : hypertrucages, désinformation, effets sur le travail ou la démocratie.",
     },
@@ -97,7 +98,7 @@ Ta tâche : préciser {focus}.
 
 ## Règles
 - Une seule réponse, selon la fonction principale de l'article.
-- Le contrôle humain (surveillance par une personne, obligation de pouvoir reprendre le contrôle) et l'enregistrement des événements relèvent de la transparence et de la responsabilité, pas de la sécurité.
+- Responsabilité (accountability) : dès que l'article sert à savoir après coup qui a fait quoi et qui en répond (enregistrement des événements, traçabilité, contrôle humain, désignation d'un responsable, instructions remises aux utilisateurs), la réponse est « Responsabilité (accountability), puis transparence », pas « Sécurité », même si le but final est la sécurité.
 
 Réponds par une seule lettre : {letters}."""
 
