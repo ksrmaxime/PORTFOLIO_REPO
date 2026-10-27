@@ -1,4 +1,4 @@
-"""Step LLM 1 (v3) — pertinence IA des articles repérés par mots-clés.
+"""Step LLM 1 (v5) — pertinence IA des articles repérés par mots-clés.
 
 Entrée : sortie annotée du filtre par mots-clés (…_annotated.parquet).
 Pour chaque article (level 6) contenant un mot-clé :
@@ -92,7 +92,7 @@ def evaluate(out: pd.DataFrame, gold_path: str, report_path: str) -> None:
     pred = out[out["AIREL_LABEL"].notna() & (out["AIREL_LABEL"] != "")][cols].copy()
     pred["order_index"] = pred["order_index"].astype(str)
     m = pred.merge(g, on=["law_id", "order_index"], how="inner")
-    llm = m[m["AIREL_METHOD"].isin(["llm", "propagation"])]
+    llm = m[m["AIREL_METHOD"].isin(["llm", "propagation", "cas3"])]
     lines = [f"Articles traités et présents dans le gold : {len(m)} "
              f"(règle {int((m['AIREL_METHOD'] == 'regle').sum())}, LLM {len(llm)}, "
              f"dont propagés {int((m['AIREL_METHOD'] == 'propagation').sum())})"]
@@ -102,6 +102,9 @@ def evaluate(out: pd.DataFrame, gold_path: str, report_path: str) -> None:
     lines += _report(llm, "AIREL_LABEL_CALIB", "LLM seul, probabilités calibrées")
     wd = llm[llm["AIREL_DEFINITION"].fillna("") != ""]
     lines += _report(wd, "AIREL_LABEL_LLM", "LLM seul, articles avec définition dans le prompt")
+    c3 = m[m["AIREL_METHOD"] == "cas3"]
+    if len(c3):
+        lines.append(f"\nCas 3 : {len(c3)} articles passés de NON à SPECIFIQUE, dont {int((c3['AI_RELEVANT'] == 'SPECIFIQUE').sum())} SPECIFIQUE dans le gold")
     prop = m[m["AIREL_METHOD"] == "propagation"]
     if len(prop):
         lines.append(f"\nPropagation : {len(prop)} articles passés en SPECIFIQUE, "
@@ -150,6 +153,9 @@ def main() -> int:
     ap.add_argument("--no_rule", action="store_true", help="envoyer aussi au LLM les articles où l'IA est nommée")
     ap.add_argument("--no_definitions", action="store_true", help="ne pas ajouter les définitions de l'acte au prompt")
     ap.add_argument("--no_propagation", action="store_true", help="pas de propagation intra-acte")
+    ap.add_argument("--no_case3", action="store_true", help="pas de seconde question « cas 3 » (risque porté par l'IA)")
+    ap.add_argument("--case3_threshold", type=float, default=0.5,
+                    help="probabilité corrigée de « oui » à partir de laquelle un article NON passe en SPECIFIQUE (cas 3)")
     ap.add_argument("--no_justification", action="store_true")
     ap.add_argument("--max_new_tokens", type=int, default=90)
     ap.add_argument("--limit", type=int, default=None, help="ne traiter que N articles (test)")
@@ -256,6 +262,42 @@ def main() -> int:
                 res[i]["AIREL_JUSTIFICATION"] = " ".join(r.split("\n\n")[0].split())
             print(f"Justifications : {time.time() - t0:.0f} s")
 
+    # ---- Cas 3 : seconde question oui/non pour les articles classés NON par le LLM ----------
+    case3_idx = [i for i in llm_idx if res[i]["AIREL_LABEL"] == "NON"] if (llm_idx and not args.no_case3) else []
+    if case3_idx:
+        t0 = time.time()
+
+        def ask_yes(user_prompts):
+            """P(oui) moyennée sur les deux ordres (A = oui / A = non)."""
+            p_yes = [0.0] * len(user_prompts)
+            for order in ([0, 1], [1, 0]):
+                sys_c, letters, codes = P.case3_system(order)
+                prompts = [client.build_chat_prompt(sys_c, P.case3_user_prompt(u, letters)) for u in user_prompts]
+                lps = client.next_token_logprobs(prompts, letters, batch_size=args.batch_size)
+                for k, lp in enumerate(lps):
+                    pr = softmax(lp)
+                    p_yes[k] += pr[codes.index("OUI")] / 2
+            return p_yes
+
+        p_cf = ask_yes([P.content_free_prompts()[0]])[0]
+        p_cf = min(max(p_cf, 1e-4), 1 - 1e-4)
+        p_raw = ask_yes([prompts_user[i] for i in case3_idx])
+        n_flip = 0
+        for i, pv in zip(case3_idx, p_raw):
+            pv_c = min(max(pv, 1e-4), 1 - 1e-4)
+            odds = (pv_c / (1 - pv_c)) / (p_cf / (1 - p_cf))
+            pcal = odds / (1 + odds)
+            res[i]["AIREL_CASE3_P"] = round(pv, 4)
+            res[i]["AIREL_CASE3_P_CALIB"] = round(pcal, 4)
+            if pcal >= args.case3_threshold:
+                res[i]["AIREL_LABEL"] = "SPECIFIQUE"
+                res[i]["AIREL_METHOD"] = "cas3"
+                res[i]["AIREL_JUSTIFICATION"] = (f"Cas 3 (risque ou capacité porté par l'IA) : P(oui) corrigée = {pcal:.2f}. "
+                                                 + str(res[i].get("AIREL_JUSTIFICATION", "")))
+                n_flip += 1
+        print(f"Cas 3 : {len(case3_idx)} articles NON examinés en {time.time() - t0:.0f} s ; penchant pour « oui » "
+              f"(article vide) = {p_cf:.2f} ; {n_flip} passé(s) en SPECIFIQUE (seuil {args.case3_threshold})")
+
     n_prop = 0 if args.no_propagation else propagate(df, todo, res)
     print(f"Propagation intra-acte : {n_prop} article(s) passés en SPECIFIQUE")
 
@@ -263,7 +305,8 @@ def main() -> int:
             "AIREL_LABEL_BRUT", "AIREL_LABEL_CALIB",
             "AIREL_P_SPECIFIQUE", "AIREL_P_NEUTRE", "AIREL_P_NON",
             "AIREL_P_SPECIFIQUE_CALIB", "AIREL_P_NEUTRE_CALIB", "AIREL_P_NON_CALIB",
-            "AIREL_CONFIDENCE", "AIREL_PROPAGATED_FROM", "AIREL_JUSTIFICATION", "AIREL_PROMPT_TOKENS"]
+            "AIREL_CONFIDENCE", "AIREL_CASE3_P", "AIREL_CASE3_P_CALIB", "AIREL_PROPAGATED_FROM",
+            "AIREL_JUSTIFICATION", "AIREL_PROMPT_TOKENS"]
     for c in cols:
         df[c] = pd.NA
     for i in todo:
