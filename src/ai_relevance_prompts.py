@@ -1,5 +1,5 @@
 # src/ai_relevance_prompts.py
-"""Step LLM 1 (v3) : le terme trouvé par le filtre par mots-clés renvoie-t-il à de l'IA ?
+"""Step LLM 1 (v4 : SPECIFIQUE inclut le cas 3 « risque ou capacité dont l'IA est le moteur principal ») : le terme trouvé par le filtre par mots-clés renvoie-t-il à de l'IA ?
 
 Trois classes (cf. PORTFOLIO_NEW_GOLD) :
   SPECIFIQUE : l'IA est nommée, ou le système visé perçoit / comprend / agit seul ;
@@ -63,14 +63,18 @@ RULE_SPECIFIQUE_KEYWORDS: List[str] = [
 
 SYSTEM_PROMPT = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).
 
-Un filtre par mots-clés a repéré, dans un article de loi, un terme lié à l'automatisation. Ta tâche : dire à quel type de technologie ce terme renvoie, tel qu'il est employé dans CET article.
+Un filtre par mots-clés a repéré, dans un article de loi, un terme lié à l'automatisation ou aux technologies numériques. Ta tâche : dire à quel type de technologie ce terme renvoie, tel qu'il est employé dans CET article.
 
 ## Les trois catégories
-A — Système d'IA. Le terme désigne une machine qui accomplit elle-même une tâche demandant normalement de la perception, de la compréhension ou du jugement humains : conduire un véhicule à la place du conducteur, reconnaître une personne ou un objet sur une image, comprendre ou produire du texte, des images ou des sons, agir de façon autonome dans le monde réel. Il suffit que le texte vise un tel système, même s'il n'emploie pas les mots « intelligence artificielle ».
+A — IA. Le terme renvoie à l'IA dans l'un de ces trois cas :
+1. un système d'IA : une machine qui accomplit elle-même une tâche demandant normalement de la perception, de la compréhension ou du jugement humains (conduire un véhicule à la place du conducteur, reconnaître une personne ou un objet sur une image, comprendre ou produire du texte, des images ou des sons, agir de façon autonome dans le monde réel) ;
+2. un système qui ne peut pas fonctionner sans IA ;
+3. un risque ou une capacité dont l'IA est aujourd'hui le moteur principal : manipulation de l'information et de l'opinion, atteinte à la capacité de penser de façon autonome (intégrité ou espace cognitif), contenus synthétiques ou truqués, et les « technologies émergentes » lorsqu'elles sont évoquées à propos de ces risques.
+Il suffit que le texte vise l'un de ces cas, même s'il n'emploie pas les mots « intelligence artificielle ».
 
 B — Décision ou évaluation automatisée. Le terme désigne une machine qui évalue une personne ou tranche un cas à la place d'un humain : décision rendue sans intervention humaine, profilage (évaluation automatisée de caractéristiques personnelles comme le comportement, le risque, la solvabilité ou la santé), attribution d'un score ou classement de personnes. La règle vaut quelle que soit la technique (simple logiciel ou IA). Si l'article encadre l'usage de tels résultats (autorisation, communication, droits des personnes), c'est aussi B.
 
-C — Simple informatique. Le terme indique seulement que des données sont traitées par ordinateur, ou qu'un appareil fonctionne de lui-même selon un mécanisme fixe : enregistrer, transmettre, consulter, comparer, calculer, mesurer, déclencher. Aucune machine n'évalue de personne ni ne remplace un jugement humain. « Autonome » au sens d'« indépendant » et « traitement automatisé » au sens de « traitement informatique » relèvent de C.
+C — Simple informatique ou numérisation. Le terme indique seulement que des données sont traitées par ordinateur, ou qu'un appareil fonctionne de lui-même selon un mécanisme fixe : enregistrer, transmettre, consulter, comparer, calculer, mesurer, déclencher. Aucune machine n'évalue de personne ni ne remplace un jugement humain. Relèvent aussi de C : « autonome » au sens d'« indépendant », « traitement automatisé » au sens de « traitement informatique », la numérisation en général (transformation numérique, cloud, systèmes d'information), la cybersécurité classique et les engins télécommandés, tant que l'article ne vise pas l'un des trois cas de A.
 
 ## Comment raisonner
 1. Regarde ce que fait la machine dans cet article : elle perçoit, comprend ou agit seule (A) ; elle évalue ou décide à propos d'une personne ou d'un cas (B) ; elle exécute seulement une opération sur des données ou un mécanisme (C).
@@ -78,6 +82,7 @@ C — Simple informatique. Le terme indique seulement que des données sont trai
 3. Entre A et B : A si la tâche demande de percevoir ou de comprendre (voir, conduire, lire, parler) ; B si la machine applique des critères à des données sur une personne ou un cas.
 4. Entre B et C : B seulement si le résultat porte sur une personne ou un cas et tient lieu d'appréciation humaine.
 5. C'est le système désigné par le terme qui compte, pas l'opération que l'article décrit. Un article peut ne parler que des données d'un système, de son entretien, de son autorisation ou de son contrôle : si le système lui-même perçoit, reconnaît ou conduit, la réponse est A. Si une définition du terme est fournie, appuie-toi dessus.
+6. Pour un risque (cas 3 de A) : la réponse est A quand l'article vise la manipulation de l'information ou de l'opinion, l'autonomie de pensée des personnes ou les contenus truqués, même formulés en termes généraux (« technologies émergentes », « espace cognitif »).
 
 ## Exemples (inventés, pour illustrer le raisonnement)
 - « Le drone de livraison évite seul les obstacles détectés par ses caméras. » → A : la machine perçoit son environnement et agit sans pilote.
@@ -85,6 +90,8 @@ C — Simple informatique. Le terme indique seulement que des données sont trai
 - « L'office peut statuer sans qu'une personne physique examine le dossier. » → B : décision rendue sans intervention humaine.
 - « Les données sont transmises par une procédure automatisée à l'autorité compétente. » → C : simple transmission informatique.
 - « La vanne se ferme automatiquement lorsque le niveau dépasse le seuil fixé. » → C : mécanisme fixe, aucun jugement.
+- « La Confédération renforce la résilience de la population face à la manipulation de l'opinion par les technologies émergentes. » → A : risque dont l'IA est le moteur principal (cas 3).
+- « Un crédit est alloué à la transformation numérique de l'administration. » → C : numérisation en général.
 
 Réponds par une seule lettre : A, B ou C."""
 
