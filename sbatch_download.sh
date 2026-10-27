@@ -9,16 +9,19 @@
 #SBATCH --mail-user=maxime.kaiser@unil.ch
 #SBATCH --mail-type=END,FAIL
 
-# Téléchargement Fedlex (Recueil systématique, actes en vigueur, FR) et découpe
-# article par article -> laws_structure_final.parquet / .csv
+# Téléchargement Fedlex, FR, et découpe article par article -> laws_structure_final.parquet / .csv
+#   - Recueil systématique (RS) : actes en vigueur à AS_OF ;
+#   - Feuille fédérale (FF) : arrêtés fédéraux (tous types) publiés en XML (depuis mi-2021),
+#     jusqu'à AS_OF.
 #
 # Usage :
-#   sbatch sbatch_download.sh                      # tout (défaut) : droit interne + traités, en vigueur aujourd'hui
+#   sbatch sbatch_download.sh                      # tout (défaut) : RS (droit interne + traités) + arrêtés fédéraux
+#   sbatch sbatch_download.sh arretes              # arrêtés fédéraux de la FF seulement (test rapide, ~380 actes)
 #   sbatch sbatch_download.sh interne              # droit interne seulement
 #   sbatch sbatch_download.sh all 20260101         # tout, en vigueur au 1.1.2026
 #
 # Groupes : interne (lois, ordonnances, autres actes fédéraux, conventions Confédération-
-# cantons) | traites | all | lois | ordonnances | autres_actes | conventions_cantons
+# cantons, arrêtés fédéraux) | traites | arretes | all | lois | ordonnances | autres_actes | conventions_cantons
 #   REUSE=1 sbatch sbatch_download.sh              # réutiliser les XML déjà présents (pas de re-téléchargement)
 #
 # Par défaut, tous les XML sont re-téléchargés (raw_xml/ est écrasé).
@@ -37,7 +40,7 @@ AS_OF="${2:-$(date +%Y%m%d)}"
 REUSE="${REUSE:-0}"
 
 case "$DOC_TYPES" in
-  interne|traites|all|lois|ordonnances|autres_actes|conventions_cantons) ;;
+  interne|traites|arretes|all|lois|ordonnances|autres_actes|conventions_cantons) ;;
   *) echo "DOC_TYPES invalide (reçu : $DOC_TYPES) — voir l'en-tête du script" >&2; exit 1 ;;
 esac
 if ! [[ "$AS_OF" =~ ^[0-9]{8}$ ]]; then
@@ -112,6 +115,7 @@ print("Actes par type :")
 print(df.drop_duplicates("law_id")["doc_type_label"].value_counts().to_string())
 cat = pd.read_parquet(f"{out}/cc_catalog_fr_inforce.parquet")
 print("Base vigueur :", cat["in_force_basis"].value_counts().to_dict())
+print("Actes par catégorie :", df.drop_duplicates("law_id")["doc_category"].value_counts().to_dict())
 print(f"Articles : {len(arts):,} (dont sans texte / abrogés : {int((arts['text'].fillna('').str.strip() == '').sum()):,} ; actes sans articles, texte intégral en 1 ligne : {int((arts['label'] == 'Texte intégral (sans articles)').sum()):,})")
 PY
 

@@ -191,6 +191,30 @@ DOC_TYPES: "OrderedDict[int, Tuple[str, str]]" = OrderedDict(
     ]
 )
 
+# Arrêtés fédéraux : publiés dans la Feuille fédérale (FF, eli/fga), jamais dans le RS.
+# Pas de version consolidée ni de statut « en vigueur » : on prend tous ceux dont la date de
+# l'acte (jolux:dateDocument) est comprise entre FGA_MIN_DATE et as_of ET qui sont publiés en
+# XML (la FF n'existe en XML que depuis mi-2021 ; les PDF antérieurs sont écartés).
+FGA_DOC_TYPES: "OrderedDict[int, Tuple[str, str]]" = OrderedDict(
+    [
+        (6, ("arrete_federal", "Arrêté du Conseil fédéral")),
+        (7, ("arrete_federal", "Arrêté fédéral simple (approbation de traités)")),
+        (8, ("arrete_federal", "Arrêté fédéral simple (autres)")),
+        (9, ("arrete_federal", "Arrêté fédéral sujet au référendum facultatif (autres)")),
+        (10, ("arrete_federal", "Arrêté fédéral soumis au référendum obligatoire")),
+        (36, ("arrete_federal", "Arrêté fédéral sujet au référendum facultatif (traités)")),
+        (62, ("arrete_federal", "Arrêté fédéral simple")),
+        (65, ("arrete_federal", "Arrêté fédéral urgent sans base constitutionnelle, durée >1 an")),
+        (66, ("arrete_federal", "Arrêté fédéral urgent sans base constitutionnelle, durée <1 an")),
+        (74, ("arrete_federal", "Arrêté fédéral urgent avec base constitutionnelle, durée >1 an")),
+        (75, ("arrete_federal", "Arrêté fédéral urgent avec base constitutionnelle, durée <1 an")),
+        (76, ("arrete_federal", "Arrêté fédéral de portée générale")),
+    ]
+)
+FGA_MIN_DATE = "2015-01-01"
+
+ALL_DOC_TYPES: "OrderedDict[int, Tuple[str, str]]" = OrderedDict(list(DOC_TYPES.items()) + list(FGA_DOC_TYPES.items()))
+
 _INTERNATIONAL = {"traite_international"}
 
 DOC_TYPE_GROUPS: Dict[str, List[int]] = {
@@ -199,9 +223,11 @@ DOC_TYPE_GROUPS: Dict[str, List[int]] = {
     "autres_actes": [c for c, (cat, _) in DOC_TYPES.items() if cat == "autre_acte"],
     "conventions_cantons": [c for c, (cat, _) in DOC_TYPES.items() if cat == "convention_cantons"],
     "traites": [c for c, (cat, _) in DOC_TYPES.items() if cat in _INTERNATIONAL],
-    # tout le droit interne (défaut)
-    "interne": [c for c, (cat, _) in DOC_TYPES.items() if cat not in _INTERNATIONAL],
-    "all": list(DOC_TYPES.keys()),
+    "arretes": list(FGA_DOC_TYPES.keys()),
+    # tout le droit interne : RS interne + arrêtés fédéraux (FF)
+    "interne": [c for c, (cat, _) in DOC_TYPES.items() if cat not in _INTERNATIONAL] + list(FGA_DOC_TYPES.keys()),
+    # défaut : RS (droit interne + traités) + arrêtés fédéraux (FF)
+    "all": list(DOC_TYPES.keys()) + list(FGA_DOC_TYPES.keys()),
 }
 
 # Fedlex ne renseigne pas jolux:inForceStatus pour beaucoup d'actes récents (ex. ONum,
@@ -225,7 +251,7 @@ def build_cc_catalog_fr(
        (YYYYMMDD, défaut = aujourd'hui). Les consolidations datées dans le futur
        (versions déjà publiées mais pas encore en vigueur) sont ignorées.
     """
-    type_codes = list(type_codes or DOC_TYPE_GROUPS["all"])
+    type_codes = list(type_codes or DOC_TYPES.keys())
     unknown = [c for c in type_codes if c not in DOC_TYPES]
     if unknown:
         raise ValueError(f"Unknown resource-type codes: {unknown} (known: {list(DOC_TYPES)})")
@@ -327,6 +353,83 @@ WHERE {{
     return df
 
 
+def build_fga_catalog_fr(
+    client: SparqlClient,
+    type_codes: List[int],
+    as_of: Optional[str] = None,
+    date_from: str = FGA_MIN_DATE,
+) -> pd.DataFrame:
+    """
+    Catalogue des arrêtés fédéraux de la Feuille fédérale (eli/fga), FR, dont la date de l'acte
+    (jolux:dateDocument) est comprise entre date_from et as_of. Mêmes colonnes que le catalogue
+    du RS : l'URI de l'acte sert aussi de « consolidation » (pas de version consolidée en FF).
+    """
+    unknown = [c for c in type_codes if c not in FGA_DOC_TYPES]
+    if unknown:
+        raise ValueError(f"Unknown FGA resource-type codes: {unknown}")
+    as_of = as_of or date.today().strftime("%Y%m%d")
+    as_of_iso = f"{as_of[:4]}-{as_of[4:6]}-{as_of[6:]}"
+    values = "\n    ".join(f"<{RESOURCE_TYPE_BASE}{c}>" for c in type_codes)
+    sparql = f"""
+PREFIX jolux: <http://data.legilux.public.lu/resource/ontology/jolux#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+
+SELECT ?w ?typeDoc ?d ?title_fr
+WHERE {{
+  ?w jolux:typeDocument ?typeDoc ;
+     jolux:legalResourceFamilyType <https://fedlex.data.admin.ch/vocabulary/resource-family/fga> ;
+     jolux:dateDocument ?d .
+  VALUES ?typeDoc {{
+    {values}
+  }}
+  FILTER(STR(?d) >= "{date_from}" && STR(?d) <= "{as_of_iso}")
+  # seulement les arrêtés publiés en XML (FF au format Akoma Ntoso, depuis mi-2021) :
+  # avant, la FF n'existe qu'en PDF / DOC, dont la découpe en articles n'est pas fiable
+  ?w jolux:isRealizedBy ?exml .
+  FILTER(STRENDS(STR(?exml), "/fr"))
+  ?exml jolux:isEmbodiedBy ?mxml .
+  FILTER(STRENDS(STR(?mxml), "/fr/xml"))
+  ?mxml jolux:isExemplifiedBy ?fxml .
+  OPTIONAL {{
+    ?w jolux:isRealizedBy ?expr .
+    FILTER(STRENDS(STR(?expr), "/fr"))
+    ?expr jolux:title ?title_fr .
+  }}
+}}
+"""
+    data = client.query_json(sparql)
+    bindings = data.get("results", {}).get("bindings", [])
+    if not bindings:
+        print("   [WARN] SPARQL : 0 arrêté fédéral trouvé dans la Feuille fédérale")
+        return pd.DataFrame()
+    records = []
+    for b in bindings:
+        w = b.get("w", {}).get("value")
+        d = b.get("d", {}).get("value", "")[:10]
+        if not w or not d:
+            continue
+        records.append(dict(
+            base_act_uri=w,
+            consolidation_uri=w,
+            type_doc=b.get("typeDoc", {}).get("value"),
+            in_force_status_uri=None,
+            date_entry_in_force=d,
+            date_no_longer_in_force=None,
+            title_fr=b.get("title_fr", {}).get("value"),
+            consolidation_date_yyyymmdd=d.replace("-", ""),
+        ))
+    df = pd.DataFrame.from_records(records).drop_duplicates("base_act_uri").reset_index(drop=True)
+    df["type_code"] = df["type_doc"].map(_extract_last_segment).astype(int)
+    df["doc_category"] = df["type_code"].map(lambda c: FGA_DOC_TYPES[c][0])
+    df["doc_type_label"] = df["type_code"].map(lambda c: FGA_DOC_TYPES[c][1])
+    df["in_force_basis"] = f"fga_date_document_{date_from}_{as_of_iso}"
+    df["title_fr"] = df["title_fr"].map(lambda t: _norm_ws(re.sub(r"<[^>]+>", "", t)) if isinstance(t, str) else t)
+    df["title"] = df["title_fr"]
+    df["lang"] = "fr"
+    df["as_of"] = as_of
+    return df
+
+
 # ============================================================
 # Download XML (ancienne logique jolux:isExemplifiedBy)
 # ============================================================
@@ -392,118 +495,58 @@ def download_cc_xml_batch(
         base_act_uri = str(row["base_act_uri"])
         cons_uri = str(row["consolidation_uri"])
         cons_date = str(row["consolidation_date_yyyymmdd"])
-        # identifiant complet après /eli/cc/ ("2018/385" -> "2018_385") : le seul dernier
-        # segment ("385") n'est pas unique (2007/385 = LIB, 2018/385 = ordonnance DFAE) et
-        # faisait partager le même fichier XML à deux actes différents.
-        ident = base_act_uri.rstrip("/").split("/eli/cc/")[-1].replace("/", "_")
-        out_path = out_raw_dir / f"{cons_date}__{ident}.xml"
+        is_fga = "/eli/fga/" in base_act_uri
+        if is_fga:
+            ident = "fga_" + base_act_uri.rstrip("/").split("/eli/fga/")[-1].replace("/", "_")
+        else:
+            # identifiant complet après /eli/cc/ ("2018/385" -> "2018_385") : le seul dernier
+            # segment ("385") n'est pas unique (2007/385 = LIB, 2018/385 = ordonnance DFAE) et
+            # faisait partager le même fichier XML à deux actes différents.
+            ident = base_act_uri.rstrip("/").split("/eli/cc/")[-1].replace("/", "_")
 
-        if out_path.exists() and not cfg.overwrite:
-            rows.append(
-                dict(
-                    base_act_uri=base_act_uri,
-                    cons_date=cons_date,
-                    manifestation_uri=_manifestation_uri(cons_uri, "fr"),
-                    file_url=None,
-                    ok=True,
-                    skipped_existing=True,
-                    path=str(out_path),
-                    sha256=None,
-                    http_status=None,
-                    error=None,
-                )
-            )
+        # format XML (Akoma Ntoso) uniquement, RS comme Feuille fédérale
+        candidates = [("xml", ".xml", _looks_like_xml)]
+
+        existing = [out_raw_dir / f"{cons_date}__{ident}{ext}" for _, ext, _ in candidates]
+        existing = [p for p in existing if p.exists()]
+        if existing and not cfg.overwrite:
+            rows.append(dict(base_act_uri=base_act_uri, cons_date=cons_date,
+                             manifestation_uri=None, file_url=None, ok=True, skipped_existing=True,
+                             path=str(existing[0]), sha256=None, http_status=None, error=None))
             continue
 
-        manifestation = _manifestation_uri(cons_uri, "fr")
-        try:
-            file_url = _resolve_filestore_url(sparql, manifestation, cache=cache)
-            if not file_url:
-                rows.append(
-                    dict(
-                        base_act_uri=base_act_uri,
-                        cons_date=cons_date,
-                        manifestation_uri=manifestation,
-                        file_url=None,
-                        ok=False,
-                        skipped_existing=False,
-                        path=None,
-                        sha256=None,
-                        http_status=None,
-                        error="No jolux:isExemplifiedBy file URL for manifestation",
-                    )
-                )
-                continue
-
-            r = requests.get(file_url, headers=headers, timeout=cfg.timeout_s, allow_redirects=True)
-            content = r.content
-            ct = (r.headers.get("Content-Type") or "").lower()
-
-            if r.status_code != 200:
-                rows.append(
-                    dict(
-                        base_act_uri=base_act_uri,
-                        cons_date=cons_date,
-                        manifestation_uri=manifestation,
-                        file_url=file_url,
-                        ok=False,
-                        skipped_existing=False,
-                        path=None,
-                        sha256=None,
-                        http_status=r.status_code,
-                        error=f"HTTP {r.status_code}",
-                    )
-                )
-                continue
-
-            if not _looks_like_xml(content):
-                rows.append(
-                    dict(
-                        base_act_uri=base_act_uri,
-                        cons_date=cons_date,
-                        manifestation_uri=manifestation,
-                        file_url=file_url,
-                        ok=False,
-                        skipped_existing=False,
-                        path=None,
-                        sha256=None,
-                        http_status=r.status_code,
-                        error=f"Non-XML content (ct={ct}, html={_looks_like_html(content)})",
-                    )
-                )
-                continue
-
-            out_path.write_bytes(content)
-            rows.append(
-                dict(
-                    base_act_uri=base_act_uri,
-                    cons_date=cons_date,
-                    manifestation_uri=manifestation,
-                    file_url=file_url,
-                    ok=True,
-                    skipped_existing=False,
-                    path=str(out_path),
-                    sha256=_sha256_bytes(content),
-                    http_status=r.status_code,
-                    error=None,
-                )
-            )
-
-        except Exception as e:
-            rows.append(
-                dict(
-                    base_act_uri=base_act_uri,
-                    cons_date=cons_date,
-                    manifestation_uri=manifestation,
-                    file_url=None,
-                    ok=False,
-                    skipped_existing=False,
-                    path=None,
-                    sha256=None,
-                    http_status=None,
-                    error=str(e),
-                )
-            )
+        errors = []
+        done = False
+        for fmt, ext, check in candidates:
+            manifestation = f"{cons_uri.rstrip('/')}/fr/{fmt}"
+            out_path = out_raw_dir / f"{cons_date}__{ident}{ext}"
+            try:
+                file_url = _resolve_filestore_url(sparql, manifestation, cache=cache)
+                if not file_url:
+                    errors.append(f"{fmt}: pas de fichier (jolux:isExemplifiedBy)")
+                    continue
+                r = requests.get(file_url, headers=headers, timeout=cfg.timeout_s, allow_redirects=True)
+                content = r.content
+                if r.status_code != 200:
+                    errors.append(f"{fmt}: HTTP {r.status_code}")
+                    continue
+                if not check(content):
+                    ct = (r.headers.get("Content-Type") or "").lower()
+                    errors.append(f"{fmt}: contenu inattendu (ct={ct})")
+                    continue
+                out_path.write_bytes(content)
+                rows.append(dict(base_act_uri=base_act_uri, cons_date=cons_date,
+                                 manifestation_uri=manifestation, file_url=file_url, ok=True,
+                                 skipped_existing=False, path=str(out_path),
+                                 sha256=_sha256_bytes(content), http_status=r.status_code, error=None))
+                done = True
+                break
+            except Exception as e:
+                errors.append(f"{fmt}: {e}")
+        if not done:
+            rows.append(dict(base_act_uri=base_act_uri, cons_date=cons_date,
+                             manifestation_uri=None, file_url=None, ok=False, skipped_existing=False,
+                             path=None, sha256=None, http_status=None, error=" | ".join(errors)))
 
     return pd.DataFrame(rows)
 
@@ -545,6 +588,20 @@ def extract_sr_number(xml_path: Path) -> str:
         return ""
     txt = re.sub(rb"<[^>]+>", b"", m.group(1)).decode("utf-8", errors="ignore")
     return _norm_ws(txt)
+
+
+_FRBR_NUMBER_FR_RE = re.compile(rb'<(?:\w+:)?FRBRnumber[^>]*xml:lang="fr"[^>]*value="([^"]+)"')
+
+
+def extract_ff_number(path: Path, base_act_uri: str) -> str:
+    """Référence « FF année numéro » d'un arrêté de la Feuille fédérale (tient lieu de n° RS)."""
+    if path.suffix == ".xml":
+        with open(path, "rb") as fh:
+            m = _FRBR_NUMBER_FR_RE.search(fh.read(100_000))
+        if m:
+            return _norm_ws(m.group(1).decode("utf-8", errors="ignore"))
+    parts = base_act_uri.rstrip("/").split("/eli/fga/")[-1].split("/")
+    return f"FF {parts[0]} {parts[1]}" if len(parts) >= 2 else ""
 
 
 # ============================================================
@@ -811,7 +868,18 @@ def run_all(
 
     print("1) Building catalog via SPARQL (known-working query)…")
     sp = SparqlClient()
-    catalog = build_cc_catalog_fr(sp, type_codes=DOC_TYPE_GROUPS[doc_types], as_of=as_of)
+    codes = DOC_TYPE_GROUPS[doc_types]
+    cc_codes = [c for c in codes if c in DOC_TYPES]
+    fga_codes = [c for c in codes if c in FGA_DOC_TYPES]
+    parts = []
+    if cc_codes:
+        parts.append(build_cc_catalog_fr(sp, type_codes=cc_codes, as_of=as_of))
+    if fga_codes:
+        fga = build_fga_catalog_fr(sp, type_codes=fga_codes, as_of=as_of)
+        print(f"   Arrêtés fédéraux (Feuille fédérale, publiés en XML, depuis {FGA_MIN_DATE}) : {len(fga)}")
+        if len(fga):
+            parts.append(fga)
+    catalog = pd.concat(parts, ignore_index=True)
     print("   " + ", ".join(f"{k}={v}" for k, v in catalog["doc_type_label"].value_counts().items()))
     if limit is not None:
         catalog = catalog.head(limit).copy()
@@ -860,7 +928,10 @@ def run_all(
             continue
         xml_path = Path(xml_path_s)
         try:
-            sr_numbers[law_id] = extract_sr_number(xml_path)
+            if "/eli/fga/" in law_id:
+                sr_numbers[law_id] = extract_ff_number(xml_path, law_id)
+            else:
+                sr_numbers[law_id] = extract_sr_number(xml_path)
         except Exception:
             sr_numbers[law_id] = ""
 
@@ -946,9 +1017,9 @@ def main_cli() -> int:
         "--doc-types",
         choices=sorted(DOC_TYPE_GROUPS),
         default="all",
-        help="Types d'actes : all (défaut : droit interne + traités internationaux), "
-        "interne (lois, ordonnances, autres actes fédéraux, conventions Confédération-cantons), "
-        "traites, ou un groupe : lois, ordonnances, autres_actes, conventions_cantons",
+        help="Types d'actes : all (défaut : RS — droit interne + traités — et arrêtés fédéraux de la FF), "
+        "interne (lois, ordonnances, autres actes fédéraux, conventions Confédération-cantons, arrêtés fédéraux), "
+        "traites, arretes, ou un groupe : lois, ordonnances, autres_actes, conventions_cantons",
     )
     ap.add_argument(
         "--as-of",

@@ -14,9 +14,7 @@
 # à l'étape 1 (cf. src/policy_classification_prompts.py et le codebook).
 # Trois questions par article, réponse en une lettre lue par probabilité :
 #   Q1 cadran (ou « aucun mécanisme ») -> Q2 sous-catégorie -> Q3 instrument.
-#   Cadran : une question oui/non par option (4 cadrans + aucun), la plus probable gagne (score corrigé).
 #   Sous-catégorie : une question oui/non par sous-catégorie (score corrigé), la plus probable gagne.
-#   Q1_MULTI=1 : ancienne question du cadran à 5 options ; TARGET_RAW=1 : cadran sur scores bruts.
 #   SUB_RAW=1 : choisir sur les scores bruts.
 #   DEBIAS=1 : poser aussi cadran / sous-catégorie / instrument dans deux ordres.
 #
@@ -44,8 +42,6 @@ NO_DEFINITIONS="${NO_DEFINITIONS:-}"
 FROM_GOLD="${FROM_GOLD:-}"
 DEBIAS="${DEBIAS:-}"
 SUB_RAW="${SUB_RAW:-}"
-Q1_MULTI="${Q1_MULTI:-}"
-TARGET_RAW="${TARGET_RAW:-}"
 
 cd "$WORKDIR"
 source .venv/bin/activate
@@ -75,8 +71,6 @@ EXTRA_ARGS=()
 [ -n "$FROM_GOLD" ] && EXTRA_ARGS+=(--select_from_gold)
 [ -n "$DEBIAS" ] && EXTRA_ARGS+=(--debias)
 [ -n "$SUB_RAW" ] && EXTRA_ARGS+=(--sub_raw)
-[ -n "$Q1_MULTI" ] && EXTRA_ARGS+=(--q1_multichoice)
-[ -n "$TARGET_RAW" ] && EXTRA_ARGS+=(--target_raw)
 
 python scripts/run_policy_classification.py \
   --input "$INPUT" \

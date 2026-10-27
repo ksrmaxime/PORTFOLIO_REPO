@@ -86,6 +86,21 @@ KEYWORDS: List[Keyword] = [
             rf"\b(?:reconnaissance (?:faciale|biometrique|des visages)|identification biometrique|comparaison biometrique|systemes? de reconnaissance (?:faciale|des visages|biometrique))\b"),
     Keyword("biometrie", "extended", "recherche automatisée de véhicules (plaques)",
             rf"\b(?:recherche automatisee de vehicules|lecture automatique des plaques|reconnaissance automatique des plaques)\b"),
+    # --- Véhicules et engins sans conducteur ---------------------------------
+    Keyword("automatisation", "extended", "véhicule / engin sans conducteur",
+            rf"\b(?:vehicules?|trains?|navires?|bateaux?|aeronefs?) sans (?:conducteur|pilote|equipage)\b"),
+    Keyword("automatisation", "extended", "drone", rf"\bdrones?\b"),
+    # --- Technologies émergentes et espace informationnel (ajout pour les arrêtés fédéraux,
+    #     qui parlent souvent de technologies sans nommer l'IA ; tri par l'étape LLM 1) ------
+    Keyword("technologies_emergentes", "extended", "technologies émergentes / de rupture",
+            rf"\btechnolog(?:ie|ies|ique|iques) (?:numeriques? )?(?:emergentes?|de rupture|disruptives?)\b|\bavancees technologiques\b"),
+    Keyword("technologies_emergentes", "extended", "espace / intégrité cognitive",
+            rf"\b(?:espace|integrite|guerre|domaine|resilience|securite) cognitive?s?\b"),
+    Keyword("technologies_emergentes", "extended", "désinformation / opérations d'influence",
+            rf"\b(?:desinformation|mesinformation|manipulation de l'information|operations? d'influence|campagnes? d'influence)\b"),
+    Keyword("technologies_emergentes", "extended", "transformation numérique", rf"\btransformation numerique\b"),
+    Keyword("technologies_emergentes", "extended", "systèmes intelligents / objets connectés",
+            rf"\b(?:systemes?|logiciels?|outils?|acheminement|technologies?|applications?) intelligente?s?\b|\binternet des objets\b|\bobjets? connectes?\b"),
     # --- Données (exploitation à grande échelle) ----------------------------
     Keyword("donnees", "extended", "fouille de textes et de données / mégadonnées",
             rf"\b(?:fouille de (?:textes et de )?donnees|exploration de textes et de donnees|text and data mining|megadonnees|big data|science des donnees)\b"),

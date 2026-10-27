@@ -1,5 +1,5 @@
 # src/policy_classification_prompts.py
-"""Step LLM 2 (v8 : cadran = une question oui/non par option, critère « l'État agit lui-même ou impose des règles à d'autres » ; (4 cadrans + aucun), la plus probable est retenue ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
+"""Step LLM 2 (v5 : cadran identique au run 66533384 ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
 
 Cf. le codebook (Claude Docs « Codebook – Portfolio IA »). Trois questions, chacune posée avec
 toutes ses options à la fois, réponse en une lettre (lecture de la probabilité des lettres) :
@@ -109,90 +109,6 @@ FOCUS = {"AI_PRODUCTION": "la ressource que l'État fournit ou facilite par cet 
          "AI_ADOPTION": "la ressource que l'État fournit ou facilite par cet article",
          "AI_PRODUCTION_RISK": "l'intérêt que cet article protège",
          "AI_ADOPTION_RISK": "l'intérêt que cet article protège"}
-
-# ------------------------------------------------------------------ Q1 en questions oui/non
-# Pass 1 : l'article est soumis à UNE question oui/non PAR option du cadran (4 cadrans + aucun
-# mécanisme), toutes construites sur le même modèle : les deux règles du codebook, la définition
-# de l'option (textes de QUADRANTS, version du run 66533384), deux exemples inventés « oui » et un
-# exemple de chacune des autres options en « non ». L'option la plus probable est retenue.
-QUADRANT_NAMES: Dict[str, str] = {
-    "AI_PRODUCTION": "encourager la production de l'IA (l'État agit lui-même pour développer la production de l'IA)",
-    "AI_ADOPTION": "encourager l'adoption de l'IA (l'État agit lui-même pour développer l'utilisation de l'IA)",
-    "AI_PRODUCTION_RISK": "limiter les risques de la production de l'IA (l'État impose des règles sur la production de l'IA)",
-    "AI_ADOPTION_RISK": "limiter les risques de l'adoption de l'IA (l'État impose des règles sur l'utilisation de l'IA)",
-    "": "aucun mécanisme (l'article ne fait que définir un terme ou décrire l'objet de l'acte)",
-}
-
-# définitions utilisées dans les questions oui/non (critère : l'État agit lui-même ou impose des
-# règles à d'autres) ; QUADRANTS (question à 5 options, run 66533384) reste inchangé
-QUADRANT_YESNO_DEFS: Dict[str, str] = {
-    "AI_PRODUCTION": "L'État agit lui-même pour développer la production de l'IA : il fournit ou facilite les moyens de produire l'IA (données d'entraînement, serveurs et puces pour l'entraînement, recherche, formation de développeurs).",
-    "AI_ADOPTION": "L'État agit lui-même pour développer l'utilisation de l'IA : un organe public reçoit une mission, coordonne, finance, aménage une infrastructure pour l'usage, forme, coopère, ou l'État se donne la possibilité d'utiliser un système.",
-    "AI_PRODUCTION_RISK": "L'État impose des règles sur la production de l'IA à ceux qui la produisent : conditions ou exigences sur les moyens de produire l'IA (solidité du code : cybersécurité et gestion des mises à jour logicielles chez le développeur ; données d'entraînement ; infrastructure de calcul).",
-    "AI_ADOPTION_RISK": "L'État impose des règles sur l'utilisation de l'IA à quelqu'un (fabricant, exploitant, utilisateur ou autorité) : conditions, limites, exigences ou garanties sur le produit final, son utilisation, sa mise en circulation ou sa vente (usage autorisé sous conditions, homologation, exigences techniques sur le système mis en circulation, enregistrement des événements, contrôle humain, données traitées et leur effacement, sanctions, interdiction de vendre ou de fournir le service).",
-    "": "L'article ne fait que définir un terme ou décrire l'objet de l'acte, sans règle propre.",
-}
-
-QUADRANT_YESNO_RULES = """## Règle 1 — L'État agit lui-même ou impose des règles à d'autres
-- Encourager : dans cet article, l'État agit lui-même pour développer l'IA. Un organe public reçoit une mission, coordonne, finance, forme, coopère, ou l'État se donne la possibilité d'utiliser un système.
-- Limiter les risques : dans cet article, l'État impose des règles sur l'IA à quelqu'un — fabricant, exploitant, utilisateur ou autorité : obligations, conditions d'utilisation, limites, interdictions, contrôles, sanctions. Une autorisation assortie de conditions impose ces conditions.
-
-"""
-
-QUADRANT_EXAMPLES: Dict[str, List[str]] = {
-    "AI_PRODUCTION": ["La Confédération soutient des programmes de recherche en apprentissage automatique.",
-                      "Un supercalculateur public est mis à disposition des chercheurs pour entraîner des modèles."],
-    "AI_ADOPTION": ["L'office crée un centre de compétences pour accompagner les services qui utilisent l'IA.",
-                    "Les autorités peuvent utiliser un logiciel de traduction automatique."],
-    "AI_PRODUCTION_RISK": ["Le développeur doit protéger le code et les données d'entraînement de son modèle contre les intrusions.",
-                           "Les données personnelles ne peuvent servir à entraîner un modèle qu'avec le consentement des personnes."],
-    "AI_ADOPTION_RISK": ["Le fabricant d'un robot de soins doit démontrer sa sécurité avant la mise sur le marché.",
-                         "L'office peut recourir à un logiciel d'analyse d'images si les personnes concernées en sont informées."],
-    "": ["Au sens de la présente loi, on entend par drone autonome un aéronef capable de voler sans pilote.",
-         "La présente ordonnance règle l'utilisation des robots de livraison."],
-}
-
-QUADRANT_YESNO_SYSTEM = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).
-
-L'article ci-dessous concerne un système d'IA ou un système qui en dépend (conduite automatisée, reconnaissance faciale…). On classe chaque article selon deux règles.
-
-{rules}
-## Ta tâche
-Dans cet article, que fait l'État ? Dire s'il correspond à la catégorie : {name}.
-
-## Définition
-{definition}
-
-## Réponses possibles
-{options}
-
-## Exemples (inventés, pour illustrer le raisonnement)
-{examples}
-
-Réponds par une seule lettre : {letters}."""
-
-
-def _q1_rule2() -> str:
-    """Règle production / adoption, texte exact de la question à 5 options (run 66533384)."""
-    a = Q1_SYSTEM.index("## Règle 2")
-    b = Q1_SYSTEM.index("## Réponses possibles")
-    return Q1_SYSTEM[a:b].rstrip() + "\n"
-
-
-def quadrant_codes() -> List[str]:
-    return [c for c, _ in QUADRANTS]
-
-
-def quadrant_yesno_system(code: str, order: List[int] = None):
-    order = order or [0, 1]
-    block, letters, codes = _render(YESNO_OPTIONS, order)
-    pos = {c: l for l, c in zip(letters, codes)}
-    ex = [f"- « {t} » → {pos['OUI']}" for t in QUADRANT_EXAMPLES[code]]
-    ex += [f"- « {QUADRANT_EXAMPLES[o][0]} » → {pos['NON']}" for o in quadrant_codes() if o != code]
-    return QUADRANT_YESNO_SYSTEM.format(rules=QUADRANT_YESNO_RULES + _q1_rule2(), name=QUADRANT_NAMES[code],
-                                        definition=QUADRANT_YESNO_DEFS[code], options=block,
-                                        letters=", ".join(letters), examples="\n".join(ex)), letters, codes
-
 
 # ------------------------------------------------------------------ Q2 en questions oui/non
 # Pass 2 : pour le cadran choisi, l'article est soumis à UNE question oui/non PAR sous-catégorie
@@ -331,7 +247,6 @@ Q_LINES = {
     "q1": "Que fait l'État avec cet article ? Réponds par une seule lettre : {letters}.",
     "q2": "Quelle sous-catégorie ? Réponds par une seule lettre : {letters}.",
     "sub_yesno": "Cet article vise-t-il surtout cette sous-catégorie ? Réponds par une seule lettre : {letters}.",
-    "q1_yesno": "Dans cet article, que fait l'État ? Correspond-il à cette catégorie ? Réponds par une seule lettre : {letters}.",
     "q3": "Quel est l'instrument ? Réponds par une seule lettre : {letters}.",
 }
 
