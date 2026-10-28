@@ -33,7 +33,7 @@ import time
 import pandas as pd
 
 from src import ai_relevance_prompts as P
-from src.keyword_filter import KEYWORDS, compile_keywords, find_in_text, find_surface_terms
+from src.keyword_filter import KEYWORDS, compile_keywords, find_in_text, find_surface_terms, normalize
 
 
 def read_any(path: str) -> pd.DataFrame:
@@ -117,22 +117,33 @@ def evaluate(out: pd.DataFrame, gold_path: str, report_path: str) -> None:
     Path(report_path).write_text(txt + "\n", encoding="utf-8")
 
 
-def propagate(df: pd.DataFrame, todo: list, res: dict) -> int:
-    """Propagation intra-acte (cf. P.PROPAGATION_KEYWORDS). Modifie res en place."""
+def _singular(s: str) -> str:
+    return " ".join(w[:-1] if (w.endswith("s") and len(w) > 3) else w for w in s.split())
+
+
+def propagate(df: pd.DataFrame, todo: list, res: dict, compiled) -> int:
+    """Propagation intra-acte (cf. P.PROPAGATION_KEYWORDS), sur le TERME EXACT trouvé : un article
+    devient SPECIFIQUE si un article SPECIFIQUE du même acte contient le même terme (normalisé,
+    au singulier) d'un mot-clé autorisé. « système d'automatisation » ne se propage donc pas à
+    « systèmes autonomes de traitement », bien qu'ils partagent le même libellé de mot-clé."""
     allowed = set(P.PROPAGATION_KEYWORDS)
-    kws = {i: set(str(df.at[i, "kw_keywords"]).split("|")) & allowed for i in todo}
+    allowed_c = [c for c in compiled if c.kw.label in allowed and not c.kw.case_sensitive]
+    cores = {}
+    for i in todo:
+        t = normalize(f"{df.at[i, 'label']}\n{df.at[i, 'text']}")
+        cores[i] = {_singular(m.group(0)) for c in allowed_c for m in c.rx.finditer(t)}
     by_law = {}
     for i in todo:
         by_law.setdefault(str(df.at[i, "law_id"]), []).append(i)
     n = 0
     for law, items in by_law.items():
-        sources = [i for i in items if res[i]["AIREL_LABEL"] == "SPECIFIQUE" and kws[i]]
+        sources = [i for i in items if res[i]["AIREL_LABEL"] == "SPECIFIQUE" and cores[i]]
         if not sources:
             continue
         for i in items:
-            if res[i]["AIREL_LABEL"] == "SPECIFIQUE" or not kws[i]:
+            if res[i]["AIREL_LABEL"] == "SPECIFIQUE" or not cores[i]:
                 continue
-            src = [j for j in sources if kws[j] & kws[i]]
+            src = [j for j in sources if cores[j] & cores[i]]
             if src:
                 res[i]["AIREL_LABEL"] = "SPECIFIQUE"
                 res[i]["AIREL_METHOD"] = "propagation"
@@ -300,7 +311,7 @@ def main() -> int:
         print(f"Cas 3 : {len(case3_idx)} articles NON examinés en {time.time() - t0:.0f} s ; penchant pour « oui » "
               f"(article vide) = {p_cf:.2f} ; {n_flip} passé(s) en SPECIFIQUE (seuil {args.case3_threshold})")
 
-    n_prop = 0 if args.no_propagation else propagate(df, todo, res)
+    n_prop = 0 if args.no_propagation else propagate(df, todo, res, compiled)
     print(f"Propagation intra-acte : {n_prop} article(s) passés en SPECIFIQUE")
 
     cols = ["AIREL_METHOD", "AIREL_TERMS", "AIREL_DEFINITION", "AIREL_LABEL", "AIREL_LABEL_LLM",

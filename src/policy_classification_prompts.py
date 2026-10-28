@@ -1,5 +1,5 @@
 # src/policy_classification_prompts.py
-"""Step LLM 2 (v5 : cadran identique au run 66533384 ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
+"""Step LLM 2 (v6 : passage concerné montré au modèle ; « aucun mécanisme » par règle de structure ; v5 : cadran identique au run 66533384 ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
 
 Cf. le codebook (Claude Docs « Codebook – Portfolio IA »). Trois questions, chacune posée avec
 toutes ses options à la fois, réponse en une lettre (lecture de la probabilité des lettres) :
@@ -11,6 +11,8 @@ toutes ses options à la fois, réponse en une lettre (lecture de la probabilit�
 Les exemples sont inventés (aucun article du corpus) : ils illustrent le raisonnement.
 """
 from __future__ import annotations
+
+import re
 
 from typing import Dict, List, Tuple
 
@@ -238,7 +240,7 @@ Emplacement : {breadcrumb}
 
 Texte de l'article :
 {article_text}
-
+{passage}
 Système concerné (terme repéré) : {terms}
 
 {question}"""
@@ -301,7 +303,59 @@ def q3_system(order: List[int] = None):
                             examples=_examples(Q3_EXAMPLES, letters, codes)), letters, codes
 
 
-def build_user_prompt(row, ctx: Dict[str, str], terms: List[str], definitions: str, question: str, letters: List[str]) -> str:
+PASSAGE_HEADER = "\nPassage où figure le terme repéré (c'est ce passage qui compte pour la classification) :\n{passage}\n"
+PASSAGE_MIN_ARTICLE_CHARS = 1200  # en dessous, l'article est assez court pour être jugé en entier
+PASSAGE_MAX_SHARE = 0.4          # le passage n'est montré que s'il isole une petite partie de l'article
+
+
+def find_passage(text: str, keywords, find_in_text) -> str:
+    """Pour un article long, renvoie les seuls segments (alinéas, lettres, chiffres) qui
+    contiennent un des mots-clés repérés, précédés de la phrase d'introduction d'une liste
+    (« … sont les suivantes : »). Chaîne vide si l'article est court ou si le passage serait
+    l'article entier."""
+    text = (text or "").strip()
+    if len(text) < PASSAGE_MIN_ARTICLE_CHARS or not keywords:
+        return ""
+    segs = [x.strip() for x in text.split("\n") if x.strip()]
+    keep = [i for i, seg in enumerate(segs) if find_in_text(seg, keywords)]
+    if not keep or len(keep) == len(segs):
+        return ""
+    # un segment retenu qui annonce une liste (« … doit: ») emporte ses éléments a., b., …
+    _alinea = re.compile(r"^\d+[a-z]?\s")
+    for i in list(keep):
+        if segs[i].rstrip().endswith(":"):
+            j = i + 1
+            while j < len(segs) and not _alinea.match(segs[j]):
+                if j not in keep:
+                    keep.append(j)
+                j += 1
+    keep.sort()
+    out = []
+    for i in keep:
+        # phrase d'introduction de la liste à laquelle appartient le segment
+        j = i - 1
+        while j >= 0 and not segs[j].rstrip().endswith(":"):
+            j -= 1
+        if j >= 0 and j not in keep and segs[j] not in out:
+            out.append(segs[j])
+        out.append(segs[i])
+    passage = "\n".join(out)
+    return "" if len(passage) > PASSAGE_MAX_SHARE * len(text) else passage
+
+
+# Règle « aucun mécanisme » (sans LLM) : article de définitions ou d'objet, repéré par son titre
+# marginal ou par la formule « on entend par » au début du texte.
+_NO_MECH_MARGINAL = re.compile(r"d[ée]finitions?|notions?|terminologie|^objet\b|objet et champ|^but et objet|^objet et but", re.I)
+_NO_MECH_TEXT = re.compile(r"on entend par|au sens de la pr[ée]sente (?:loi|ordonnance)|au sens du pr[ée]sent (?:r[èe]glement|arr[êe]t[ée]|accord)", re.I)
+
+
+def is_no_mechanism(ctx: Dict[str, str], text: str) -> bool:
+    if _NO_MECH_MARGINAL.search((ctx.get("marginal") or "").strip()):
+        return True
+    return bool(_NO_MECH_TEXT.search((text or "")[:250]))
+
+
+def build_user_prompt(row, ctx: Dict[str, str], terms: List[str], definitions: str, question: str, letters: List[str], passage: str = "") -> str:
     meta = []
     if str(row.get("sr_number", "") or "").strip():
         meta.append(f"RS {row['sr_number']}")
@@ -316,5 +370,6 @@ def build_user_prompt(row, ctx: Dict[str, str], terms: List[str], definitions: s
         marginal=f" — {ctx['marginal']}" if ctx["marginal"] else "",
         article_text=str(row.get("text", "") or "").strip(),
         terms=", ".join(f"« {t} »" for t in terms) if terms else "(non précisé)",
+        passage=PASSAGE_HEADER.format(passage=passage) if passage else "",
         question=Q_LINES[question].format(letters=", ".join(letters)),
     )

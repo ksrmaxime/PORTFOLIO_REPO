@@ -203,7 +203,7 @@ def main() -> int:
     compiled = compile_keywords(KEYWORDS)
     contexts = A.build_contexts(df)
     def_index = {} if args.no_definitions else A.find_definition_articles(df)
-    base_args = {}
+    base_args, passages, no_mech = {}, {}, {}
     for i in todo:
         row = df.loc[i]
         full = f"{row['label']}\n{row['text']}"
@@ -214,6 +214,9 @@ def main() -> int:
             sub = [c for c in compiled if c.kw in kw_here]
             defs = A.definitions_for(df, i, def_index, sub, find_in_text) if sub else ""
         base_args[i] = (row, contexts[i], terms, defs)
+        kw_here = [c for c in compiled if c.kw in set(find_in_text(full, compiled))]
+        passages[i] = Q.find_passage(str(row["text"]), kw_here, find_in_text)
+        no_mech[i] = Q.is_no_mechanism(contexts[i], str(row["text"]))
 
     from src.client import LLMConfig, TransformersClient
     t0 = time.time()
@@ -228,13 +231,20 @@ def main() -> int:
     print(f"Ordres de présentation des options : {'2 (référence + décalé, probabilités moyennées)' if debias else '1'}")
 
     def user_fn(question):
-        return lambda i, letters: Q.build_user_prompt(*base_args[i], question, letters)
+        return lambda i, letters: Q.build_user_prompt(*base_args[i], question, letters, passages[i])
 
     # ---- Q1 cadran
     acc1, ref1 = score_question(client, todo, lambda i, o: Q.q1_system(o), user_fn("q1"),
                                 len(Q.QUADRANTS), debias, args.batch_size)
     for i in todo:
         r = ranked_dict(acc1[i])
+        # « aucun mécanisme » : décidé par la règle de structure (définitions / objet), pas par le
+        # LLM. Si le LLM met « aucun » en tête pour un autre article, on retient son 2e choix.
+        if no_mech[i]:
+            r = [("", 1.0)] + [x for x in r if x[0] != ""]
+        elif r[0][0] == "":
+            r = [x for x in r if x[0] != ""] + [("", r[0][1])]
+        res[i]["POL_NO_MECH_RULE"] = "OUI" if no_mech[i] else ""
         res[i].update({"POL_QUADRANT": r[0][0] or "AUCUN", "POL_TARGET": r[0][0], "POL_TARGET_P": round(r[0][1], 4),
                        "POL_TARGET_2": r[1][0] or "AUCUN", "POL_TARGET_2_P": round(r[1][1], 4),
                        "POL_TARGET_PROBS": dist_str(r)})
@@ -249,7 +259,7 @@ def main() -> int:
     pairs = [(i, sub) for i in mech for sub in Q.sub_codes(res[i]["POL_TARGET"])]
     acc2, ref2 = score_question(client, pairs,
                                 lambda key, o: Q.sub_yesno_system(res[key[0]]["POL_TARGET"], key[1], o),
-                                lambda key, letters: Q.build_user_prompt(*base_args[key[0]], "sub_yesno", letters),
+                                lambda key, letters: Q.build_user_prompt(*base_args[key[0]], "sub_yesno", letters, passages[key[0]]),
                                 2, True, args.batch_size)
     cf_keys = sorted({(res[i]["POL_TARGET"], sub) for i, sub in pairs})
     acc_cf, _ = score_question(client, cf_keys, lambda key, o: Q.sub_yesno_system(key[0], key[1], o),
@@ -314,11 +324,12 @@ def main() -> int:
             "POL_SUBTARGET", "POL_SUBTARGET_P", "POL_SUBTARGET_2", "POL_SUBTARGET_2_P",
             "POL_INSTRUMENT", "POL_INSTRUMENT_P", "POL_INSTRUMENT_2", "POL_INSTRUMENT_2_P",
             "POL_TARGET_PROBS", "POL_SUBTARGET_PROBS", "POL_SUBTARGET_PROBS_CALIB", "POL_SUBTARGET_BRUT", "POL_SUBTARGET_CALIB", "POL_INSTRUMENT_PROBS",
-            "POL_DEFINITION", "POL_TARGET_JUSTIFICATION", "POL_INSTRUMENT_JUSTIFICATION"]
+            "POL_DEFINITION", "POL_PASSAGE", "POL_NO_MECH_RULE", "POL_TARGET_JUSTIFICATION", "POL_INSTRUMENT_JUSTIFICATION"]
     for c in cols:
         df[c] = pd.NA
     for i in todo:
         df.at[i, "POL_DEFINITION"] = base_args[i][3].strip()
+        df.at[i, "POL_PASSAGE"] = passages[i]
         for c, v in res[i].items():
             df.at[i, c] = v
 
