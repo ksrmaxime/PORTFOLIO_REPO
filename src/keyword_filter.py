@@ -101,6 +101,15 @@ KEYWORDS: List[Keyword] = [
     Keyword("technologies_emergentes", "extended", "transformation numérique", rf"\btransformation numerique\b"),
     Keyword("technologies_emergentes", "extended", "systèmes intelligents / objets connectés",
             rf"\b(?:systemes?|logiciels?|outils?|acheminement|technologies?|applications?) intelligente?s?\b|\binternet des objets\b|\bobjets? connectes?\b"),
+    # --- Calcul, prédiction, reconnaissance (ajouts après l'exploration du corpus complet) ----
+    Keyword("calcul", "extended", "calcul haute performance / processeur graphique / quantique",
+            rf"\b(?:calcul (?:a |de )?haute performance|calcul accelere|processeurs? graphiques?|puissance de calcul|capacites? de calcul|informatique quantique|ordinateurs? quantiques?)\b"),
+    Keyword("decision_automatisee", "extended", "modèle de prédiction",
+            rf"\b(?:modeles? de prediction|modeles? predictifs?)\b"),
+    Keyword("biometrie", "extended", "reconnaissance optique de caractères",
+            rf"\breconnaissance optique de caracteres\b"),
+    Keyword("automatisation", "extended", "systèmes d'assistance à la conduite",
+            rf"\b(?:systemes? d'(?:aide|assistance) a la conduite|assistance a la conduite)\b"),
     # --- Données (exploitation à grande échelle) ----------------------------
     Keyword("donnees", "extended", "fouille de textes et de données / mégadonnées",
             rf"\b(?:fouille de (?:textes et de )?donnees|exploration de textes et de donnees|text and data mining|megadonnees|big data|science des donnees)\b"),
