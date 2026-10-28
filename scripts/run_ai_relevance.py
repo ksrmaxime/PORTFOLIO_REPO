@@ -154,7 +154,9 @@ def main() -> int:
     ap.add_argument("--no_definitions", action="store_true", help="ne pas ajouter les définitions de l'acte au prompt")
     ap.add_argument("--no_propagation", action="store_true", help="pas de propagation intra-acte")
     ap.add_argument("--no_case3", action="store_true", help="pas de seconde question « cas 3 » (risque porté par l'IA)")
-    ap.add_argument("--case3_threshold", type=float, default=0.5,
+    # 0.65 : fixé sur le run 66621588 (le gold ne contient aucun article du cas 3) ; correspond aux
+    # articles nettement au-dessus du lot (~ moyenne + 1,5 écart-type des scores des articles NON)
+    ap.add_argument("--case3_threshold", type=float, default=0.65,
                     help="probabilité corrigée de « oui » à partir de laquelle un article NON passe en SPECIFIQUE (cas 3)")
     ap.add_argument("--no_justification", action="store_true")
     ap.add_argument("--max_new_tokens", type=int, default=90)
