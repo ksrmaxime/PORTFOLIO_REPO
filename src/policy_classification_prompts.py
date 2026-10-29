@@ -188,7 +188,7 @@ def sub_yesno_system(quadrant: str, sub: str, order: List[int] = None):
 
 def content_free_user_prompt(question: str, letters: List[str]) -> str:
     """Prompt utilisateur sans contenu (calibration : penchant du modèle pour « oui »)."""
-    return USER_TEMPLATE.format(act_title="N/A", act_meta="", breadcrumb="N/A", definitions="",
+    return USER_TEMPLATE.format(act_title="N/A", act_meta="", breadcrumb="N/A", definitions="", passage="",
                                 article_label="N/A", marginal="", article_text="N/A", terms="« N/A »",
                                 question=Q_LINES[question].format(letters=", ".join(letters)))
 

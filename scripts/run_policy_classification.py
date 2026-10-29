@@ -147,11 +147,14 @@ def evaluate(out: pd.DataFrame, gold_path: str, report_path: str) -> None:
         if col in m.columns:
             okx = [m[col].iloc[i] in gs.iloc[i] for i in both]
             lines.append(f"Sous-catégorie {lab}, quand le cadran est juste : {sum(okx) / max(1, len(both)):.1%}")
-    idx = [i for i in range(len(m)) if mech[i]]
+    # instrument : seulement les articles dont l'instrument est codé dans le gold
+    idx = [i for i in range(len(m)) if mech[i] and gi.iloc[i]]
+    n_nocode = sum(1 for i in range(len(m)) if mech[i] and not gi.iloc[i])
     ok_i = [m["POL_INSTRUMENT"].iloc[i] in gi.iloc[i] for i in idx]
     ok_i2 = [ok or (m["POL_INSTRUMENT_2"].iloc[i] in gi.iloc[i]) for ok, i in zip(ok_i, idx)]
     lines.append(f"\nInstrument (articles avec mécanisme, {len(idx)}) : exactitude {sum(ok_i) / max(1, len(idx)):.1%}"
-                 f"   (vrai dans les 2 premières : {sum(ok_i2) / max(1, len(idx)):.1%})")
+                 f"   (vrai dans les 2 premières : {sum(ok_i2) / max(1, len(idx)):.1%})"
+                 + (f"   — {n_nocode} article(s) sans instrument codé dans le gold, non comptés" if n_nocode else ""))
     lines.append(pd.crosstab(pd.Series([gi.iloc[i][0] for i in idx], name="gold"),
                              pd.Series([m["POL_INSTRUMENT"].iloc[i] or "(aucun)" for i in idx], name="prédit")).to_string())
     txt = "\n".join(lines)
