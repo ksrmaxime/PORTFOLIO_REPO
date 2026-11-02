@@ -78,7 +78,7 @@ python scripts/run_policy_classification.py \
   --model_path "$MODEL_PATH" \
   --dtype bf16 \
   --trust_remote_code \
-  --batch_size 4 \
+  --batch_size "${BATCH_SIZE:-1}" \
   ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
 
 cp src/policy_classification_prompts.py "$(dirname "$OUTBASE")/prompts_used_job${SLURM_JOB_ID:-nojobid}.py" || true

@@ -169,7 +169,8 @@ def main() -> int:
     ap.add_argument("--model_path", required=True)
     ap.add_argument("--dtype", default="bf16", choices=["bf16", "fp16"])
     ap.add_argument("--trust_remote_code", action="store_true")
-    ap.add_argument("--batch_size", type=int, default=4)
+    ap.add_argument("--batch_size", type=int, default=1,
+                    help="1 = un prompt à la fois, sans padding : résultats reproductibles d'un run à l'autre (défaut)")
     ap.add_argument("--no_definitions", action="store_true")
     ap.add_argument("--debias", action="store_true",
                     help="cadran, sous-catégorie et instrument posés dans deux ordres (défaut : un seul, comme au run 66533384)")

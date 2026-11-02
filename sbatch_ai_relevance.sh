@@ -73,7 +73,7 @@ python scripts/run_ai_relevance.py \
   --model_path "$MODEL_PATH" \
   --dtype bf16 \
   --trust_remote_code \
-  --batch_size 4 \
+  --batch_size "${BATCH_SIZE:-1}" \
   ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}
 
 # archive du prompt utilisé à côté des résultats

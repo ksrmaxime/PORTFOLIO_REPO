@@ -1,5 +1,5 @@
 # src/policy_classification_prompts.py
-"""Step LLM 2 (v6 : passage concerné montré au modèle ; « aucun mécanisme » par règle de structure ; v5 : cadran identique au run 66533384 ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
+"""Step LLM 2 (v7 : définitions précisées — sécurité « avant/pendant » vs responsabilité « après coup », autorisation inclut procédure et conditions, organisation inclut coordination/instructions, non contraignant réservé aux mesures qui n'obligent personne ; v6 : passage concerné montré au modèle ; « aucun mécanisme » par règle de structure ; v5 : cadran identique au run 66533384 ; sous-catégorie = une question oui/non par sous-catégorie, la plus probable est retenue ; v2, règles du 23.10.2026 : production = moyens de produire ; conditions = risque) : cible (cadran + sous-catégorie) et instrument des articles SPECIFIQUE.
 
 Cf. le codebook (Claude Docs « Codebook – Portfolio IA »). Trois questions, chacune posée avec
 toutes ses options à la fois, réponse en une lettre (lecture de la probabilité des lettres) :
@@ -85,8 +85,8 @@ SUB_DESC: Dict[str, Dict[str, str]] = {
     },
     "AI_ADOPTION_RISK": {
         "PRIVACY_RIGHTS": "Vie privée et droits : données personnelles traitées par le système en usage, limitation des cas d'usage, consultation, effacement, profilage, non-discrimination.",
-        "SAFETY_SECURITY": "Sécurité : exigences techniques sur le produit final, homologation, surveillance des systèmes en circulation, incidents, contrôles, entretien, conditions de sécurité d'une autorisation, restrictions d'usage, interdiction de vendre ou de fournir le service (sécurité nationale).",
-        "ACCOUNTABILITY_TRANSPARENCY": "Responsabilité (accountability), puis transparence. Responsabilité : pouvoir établir après coup qui a fait quoi et qui en répond — enregistrement des événements (enregistreur), traçabilité, accès aux données enregistrées pour établir les faits après un accident, contrôle humain (surveillance par une personne, reprise du contrôle), désignation des responsables, instructions et explications remises aux utilisateurs. Transparence, en second lieu : information des personnes, signalement de l'usage de l'IA.",
+        "SAFETY_SECURITY": "Sécurité (avant et pendant le fonctionnement) : empêcher que le système cause un dommage — exigences techniques sur le produit final, homologation, entretien et mises à jour, incidents et pannes, suivi de la sécurité des systèmes en circulation, conditions de sécurité d'une autorisation, restrictions d'usage, interdiction de vendre ou de fournir le service (sécurité nationale).",
+        "ACCOUNTABILITY_TRANSPARENCY": "Responsabilité (accountability), puis transparence. Responsabilité (après coup) : pouvoir établir après coup qui a fait quoi et qui en répond — enregistrement des événements (enregistreur), traçabilité, accès aux données enregistrées pour établir les faits après un accident, contrôle humain (surveillance par une personne, reprise du contrôle), désignation des responsables, instructions et explications remises aux utilisateurs. Transparence, en second lieu : information des personnes, signalement de l'usage de l'IA.",
         "PROPERTY_ECONOMY": "Propriété et économie : droits sur les contenus générés, effets économiques de l'usage.",
         "SOCIETY": "Société : hypertrucages, désinformation, effets sur le travail ou la démocratie.",
     },
@@ -195,15 +195,15 @@ def content_free_user_prompt(question: str, letters: List[str]) -> str:
 
 # ------------------------------------------------------------------ Q3 instrument
 INSTRUMENTS: List[Tuple[str, str]] = [
-    ("ORGANISATION", "Organisation : confier une tâche ou un rôle à une autorité ou un organisme, ou en créer un (coordination, surveillance, réseau, groupe de suivi)."),
-    ("AUTHORIZATION", "Autorisation : base légale qui PERMET — habilitation d'une autorité (« peut »), régime d'autorisation, d'admission ou d'homologation, usage permis sous conditions."),
-    ("OBLIGATION", "Obligation : exigence imposée à un acteur (« doit », « est tenu de »), y compris le devoir qui correspond à un droit des personnes."),
+    ("ORGANISATION", "Organisation : confier une tâche ou un rôle à une autorité ou un organisme, ou en créer un (coordonner, surveiller, mettre en relation, échanger des expériences, édicter des instructions d'exécution, réseau, groupe de suivi)."),
+    ("AUTHORIZATION", "Autorisation : base légale qui PERMET — habilitation d'une autorité (« peut »), régime d'autorisation, d'admission, de réception par type ou d'homologation, y compris la procédure de demande et les conditions à remplir pour obtenir l'autorisation, usage permis sous conditions."),
+    ("OBLIGATION", "Obligation : exigence imposée à un acteur (« doit », « est tenu de ») en dehors d'un régime d'autorisation, y compris le devoir qui correspond à un droit des personnes."),
     ("PROHIBITION_BAN", "Interdiction : interdire une activité, restreindre un usage hors d'un cadre autorisé, clauses de sauvegarde."),
     ("LIABILITY", "Responsabilité et sanctions : désigner qui répond de quoi, amendes, peines."),
     ("TAXES_SUBSIDIES", "Taxes et subventions : contributions financières, subventions, taxes."),
     ("PUBLIC_INVESTMENT", "Investissement public : l'État finance ou construit lui-même (infrastructure, programme)."),
     ("PLANNING_EVALUATION", "Planification et évaluation : stratégie, rapports, évaluation, essais pilotes et expérimentations."),
-    ("VOLUNTARY", "Instruments non contraignants : recommandations, information, labels, coopération facultative (« peuvent collaborer »)."),
+    ("VOLUNTARY", "Instruments non contraignants : mesures qui n'obligent personne, en général destinées à des acteurs privés — recommandations, information du public, labels, coopération facultative (« peuvent collaborer »)."),
 ]
 
 Q3_SYSTEM = """Tu es juriste, spécialiste du droit suisse et de la régulation de l'intelligence artificielle (IA).

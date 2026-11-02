@@ -159,7 +159,8 @@ def main() -> int:
     ap.add_argument("--model_path", required=True)
     ap.add_argument("--dtype", default="bf16", choices=["bf16", "fp16"])
     ap.add_argument("--trust_remote_code", action="store_true")
-    ap.add_argument("--batch_size", type=int, default=4)
+    ap.add_argument("--batch_size", type=int, default=1,
+                    help="1 = un prompt à la fois, sans padding : résultats reproductibles d'un run à l'autre (défaut)")
     ap.add_argument("--calibrate", action="store_true", help="label = probabilités calibrées (défaut : brutes)")
     ap.add_argument("--no_rule", action="store_true", help="envoyer aussi au LLM les articles où l'IA est nommée")
     ap.add_argument("--no_definitions", action="store_true", help="ne pas ajouter les définitions de l'acte au prompt")

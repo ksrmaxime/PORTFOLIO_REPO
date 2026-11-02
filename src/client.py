@@ -21,6 +21,14 @@ class TransformersClient:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.torch = torch
+        # Reproductibilité : mêmes prompts -> mêmes probabilités d'un run à l'autre.
+        # (avec batch_size=1 il n'y a pas de padding ; on désactive aussi TF32 et les
+        # algorithmes cuDNN non déterministes)
+        torch.manual_seed(0)
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
         self.tok = AutoTokenizer.from_pretrained(
             cfg.model_path,
             trust_remote_code=cfg.trust_remote_code,
@@ -45,6 +53,10 @@ class TransformersClient:
             device_map=None,
             low_cpu_mem_usage=False,
         ).eval().to("cuda")
+        try:
+            print(f"GPU : {torch.cuda.get_device_name(0)}  (les résultats ne sont comparables qu'entre runs sur le même type de GPU)", flush=True)
+        except Exception:
+            pass
 
     def chat_many(
         self,
